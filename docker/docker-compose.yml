@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: korean-app-postgres
+    environment:
+      POSTGRES_USER: korean_user
+      POSTGRES_PASSWORD: korean_pass_2024
+      POSTGRES_DB: korean_learning
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U korean_user -d korean_learning']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: korean-app-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: korean-app-api
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://korean_user:korean_pass_2024@postgres:5432/korean_learning?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: korean-app-jwt-secret-key-2024-production
+      JWT_REFRESH_SECRET: korean-app-jwt-refresh-secret-key-2024-production
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  admin-web:
+    build:
+      context: ..
+      dockerfile: apps/admin-web/Dockerfile
+    container_name: korean-app-admin
+    ports:
+      - '5173:80'
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: korean-app-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@koreanapp.com
+      PGADMIN_DEFAULT_PASSWORD: Admin123!
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge

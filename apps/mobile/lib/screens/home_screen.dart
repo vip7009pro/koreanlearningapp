@@ -1,0 +1,425 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../core/api_client.dart';
+import '../providers/auth_provider.dart';
+
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  List<dynamic> _courses = [];
+  Map<String, dynamic>? _dailyGoal;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final api = ref.read(apiClientProvider);
+    try {
+      final coursesRes = await api.getCourses();
+      final goalRes = await api.getDailyGoal();
+      if (mounted) {
+        setState(() {
+          _courses = coursesRes.data?['data'] ?? [];
+          _dailyGoal = goalRes.data;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
+
+    return Scaffold(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: CustomScrollView(
+                slivers: [
+                  // App Bar
+                  SliverAppBar(
+                    expandedHeight: 180,
+                    floating: false,
+                    pinned: true,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Xin chào 👋',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.8,
+                                            ),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          user?['displayName'] ?? 'User',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => context.push('/profile'),
+                                      child: CircleAvatar(
+                                        radius: 22,
+                                        backgroundColor:
+                                            Colors.white.withValues(alpha: 0.2),
+                                        child: const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // Stats Row
+                                Row(
+                                  children: [
+                                    _StatChip(
+                                      icon: Icons.local_fire_department,
+                                      label: '${user?['streakDays'] ?? 0} ngày',
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _StatChip(
+                                      icon: Icons.star,
+                                      label: '${user?['totalXP'] ?? 0} XP',
+                                      color: Colors.amber,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Daily Goal
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.flag,
+                                    color: Color(0xFF2563EB),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Mục tiêu hôm nay',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  value: (_dailyGoal?['currentXP'] ?? 0) /
+                                      (_dailyGoal?['targetXP'] ?? 50),
+                                  minHeight: 10,
+                                  backgroundColor: Colors.grey.shade200,
+                                  valueColor: const AlwaysStoppedAnimation(
+                                    Color(0xFF10B981),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${_dailyGoal?['currentXP'] ?? 0} / ${_dailyGoal?['targetXP'] ?? 50} XP',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Courses Header
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Khóa học',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {},
+                            child: const Text('Xem tất cả'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Course List
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final course = _courses[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: Card(
+                          child: InkWell(
+                            onTap: () =>
+                                context.push('/course/${course['id']}'),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFF2563EB,
+                                      ).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '📚',
+                                        style: TextStyle(fontSize: 28),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          course['title'] ?? '',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          course['description'] ?? '',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            _LevelBadge(
+                                              level:
+                                                  course['level'] ?? 'BEGINNER',
+                                            ),
+                                            if (course['isPremium'] ==
+                                                true) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.amber.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  'Premium',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        Colors.amber.shade900,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }, childCount: _courses.length),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                ],
+              ),
+            ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        selectedItemColor: const Color(0xFF2563EB),
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.auto_stories),
+            label: 'Ôn tập',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.leaderboard),
+            label: 'Bảng xếp hạng',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
+        ],
+        onTap: (index) {
+          if (index == 1 || index == 2) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng sắp ra mắt!')),
+            );
+          }
+          if (index == 3) context.push('/profile');
+        },
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelBadge extends StatelessWidget {
+  final String level;
+  const _LevelBadge({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = {
+      'BEGINNER': Colors.green,
+      'ELEMENTARY': Colors.teal,
+      'INTERMEDIATE': Colors.blue,
+      'ADVANCED': Colors.purple,
+    };
+    final c = colors[level] ?? Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        level,
+        style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}

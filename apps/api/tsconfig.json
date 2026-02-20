@@ -1,0 +1,17 @@
+{
+    "extends": "@korean-app/tsconfig/nestjs.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "baseUrl": "./",
+        "paths": {
+            "@/*": [
+                "src/*"
+            ]
+        },
+        "strictPropertyInitialization": false
+    },
+    "include": [
+        "src/**/*",
+        "prisma/**/*"
+    ]
+}
