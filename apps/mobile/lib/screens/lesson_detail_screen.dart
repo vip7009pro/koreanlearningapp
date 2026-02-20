@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../core/api_client.dart';
+import '../core/tts_service.dart';
 
 class LessonDetailScreen extends ConsumerStatefulWidget {
   final String lessonId;
@@ -41,6 +42,10 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     try {
       await _audioPlayer.play(UrlSource(url));
     } catch (_) {}
+  }
+
+  void _speakKorean(String text) {
+    ref.read(ttsProvider).speak(text);
   }
 
   Future<void> _loadData() async {
@@ -158,6 +163,12 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                 color: Colors.grey.shade600,
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            IconButton(
+                              icon: const Icon(Icons.volume_up,
+                                  size: 32, color: Color(0xFF2563EB)),
+                              onPressed: () => _speakKorean(v['korean'] ?? ''),
+                            ),
                             const SizedBox(height: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -228,6 +239,12 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                 fontSize: 18,
                                 color: Colors.grey.shade600,
                               ),
+                            ),
+                            const SizedBox(height: 12),
+                            IconButton(
+                              icon: const Icon(Icons.volume_up,
+                                  size: 32, color: Color(0xFF2563EB)),
+                              onPressed: () => _speakKorean(v['korean'] ?? ''),
                             ),
                             const SizedBox(height: 20),
                             ElevatedButton.icon(
@@ -346,6 +363,13 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                     color: Color(0xFF2563EB),
                   ),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.volume_up,
+                      color: Color(0xFF2563EB), size: 20),
+                  onPressed: () => _speakKorean(g['pattern'] ?? ''),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   g['explanationVN'] ?? '',
@@ -359,13 +383,24 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      g['example'],
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                        fontStyle: FontStyle.italic,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            g['example'],
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.volume_up,
+                              color: Color(0xFF2563EB), size: 18),
+                          onPressed: () => _speakKorean(g['example'] ?? ''),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -432,12 +467,27 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      d['koreanText'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            d['koreanText'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _speakKorean(d['koreanText'] ?? ''),
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.volume_up,
+                                size: 16, color: Color(0xFF2563EB)),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Row(

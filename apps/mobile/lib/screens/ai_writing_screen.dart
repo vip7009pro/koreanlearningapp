@@ -2,6 +2,55 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api_client.dart';
 
+const List<Map<String, String>> _defaultTopics = [
+  {
+    'title': '🎤 Tự giới thiệu',
+    'prompt':
+        'Hãy giới thiệu bản thân bằng tiếng Hàn (tên, tuổi, quê quán, sở thích).'
+  },
+  {
+    'title': '🏠 Gia đình',
+    'prompt': 'Viết một đoạn văn ngắn giới thiệu gia đình bạn bằng tiếng Hàn.'
+  },
+  {
+    'title': '🍜 Đồ ăn yêu thích',
+    'prompt':
+        'Viết về món ăn yêu thích của bạn bằng tiếng Hàn. Tại sao bạn thích nó?'
+  },
+  {
+    'title': '📅 Kế hoạch cuối tuần',
+    'prompt': 'Viết về kế hoạch cuối tuần này của bạn bằng tiếng Hàn.'
+  },
+  {
+    'title': '✈️ Du lịch',
+    'prompt':
+        'Kể về một chuyến du lịch đáng nhớ hoặc nơi bạn muốn đến bằng tiếng Hàn.'
+  },
+  {
+    'title': '🏫 Trường học',
+    'prompt':
+        'Viết về cuộc sống học đường hoặc công việc hằng ngày bằng tiếng Hàn.'
+  },
+  {
+    'title': '🌤️ Thời tiết',
+    'prompt': 'Mô tả thời tiết hôm nay và hoạt động phù hợp bằng tiếng Hàn.'
+  },
+  {
+    'title': '🎵 Âm nhạc K-POP',
+    'prompt':
+        'Viết về ca sĩ hoặc bài hát Hàn Quốc mà bạn yêu thích bằng tiếng Hàn.'
+  },
+  {
+    'title': '🛍️ Mua sắm',
+    'prompt': 'Viết một đoạn hội thoại hoặc tình huống mua sắm bằng tiếng Hàn.'
+  },
+  {
+    'title': '🎬 Phim Hàn',
+    'prompt':
+        'Kể về bộ phim hoặc drama Hàn Quốc yêu thích của bạn bằng tiếng Hàn.'
+  },
+];
+
 class AiWritingScreen extends ConsumerStatefulWidget {
   const AiWritingScreen({super.key});
 
@@ -11,14 +60,26 @@ class AiWritingScreen extends ConsumerStatefulWidget {
 
 class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _customTopicCtrl = TextEditingController();
   bool _isLoading = false;
   Map<String, dynamic>? _result;
-  final String _prompt =
-      'Hãy giới thiệu ngắn gọn về bản thân hoặc công việc của bạn bằng tiếng Hàn.';
+  int _selectedTopicIndex = 0;
+  bool _isCustomTopic = false;
+
+  String get _activePrompt {
+    if (_isCustomTopic) return _customTopicCtrl.text.trim();
+    return _defaultTopics[_selectedTopicIndex]['prompt']!;
+  }
 
   Future<void> _submitText() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    if (_activePrompt.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập chủ đề viết')),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -27,7 +88,7 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
-      final res = await api.correctWriting(_prompt, text);
+      final res = await api.correctWriting(_activePrompt, text);
       if (mounted) {
         setState(() {
           _result = res.data;
@@ -45,6 +106,13 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _customTopicCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Luyện Viết AI 🤖')),
@@ -53,30 +121,90 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Topic selector
+            const Text('Chọn chủ đề viết',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.edit_note, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Chủ đề viết',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.blue)),
-                    ],
+                  ..._defaultTopics.asMap().entries.map((e) {
+                    final isSelected =
+                        !_isCustomTopic && _selectedTopicIndex == e.key;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(e.value['title']!,
+                            style: const TextStyle(fontSize: 13)),
+                        selected: isSelected,
+                        selectedColor:
+                            const Color(0xFF2563EB).withValues(alpha: 0.2),
+                        onSelected: (_) => setState(() {
+                          _selectedTopicIndex = e.key;
+                          _isCustomTopic = false;
+                        }),
+                      ),
+                    );
+                  }),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      avatar: const Icon(Icons.edit, size: 16),
+                      label: const Text('Tùy chỉnh',
+                          style: TextStyle(fontSize: 13)),
+                      selected: _isCustomTopic,
+                      selectedColor: Colors.orange.withValues(alpha: 0.2),
+                      onSelected: (_) => setState(() => _isCustomTopic = true),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(_prompt, style: const TextStyle(fontSize: 16)),
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Display selected topic or custom input
+            if (_isCustomTopic)
+              TextField(
+                controller: _customTopicCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Nhập chủ đề viết tùy chỉnh...',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.edit_note),
+                ),
+                maxLines: 2,
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.edit_note, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Text(
+                          _defaultTopics[_selectedTopicIndex]['title']!,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(_defaultTopics[_selectedTopicIndex]['prompt']!,
+                        style: const TextStyle(fontSize: 15)),
+                  ],
+                ),
+              ),
+
             const SizedBox(height: 16),
             TextField(
               controller: _controller,
@@ -138,6 +266,34 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                   ),
                 ),
               ),
+              if (_result!['correctedText'] != null &&
+                  _result!['correctedText'] != _controller.text.trim()) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.auto_fix_high, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Bài viết đã sửa',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(_result!['correctedText'] ?? '',
+                            style: const TextStyle(fontSize: 15)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               if (_result!['errors'] != null &&
                   (_result!['errors'] as List).isNotEmpty) ...[
@@ -171,9 +327,11 @@ class _ScoreCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color color = Colors.green;
-    if (score < 50)
+    if (score < 50) {
       color = Colors.red;
-    else if (score < 80) color = Colors.orange;
+    } else if (score < 80) {
+      color = Colors.orange;
+    }
 
     return Stack(
       alignment: Alignment.center,

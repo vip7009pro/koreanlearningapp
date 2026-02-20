@@ -132,10 +132,10 @@ export class CoursesService {
                     title: q.title,
                     quizType: q.quizType || 'MULTIPLE_CHOICE',
                     questions: {
-                      create: (q.questions || []).map((qu: any) => ({
+                      create: (q.questions || []).map((qu: any, qIdx: number) => ({
                         questionType: qu.questionType || 'MULTIPLE_CHOICE',
-                        questionText: qu.questionText,
-                        correctAnswer: qu.correctAnswer,
+                        questionText: qu.questionText || qu.content || `Câu hỏi ${qIdx + 1}`,
+                        correctAnswer: qu.correctAnswer || '',
                         options: {
                           create: (qu.options || []).map((opt: any) => ({
                             text: opt.text,

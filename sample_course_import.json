@@ -1,18 +1,18 @@
 {
     "title": "Khóa học thử nghiệm Import",
-    "description": "JSON Import Test Course",
+    "description": "Đây là khóa JSON mẫu bao gồm đầy đủ: khóa học, section, lesson, vocabulary, grammar, dialogue, quiz",
     "level": "BEGINNER",
     "isPremium": false,
     "thumbnailUrl": "https://images.unsplash.com/photo-1546874177-9e664ce7ebbe?auto=format&fit=crop&q=80&w=800",
     "sections": [
         {
-            "title": "Phần 1: Chào hỏi",
+            "title": "Phần 1: Chào hỏi cơ bản",
             "orderIndex": 0,
             "lessons": [
                 {
-                    "title": "Bài 1: Gặp mặt",
-                    "description": "Các cách chào hỏi",
-                    "estimatedMinutes": 10,
+                    "title": "Bài 1: Gặp mặt & Xin chào",
+                    "description": "Học các cách chào hỏi phổ biến nhất trong tiếng Hàn",
+                    "estimatedMinutes": 15,
                     "orderIndex": 0,
                     "vocabularies": [
                         {
@@ -22,38 +22,80 @@
                             "exampleSentence": "안녕하세요! 만나서 반갑습니다.",
                             "exampleMeaning": "Xin chào! Rất vui được gặp bạn.",
                             "difficulty": "EASY"
+                        },
+                        {
+                            "korean": "감사합니다",
+                            "vietnamese": "Cảm ơn",
+                            "pronunciation": "kam-sa-ham-ni-da",
+                            "exampleSentence": "도와주셔서 감사합니다.",
+                            "exampleMeaning": "Cảm ơn bạn đã giúp đỡ.",
+                            "difficulty": "EASY"
+                        },
+                        {
+                            "korean": "안녕히 가세요",
+                            "vietnamese": "Tạm biệt (nói với người đi)",
+                            "pronunciation": "an-nyeong-hi ga-se-yo",
+                            "exampleSentence": "안녕히 가세요! 내일 봐요.",
+                            "exampleMeaning": "Tạm biệt! Hẹn gặp ngày mai.",
+                            "difficulty": "EASY"
+                        },
+                        {
+                            "korean": "죄송합니다",
+                            "vietnamese": "Xin lỗi",
+                            "pronunciation": "joe-song-ham-ni-da",
+                            "exampleSentence": "늦어서 죄송합니다.",
+                            "exampleMeaning": "Xin lỗi vì đến muộn.",
+                            "difficulty": "MEDIUM"
                         }
                     ],
                     "grammars": [
                         {
                             "pattern": "N + 입니다",
-                            "explanationVN": "Là N (dùng để giới thiệu danh từ)",
-                            "example": "학생입니다. (Tôi là học sinh.)"
+                            "explanationVN": "Dùng để nói 'Là N' (thể lịch sự). Ví dụ: 학생 + 입니다 = 학생입니다 (Tôi là học sinh).",
+                            "example": "저는 베트남 사람입니다. (Tôi là người Việt Nam.)"
+                        },
+                        {
+                            "pattern": "V + ㅂ니다/습니다",
+                            "explanationVN": "Thể kính ngữ chuẩn cho động từ. Thân chưa có patchim dùng ㅂ니다, có patchim dùng 습니다.",
+                            "example": "저는 공부합니다. (Tôi học bài.)"
                         }
                     ],
                     "dialogues": [
                         {
                             "speaker": "Minh",
-                            "koreanText": "안녕하세요?",
-                            "vietnameseText": "Xin chào?",
+                            "koreanText": "안녕하세요! 저는 민입니다.",
+                            "vietnameseText": "Xin chào! Tôi là Minh.",
                             "orderIndex": 0
                         },
                         {
-                            "speaker": "Jina",
-                            "koreanText": "네, 안녕하세요.",
-                            "vietnameseText": "Vâng, xin chào.",
+                            "speaker": "지나",
+                            "koreanText": "안녕하세요! 저는 지나입니다. 만나서 반갑습니다.",
+                            "vietnameseText": "Xin chào! Tôi là Jina. Rất vui được gặp bạn.",
                             "orderIndex": 1
+                        },
+                        {
+                            "speaker": "Minh",
+                            "koreanText": "네, 반갑습니다! 한국어를 공부합니다.",
+                            "vietnameseText": "Vâng, rất vui! Tôi đang học tiếng Hàn.",
+                            "orderIndex": 2
+                        },
+                        {
+                            "speaker": "지나",
+                            "koreanText": "좋아요! 같이 공부해요!",
+                            "vietnameseText": "Tuyệt vời! Hãy cùng học nhé!",
+                            "orderIndex": 3
                         }
                     ],
                     "quizzes": [
                         {
-                            "title": "Trắc nghiệm Chào hỏi",
+                            "title": "Trắc nghiệm: Chào hỏi cơ bản",
                             "quizType": "MULTIPLE_CHOICE",
                             "orderIndex": 0,
                             "questions": [
                                 {
-                                    "content": "Xin chào trong tiếng Hàn là gì?",
+                                    "questionText": "\"Xin chào\" trong tiếng Hàn là gì?",
                                     "questionType": "MULTIPLE_CHOICE",
+                                    "correctAnswer": "안녕하세요",
                                     "orderIndex": 0,
                                     "options": [
                                         {
@@ -65,6 +107,44 @@
                                             "text": "감사합니다",
                                             "isCorrect": false,
                                             "orderIndex": 1
+                                        },
+                                        {
+                                            "text": "죄송합니다",
+                                            "isCorrect": false,
+                                            "orderIndex": 2
+                                        },
+                                        {
+                                            "text": "안녕히 가세요",
+                                            "isCorrect": false,
+                                            "orderIndex": 3
+                                        }
+                                    ]
+                                },
+                                {
+                                    "questionText": "\"Cảm ơn\" trong tiếng Hàn là gì?",
+                                    "questionType": "MULTIPLE_CHOICE",
+                                    "correctAnswer": "감사합니다",
+                                    "orderIndex": 1,
+                                    "options": [
+                                        {
+                                            "text": "미안합니다",
+                                            "isCorrect": false,
+                                            "orderIndex": 0
+                                        },
+                                        {
+                                            "text": "감사합니다",
+                                            "isCorrect": true,
+                                            "orderIndex": 1
+                                        },
+                                        {
+                                            "text": "안녕하세요",
+                                            "isCorrect": false,
+                                            "orderIndex": 2
+                                        },
+                                        {
+                                            "text": "주세요",
+                                            "isCorrect": false,
+                                            "orderIndex": 3
                                         }
                                     ]
                                 }

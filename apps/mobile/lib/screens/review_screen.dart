@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../core/api_client.dart';
+import '../core/tts_service.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key});
@@ -11,25 +11,17 @@ class ReviewScreen extends ConsumerStatefulWidget {
   ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
 }
 
-class _ReviewScreenState extends ConsumerState<ReviewScreen>
-    with SingleTickerProviderStateMixin {
+class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   bool _isLoading = true;
   List<dynamic> _reviews = [];
   int _currentIndex = 0;
   bool _showMeaning = false;
-  late AudioPlayer _audioPlayer;
+  final Set<int> _answered = {};
 
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
     _loadReviews();
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
   }
 
   Future<void> _loadReviews() async {
@@ -47,10 +39,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     }
   }
 
-  Future<void> _playAudio(String url) async {
-    try {
-      await _audioPlayer.play(UrlSource(url));
-    } catch (_) {}
+  void _speakKorean(String text) {
+    ref.read(ttsProvider).speak(text);
   }
 
   Future<void> _submitResult(bool correct) async {
@@ -58,9 +48,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     final r = _reviews[_currentIndex];
     final vocabId = r['vocabularyId'];
 
-    // Optimistic UI update
     setState(() {
-      _currentIndex++;
+      _answered.add(_currentIndex);
       _showMeaning = false;
     });
 
@@ -68,6 +57,29 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
       final api = ref.read(apiClientProvider);
       await api.submitReview(vocabId, correct);
     } catch (_) {}
+
+    // Auto advance to next unanswered or finish
+    _goToNextUnanswered();
+  }
+
+  void _goToNextUnanswered() {
+    for (int i = _currentIndex + 1; i < _reviews.length; i++) {
+      if (!_answered.contains(i)) {
+        setState(() => _currentIndex = i);
+        return;
+      }
+    }
+    // Check backward
+    for (int i = 0; i < _currentIndex; i++) {
+      if (!_answered.contains(i)) {
+        setState(() => _currentIndex = i);
+        return;
+      }
+    }
+    // All answered
+    if (_answered.length >= _reviews.length) {
+      setState(() => _currentIndex = _reviews.length);
+    }
   }
 
   @override
@@ -78,6 +90,16 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
         elevation: 0,
         backgroundColor: const Color(0xFF2563EB),
         foregroundColor: Colors.white,
+        actions: [
+          if (_reviews.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text('${_answered.length}/${_reviews.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -103,7 +125,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Bạn đã hoàn thành rất tốt hôm nay.',
+            'Hãy thêm từ vựng vào danh sách ôn tập\ntừ các bài học để bắt đầu.',
+            textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 24),
@@ -129,10 +152,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {
-              // Refresh review stats on profile if needed
-              context.pop();
-            },
+            onPressed: () => context.pop(),
             child: const Text('Hoàn tất'),
           )
         ],
@@ -143,156 +163,235 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
   Widget _buildFlashcard() {
     final r = _reviews[_currentIndex];
     final vocab = r['vocabulary'] ?? {};
+    final alreadyAnswered = _answered.contains(_currentIndex);
 
-    return Column(
-      children: [
-        LinearProgressIndicator(
-          value: _reviews.isEmpty ? 0 : _currentIndex / _reviews.length,
-          minHeight: 8,
-          backgroundColor: Colors.grey.shade200,
-          valueColor: const AlwaysStoppedAnimation(Color(0xFF2563EB)),
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _showMeaning = true),
-            child: Container(
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  )
-                ],
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        vocab['korean'] ?? 'Unknown',
-                        style: const TextStyle(
-                            fontSize: 48, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (vocab['audioUrl'] != null &&
-                          vocab['audioUrl'].toString().isNotEmpty) ...[
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        if (details.primaryVelocity == null) return;
+        if (details.primaryVelocity! < 0 &&
+            _currentIndex < _reviews.length - 1) {
+          setState(() {
+            _currentIndex++;
+            _showMeaning = false;
+          });
+        } else if (details.primaryVelocity! > 0 && _currentIndex > 0) {
+          setState(() {
+            _currentIndex--;
+            _showMeaning = false;
+          });
+        }
+      },
+      child: Column(
+        children: [
+          LinearProgressIndicator(
+            value: _reviews.isEmpty ? 0 : _answered.length / _reviews.length,
+            minHeight: 8,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: const AlwaysStoppedAnimation(Color(0xFF2563EB)),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _showMeaning = true),
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: alreadyAnswered ? Colors.green.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    )
+                  ],
+                  border: Border.all(
+                      color: alreadyAnswered
+                          ? Colors.green.shade200
+                          : Colors.grey.shade200),
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (alreadyAnswered)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text('Đã ôn ✓',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 12)),
+                          ),
+                        Text(
+                          vocab['korean'] ?? 'Unknown',
+                          style: const TextStyle(
+                              fontSize: 48, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
                         const SizedBox(height: 16),
                         IconButton(
                           icon: const Icon(Icons.volume_up,
                               size: 32, color: Color(0xFF2563EB)),
-                          onPressed: () => _playAudio(vocab['audioUrl']),
-                        ),
-                      ],
-                      const SizedBox(height: 32),
-                      if (_showMeaning) ...[
-                        Text(
-                          vocab['pronunciation'] ?? '',
-                          style: TextStyle(
-                              fontSize: 18, color: Colors.grey.shade600),
+                          onPressed: () => _speakKorean(vocab['korean'] ?? ''),
                         ),
                         const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
-                          decoration: BoxDecoration(
-                            color:
-                                const Color(0xFF10B981).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
+                        if (_showMeaning) ...[
+                          Text(
+                            vocab['pronunciation'] ?? '',
+                            style: TextStyle(
+                                fontSize: 18, color: Colors.grey.shade600),
                           ),
-                          child: Text(
-                            vocab['vietnamese'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF10B981),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            textAlign: TextAlign.center,
+                            child: Text(
+                              vocab['vietnamese'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF10B981),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                        if (vocab['exampleSentence'] != null &&
-                            vocab['exampleSentence'].toString().isNotEmpty) ...[
-                          const SizedBox(height: 24),
+                          if (vocab['exampleSentence'] != null &&
+                              vocab['exampleSentence']
+                                  .toString()
+                                  .isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            GestureDetector(
+                              onTap: () =>
+                                  _speakKorean(vocab['exampleSentence'] ?? ''),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.volume_up,
+                                      size: 14, color: Color(0xFF2563EB)),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      vocab['exampleSentence'],
+                                      style: TextStyle(
+                                          color: Colors.grey.shade800,
+                                          fontSize: 16,
+                                          fontStyle: FontStyle.italic),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              vocab['exampleMeaning'] ?? '',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 14),
+                              textAlign: TextAlign.center,
+                            ),
+                          ]
+                        ] else ...[
                           Text(
-                            vocab['exampleSentence'],
+                            'Chạm để lật thẻ',
                             style: TextStyle(
-                                color: Colors.grey.shade800,
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            vocab['exampleMeaning'] ?? '',
-                            style: TextStyle(
-                                color: Colors.grey.shade500, fontSize: 14),
-                            textAlign: TextAlign.center,
-                          ),
+                                color: Colors.grey.shade400, fontSize: 16),
+                          )
                         ]
-                      ] else ...[
-                        Text(
-                          'Chạm để lật thẻ',
-                          style: TextStyle(
-                              color: Colors.grey.shade400, fontSize: 16),
-                        )
-                      ]
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
 
-        // Actions
-        if (_showMeaning)
+          // Navigation row
           Padding(
-            padding: const EdgeInsets.only(bottom: 40, left: 24, right: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade50,
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      elevation: 0,
-                    ),
-                    onPressed: () => _submitResult(false),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Chưa thuộc',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_rounded),
+                  onPressed: _currentIndex > 0
+                      ? () => setState(() {
+                            _currentIndex--;
+                            _showMeaning = false;
+                          })
+                      : null,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade50,
-                      foregroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      elevation: 0,
-                    ),
-                    onPressed: () => _submitResult(true),
-                    icon: const Icon(Icons.check),
-                    label: const Text('Đã thuộc',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
+                Text(
+                  '${_currentIndex + 1} / ${_reviews.length}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded),
+                  onPressed: _currentIndex < _reviews.length - 1
+                      ? () => setState(() {
+                            _currentIndex++;
+                            _showMeaning = false;
+                          })
+                      : null,
                 ),
               ],
             ),
-          )
-        else
-          const SizedBox(height: 100), // Placeholder to keep height consistent
-      ],
+          ),
+
+          // Actions
+          if (_showMeaning && !alreadyAnswered)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade50,
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        elevation: 0,
+                      ),
+                      onPressed: () => _submitResult(false),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Chưa thuộc',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade50,
+                        foregroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        elevation: 0,
+                      ),
+                      onPressed: () => _submitResult(true),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Đã thuộc',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 }
