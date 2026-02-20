@@ -56,6 +56,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     try {
       final api = ref.read(apiClientProvider);
       await api.submitReview(vocabId, correct);
+      // Award XP: 5 for correct, 2 for attempted
+      await api.addXP(correct ? 5 : 2);
     } catch (_) {}
 
     // Auto advance to next unanswered or finish

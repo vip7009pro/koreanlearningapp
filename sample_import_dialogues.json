@@ -1,0 +1,26 @@
+[
+    {
+        "speaker": "Minh",
+        "koreanText": "안녕하세요! 저는 민입니다.",
+        "vietnameseText": "Xin chào! Tôi là Minh.",
+        "orderIndex": 0
+    },
+    {
+        "speaker": "지나",
+        "koreanText": "안녕하세요! 저는 지나입니다. 만나서 반갑습니다.",
+        "vietnameseText": "Xin chào! Tôi là Jina. Rất vui được gặp bạn.",
+        "orderIndex": 1
+    },
+    {
+        "speaker": "Minh",
+        "koreanText": "네, 반갑습니다! 한국어를 공부합니다.",
+        "vietnameseText": "Vâng, rất vui! Tôi đang học tiếng Hàn.",
+        "orderIndex": 2
+    },
+    {
+        "speaker": "지나",
+        "koreanText": "좋아요! 같이 공부해요!",
+        "vietnameseText": "Tuyệt vời! Hãy cùng học nhé!",
+        "orderIndex": 3
+    }
+]

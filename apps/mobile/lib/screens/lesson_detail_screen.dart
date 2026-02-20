@@ -58,8 +58,25 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       _dialogues = _lesson?['dialogues'] ?? [];
       _quizzes = _lesson?['quizzes'] ?? [];
       if (mounted) setState(() => _loading = false);
+
+      // Track progress: mark lesson as visited and add XP
+      _trackProgress();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _trackProgress() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      // Mark lesson as completed
+      await api.updateProgress(widget.lessonId, completed: true);
+      // Award XP for studying (10 XP per lesson visit)
+      await api.addXP(10);
+      // Update streak
+      await api.updateStreak();
+    } catch (_) {
+      // Silently fail - progress tracking should not block UX
     }
   }
 

@@ -180,16 +180,26 @@ QUY TẮC BẮT BUỘC:
   }
 
   async getWritingHistory(userId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
+    const pageNum = typeof page === 'string' ? Number(page) : page;
+    const limitNum = typeof limit === 'string' ? Number(limit) : limit;
+    const safePage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+    const safeLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.floor(limitNum) : 20;
+    const skip = (safePage - 1) * safeLimit;
     const [data, total] = await Promise.all([
       this.prisma.aIWritingPractice.findMany({
         where: { userId },
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.aIWritingPractice.count({ where: { userId } }),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 }

@@ -1,0 +1,54 @@
+[
+    {
+        "title": "Trắc nghiệm: Chào hỏi",
+        "quizType": "MULTIPLE_CHOICE",
+        "questions": [
+            {
+                "questionText": "\"Xin chào\" trong tiếng Hàn là gì?",
+                "questionType": "MULTIPLE_CHOICE",
+                "correctAnswer": "안녕하세요",
+                "options": [
+                    {
+                        "text": "안녕하세요",
+                        "isCorrect": true
+                    },
+                    {
+                        "text": "감사합니다",
+                        "isCorrect": false
+                    },
+                    {
+                        "text": "죄송합니다",
+                        "isCorrect": false
+                    },
+                    {
+                        "text": "안녕히 가세요",
+                        "isCorrect": false
+                    }
+                ]
+            },
+            {
+                "questionText": "\"Cảm ơn\" trong tiếng Hàn là gì?",
+                "questionType": "MULTIPLE_CHOICE",
+                "correctAnswer": "감사합니다",
+                "options": [
+                    {
+                        "text": "미안합니다",
+                        "isCorrect": false
+                    },
+                    {
+                        "text": "감사합니다",
+                        "isCorrect": true
+                    },
+                    {
+                        "text": "안녕하세요",
+                        "isCorrect": false
+                    },
+                    {
+                        "text": "주세요",
+                        "isCorrect": false
+                    }
+                ]
+            }
+        ]
+    }
+]

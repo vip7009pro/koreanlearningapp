@@ -32,7 +32,7 @@ export class ProgressService {
       },
       update: {
         completed: dto.completed,
-        score: dto.score,
+        ...(dto.score != null ? { score: dto.score } : {}),
         completedAt: dto.completed ? new Date() : undefined,
       },
     });

@@ -11,6 +11,8 @@ import '../screens/subscription_screen.dart';
 import '../screens/ai_writing_screen.dart';
 import '../screens/leaderboard_screen.dart';
 import '../screens/review_screen.dart';
+import '../screens/writing_history_screen.dart';
+import '../screens/writing_detail_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -56,6 +58,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
       GoRoute(path: '/review', builder: (_, __) => const ReviewScreen()),
+      GoRoute(
+          path: '/writing-history',
+          builder: (_, __) => const WritingHistoryScreen()),
+      GoRoute(
+        path: '/writing-detail',
+        builder: (_, state) =>
+            WritingDetailScreen(item: state.extra as Map<String, dynamic>),
+      ),
     ],
   );
 });

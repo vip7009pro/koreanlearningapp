@@ -74,7 +74,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'Korean Learning',
+                    'Tiếng Hàn FDI',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,

@@ -1,0 +1,17 @@
+[
+    {
+        "pattern": "N + 입니다",
+        "explanationVN": "Là N (dùng để giới thiệu danh từ, thể lịch sự)",
+        "example": "저는 학생입니다. (Tôi là học sinh.)"
+    },
+    {
+        "pattern": "V + ㅂ니다/습니다",
+        "explanationVN": "Thể kính ngữ chuẩn cho động từ. Thân chưa có patchim dùng ㅂ니다, có patchim dùng 습니다.",
+        "example": "저는 공부합니다. (Tôi học bài.)"
+    },
+    {
+        "pattern": "N + 이/가",
+        "explanationVN": "Trợ từ chủ ngữ. 이 dùng khi danh từ có patchim, 가 khi không có.",
+        "example": "비가 옵니다. (Trời mưa.)"
+    }
+]

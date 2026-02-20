@@ -37,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const Text('🇰🇷', style: TextStyle(fontSize: 60)),
                   const SizedBox(height: 16),
                   const Text(
-                    'Korean Learning',
+                    'Tiếng Hàn FDI',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,

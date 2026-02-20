@@ -16,7 +16,7 @@ class KoreanLearningApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Korean Learning',
+      title: 'Tiếng Hàn FDI',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

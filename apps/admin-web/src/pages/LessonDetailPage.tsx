@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { lessonsApi, vocabularyApi, grammarApi, dialoguesApi, quizzesApi } from '../lib/api';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiArrowLeft } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiArrowLeft, FiUpload } from 'react-icons/fi';
 
 export default function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -14,6 +14,9 @@ export default function LessonDetailPage() {
   const [grammarForm, setGrammarForm] = useState({ pattern: '', explanationVN: '', example: '' });
   const [dialogueForm, setDialogueForm] = useState({ speaker: '', koreanText: '', vietnameseText: '', orderIndex: 0 });
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const { data: lesson } = useQuery({
     queryKey: ['lesson', lessonId],
@@ -82,6 +85,51 @@ export default function LessonDetailPage() {
     onSuccess: () => { invalidateAll(); toast.success('Deleted'); },
   });
 
+  // --- Bulk Import Handler ---
+  const handleBulkImport = async () => {
+    if (!importJson.trim() || !lessonId) return;
+    setImporting(true);
+    try {
+      const items = JSON.parse(importJson);
+      if (!Array.isArray(items)) { toast.error('JSON phải là một mảng []'); setImporting(false); return; }
+
+      let count = 0;
+      if (activeTab === 'vocab') {
+        await vocabularyApi.createBulk(items.map((v: any) => ({ ...v, lessonId })));
+        count = items.length;
+      } else if (activeTab === 'grammar') {
+        for (const g of items) {
+          await grammarApi.create({ ...g, lessonId });
+          count++;
+        }
+      } else if (activeTab === 'dialogue') {
+        for (const d of items) {
+          await dialoguesApi.create({ ...d, lessonId });
+          count++;
+        }
+      } else if (activeTab === 'quiz') {
+        for (const q of items) {
+          const quizRes = await quizzesApi.create({ title: q.title, quizType: q.quizType || 'MULTIPLE_CHOICE', lessonId });
+          const quizId = quizRes.data?.id;
+          if (quizId && q.questions) {
+            for (const qu of q.questions) {
+              await quizzesApi.createQuestion({ ...qu, quizId });
+            }
+          }
+          count++;
+        }
+      }
+      toast.success(`Imported ${count} items!`);
+      invalidateAll();
+      setShowImport(false);
+      setImportJson('');
+    } catch (e: any) {
+      toast.error('Import failed: ' + (e?.response?.data?.message || e.message));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const tabs = [
     { id: 'vocab' as const, label: 'Vocabulary', count: (vocab as unknown[])?.length || 0 },
     { id: 'grammar' as const, label: 'Grammar', count: (grammars as unknown[])?.length || 0 },
@@ -100,9 +148,14 @@ export default function LessonDetailPage() {
           <h1 className="text-2xl font-bold text-gray-800">{lesson?.title}</h1>
           <p className="text-gray-500 mt-1">{lesson?.description}</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
-          <FiPlus /> Add {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : 'Dialogue'}
+      <div className="flex gap-2">
+        <button onClick={() => { setShowImport(!showImport); setShowForm(false); }} className="btn-secondary flex items-center gap-2">
+          <FiUpload /> Import JSON
         </button>
+        <button onClick={() => { setShowForm(!showForm); setShowImport(false); }} className="btn-primary flex items-center gap-2">
+          <FiPlus /> Add {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogue' : 'Quiz'}
+        </button>
+      </div>
       </div>
 
       {/* Tabs */}
@@ -117,6 +170,27 @@ export default function LessonDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* Import JSON Modal */}
+      {showImport && (
+        <div className="card mb-6">
+          <h3 className="font-semibold mb-2">Import {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogues' : 'Quizzes'} from JSON</h3>
+          <p className="text-xs text-gray-500 mb-3">Paste a JSON array. See sample files in the project root folder.</p>
+          <textarea
+            className="input w-full font-mono text-xs"
+            rows={10}
+            placeholder='[{"korean": "안녕하세요", "vietnamese": "Xin chào", ...}]'
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
+          />
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleBulkImport} disabled={importing} className="btn-primary">
+              {importing ? 'Importing...' : 'Start Import'}
+            </button>
+            <button onClick={() => { setShowImport(false); setImportJson(''); }} className="btn-secondary">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Forms */}
       {showForm && activeTab === 'vocab' && (

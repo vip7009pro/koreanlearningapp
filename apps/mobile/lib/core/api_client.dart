@@ -136,4 +136,7 @@ class ApiClient {
   Future<Response> correctWriting(String prompt, String userAnswer) =>
       _dio.post('/ai/writing-correction',
           data: {'prompt': prompt, 'userAnswer': userAnswer});
+  Future<Response> getWritingHistory({int page = 1, int limit = 20}) =>
+      _dio.get('/ai/writing-history',
+          queryParameters: {'page': page, 'limit': limit});
 }

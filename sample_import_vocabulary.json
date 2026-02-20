@@ -1,0 +1,42 @@
+[
+    {
+        "korean": "안녕하세요",
+        "vietnamese": "Xin chào",
+        "pronunciation": "an-nyeong-ha-se-yo",
+        "difficulty": "EASY",
+        "exampleSentence": "안녕하세요! 만나서 반갑습니다.",
+        "exampleMeaning": "Xin chào! Rất vui được gặp bạn."
+    },
+    {
+        "korean": "감사합니다",
+        "vietnamese": "Cảm ơn",
+        "pronunciation": "kam-sa-ham-ni-da",
+        "difficulty": "EASY",
+        "exampleSentence": "도와주셔서 감사합니다.",
+        "exampleMeaning": "Cảm ơn bạn đã giúp đỡ."
+    },
+    {
+        "korean": "죄송합니다",
+        "vietnamese": "Xin lỗi",
+        "pronunciation": "joe-song-ham-ni-da",
+        "difficulty": "MEDIUM",
+        "exampleSentence": "늦어서 죄송합니다.",
+        "exampleMeaning": "Xin lỗi vì đến muộn."
+    },
+    {
+        "korean": "네",
+        "vietnamese": "Vâng / Đúng",
+        "pronunciation": "ne",
+        "difficulty": "EASY",
+        "exampleSentence": "네, 알겠습니다.",
+        "exampleMeaning": "Vâng, tôi hiểu rồi."
+    },
+    {
+        "korean": "아니요",
+        "vietnamese": "Không",
+        "pronunciation": "a-ni-yo",
+        "difficulty": "EASY",
+        "exampleSentence": "아니요, 괜찮아요.",
+        "exampleMeaning": "Không, không sao."
+    }
+]

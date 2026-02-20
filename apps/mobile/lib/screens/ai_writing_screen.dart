@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+ 
 
 const List<Map<String, String>> _defaultTopics = [
   {
@@ -115,7 +117,16 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Luyện Viết AI 🤖')),
+      appBar: AppBar(
+        title: const Text('Luyện Viết AI 🤖'),
+        actions: [
+          IconButton(
+            tooltip: 'Lịch sử',
+            icon: const Icon(Icons.history),
+            onPressed: () => context.push('/writing-history'),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
