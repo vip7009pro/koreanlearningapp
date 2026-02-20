@@ -109,6 +109,8 @@ class ApiClient {
 
   // Reviews (SRS)
   Future<Response> getDueReviews() => _dio.get('/reviews/due');
+  Future<Response> addToReview(String vocabId) =>
+      _dio.post('/reviews/add', data: {'vocabularyId': vocabId});
   Future<Response> submitReview(String vocabId, bool correct) => _dio.post(
         '/reviews/submit',
         data: {'vocabularyId': vocabId, 'correct': correct},
@@ -127,5 +129,11 @@ class ApiClient {
   Future<Response> getPlans() => _dio.get('/subscriptions/plans');
   Future<Response> subscribe(String planType) =>
       _dio.post('/subscriptions', data: {'planType': planType});
-  Future<Response> checkPremium() => _dio.get('/subscriptions/check-premium');
+  Future<Response> checkPremiumStatus() =>
+      _dio.get('/subscriptions/check-premium');
+
+  // AI
+  Future<Response> correctWriting(String prompt, String userAnswer) =>
+      _dio.post('/ai/writing-correction',
+          data: {'prompt': prompt, 'userAnswer': userAnswer});
 }

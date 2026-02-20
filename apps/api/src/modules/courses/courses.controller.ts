@@ -21,6 +21,15 @@ export class CoursesController {
     return this.coursesService.create(dto);
   }
 
+  @Post('import')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk import course JSON hierarchy (Admin only)' })
+  importCourse(@Body() data: any) {
+    return this.coursesService.importCourse(data);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all courses' })
   @ApiQuery({ name: 'page', required: false })

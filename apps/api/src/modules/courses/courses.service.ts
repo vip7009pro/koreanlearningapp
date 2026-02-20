@@ -79,4 +79,80 @@ export class CoursesService {
       data: { published: false },
     });
   }
+
+  async importCourse(data: any) {
+    // Basic mapping to ensure structure fits Prisma create input
+    const course = await this.prisma.course.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        level: data.level || 'BEGINNER',
+        isPremium: data.isPremium || false,
+        published: true,
+        thumbnailUrl: data.thumbnailUrl,
+        sections: {
+          create: (data.sections || []).map((sec: any, sIdx: number) => ({
+            title: sec.title,
+            orderIndex: sec.orderIndex ?? sIdx,
+            lessons: {
+              create: (sec.lessons || []).map((les: any, lIdx: number) => ({
+                title: les.title,
+                description: les.description || '',
+                estimatedMinutes: les.estimatedMinutes || 10,
+                orderIndex: les.orderIndex ?? lIdx,
+                vocabularies: {
+                  create: (les.vocabularies || []).map((voc: any) => ({
+                    korean: voc.korean,
+                    vietnamese: voc.vietnamese,
+                    pronunciation: voc.pronunciation || '',
+                    exampleSentence: voc.exampleSentence || '',
+                    exampleMeaning: voc.exampleMeaning || '',
+                    audioUrl: voc.audioUrl,
+                    difficulty: voc.difficulty || 'EASY',
+                  })),
+                },
+                grammars: {
+                  create: (les.grammars || []).map((gr: any) => ({
+                    pattern: gr.pattern,
+                    explanationVN: gr.explanationVN,
+                    example: gr.example,
+                  })),
+                },
+                dialogues: {
+                  create: (les.dialogues || []).map((di: any, dIdx: number) => ({
+                    speaker: di.speaker,
+                    koreanText: di.koreanText,
+                    vietnameseText: di.vietnameseText,
+                    audioUrl: di.audioUrl,
+                    orderIndex: di.orderIndex ?? dIdx,
+                  })),
+                },
+                quizzes: {
+                  create: (les.quizzes || []).map((q: any) => ({
+                    title: q.title,
+                    quizType: q.quizType || 'MULTIPLE_CHOICE',
+                    questions: {
+                      create: (q.questions || []).map((qu: any) => ({
+                        questionType: qu.questionType || 'MULTIPLE_CHOICE',
+                        questionText: qu.questionText,
+                        correctAnswer: qu.correctAnswer,
+                        options: {
+                          create: (qu.options || []).map((opt: any) => ({
+                            text: opt.text,
+                            isCorrect: opt.isCorrect || false,
+                          })),
+                        },
+                      })),
+                    },
+                  })),
+                },
+              })),
+            },
+          })),
+        },
+      },
+    });
+
+    return course;
+  }
 }

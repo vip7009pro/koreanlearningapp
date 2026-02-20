@@ -1,0 +1,78 @@
+{
+    "title": "Khóa học thử nghiệm Import",
+    "description": "JSON Import Test Course",
+    "level": "BEGINNER",
+    "isPremium": false,
+    "thumbnailUrl": "https://images.unsplash.com/photo-1546874177-9e664ce7ebbe?auto=format&fit=crop&q=80&w=800",
+    "sections": [
+        {
+            "title": "Phần 1: Chào hỏi",
+            "orderIndex": 0,
+            "lessons": [
+                {
+                    "title": "Bài 1: Gặp mặt",
+                    "description": "Các cách chào hỏi",
+                    "estimatedMinutes": 10,
+                    "orderIndex": 0,
+                    "vocabularies": [
+                        {
+                            "korean": "안녕하세요",
+                            "vietnamese": "Xin chào",
+                            "pronunciation": "an-nyeong-ha-se-yo",
+                            "exampleSentence": "안녕하세요! 만나서 반갑습니다.",
+                            "exampleMeaning": "Xin chào! Rất vui được gặp bạn.",
+                            "difficulty": "EASY"
+                        }
+                    ],
+                    "grammars": [
+                        {
+                            "pattern": "N + 입니다",
+                            "explanationVN": "Là N (dùng để giới thiệu danh từ)",
+                            "example": "학생입니다. (Tôi là học sinh.)"
+                        }
+                    ],
+                    "dialogues": [
+                        {
+                            "speaker": "Minh",
+                            "koreanText": "안녕하세요?",
+                            "vietnameseText": "Xin chào?",
+                            "orderIndex": 0
+                        },
+                        {
+                            "speaker": "Jina",
+                            "koreanText": "네, 안녕하세요.",
+                            "vietnameseText": "Vâng, xin chào.",
+                            "orderIndex": 1
+                        }
+                    ],
+                    "quizzes": [
+                        {
+                            "title": "Trắc nghiệm Chào hỏi",
+                            "quizType": "MULTIPLE_CHOICE",
+                            "orderIndex": 0,
+                            "questions": [
+                                {
+                                    "content": "Xin chào trong tiếng Hàn là gì?",
+                                    "questionType": "MULTIPLE_CHOICE",
+                                    "orderIndex": 0,
+                                    "options": [
+                                        {
+                                            "text": "안녕하세요",
+                                            "isCorrect": true,
+                                            "orderIndex": 0
+                                        },
+                                        {
+                                            "text": "감사합니다",
+                                            "isCorrect": false,
+                                            "orderIndex": 1
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

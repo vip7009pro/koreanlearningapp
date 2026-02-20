@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../core/api_client.dart';
 
@@ -102,6 +103,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Premium Upgrade Banner
+            Card(
+              color: Colors.amber.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Colors.amber),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.star, color: Colors.amber, size: 32),
+                title: const Text('Nâng cấp Premium',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text(
+                    'Mở khóa toàn bộ bài học, luyện AI và không quảng cáo.'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => context.push('/subscription'),
               ),
             ),
             const SizedBox(height: 16),

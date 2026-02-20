@@ -42,6 +42,7 @@ export const coursesApi = {
   delete: (id: string) => api.delete(`/courses/${id}`),
   publish: (id: string) => api.post(`/courses/${id}/publish`),
   unpublish: (id: string) => api.post(`/courses/${id}/unpublish`),
+  importCourse: (data: any) => api.post('/courses/import', data),
 };
 
 // Sections

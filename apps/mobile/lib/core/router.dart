@@ -7,6 +7,10 @@ import '../screens/course_detail_screen.dart';
 import '../screens/lesson_detail_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/subscription_screen.dart';
+import '../screens/ai_writing_screen.dart';
+import '../screens/leaderboard_screen.dart';
+import '../screens/review_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -44,6 +48,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             QuizScreen(quizId: state.pathParameters['quizId']!),
       ),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+      GoRoute(
+          path: '/subscription',
+          builder: (_, __) => const SubscriptionScreen()),
+      GoRoute(
+          path: '/ai-practice', builder: (_, __) => const AiWritingScreen()),
+      GoRoute(
+          path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
+      GoRoute(path: '/review', builder: (_, __) => const ReviewScreen()),
     ],
   );
 });

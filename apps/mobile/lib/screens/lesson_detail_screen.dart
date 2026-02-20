@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../core/api_client.dart';
 
 class LessonDetailScreen extends ConsumerStatefulWidget {
@@ -19,18 +20,27 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   bool _loading = true;
   int _currentVocabIndex = 0;
   bool _showMeaning = false;
+  late AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
+    _audioPlayer = AudioPlayer();
     _loadData();
   }
 
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _playAudio(String url) async {
+    try {
+      await _audioPlayer.play(UrlSource(url));
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -155,7 +165,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -219,6 +230,41 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                               ),
                             ),
                             const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final api = ref.read(apiClientProvider);
+                                try {
+                                  await api.addToReview(v['id']);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Đã thêm vào danh sách ôn tập!')),
+                                    );
+                                  }
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Có lỗi xảy ra, vui lòng thử lại')),
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2563EB)
+                                    .withValues(alpha: 0.1),
+                                foregroundColor: const Color(0xFF2563EB),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.bookmark_add_outlined),
+                              label: const Text('Thêm vào ôn tập'),
+                            ),
+                            const SizedBox(height: 12),
                             Text(
                               'Tap để xem nghĩa',
                               style: TextStyle(
@@ -233,6 +279,16 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             ),
           ),
         ),
+        if (v['audioUrl'] != null && v['audioUrl'].toString().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: FloatingActionButton(
+              heroTag: 'vocab_audio',
+              backgroundColor: const Color(0xFF2563EB),
+              onPressed: () => _playAudio(v['audioUrl']),
+              child: const Icon(Icons.volume_up, color: Colors.white),
+            ),
+          ),
         // Progress
         Padding(
           padding: const EdgeInsets.all(16),
@@ -340,7 +396,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
               if (isLeft)
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.2),
+                  backgroundColor:
+                      const Color(0xFF2563EB).withValues(alpha: 0.2),
                   child: Text(
                     (d['speaker'] ?? '?')[0],
                     style: const TextStyle(
@@ -383,12 +440,28 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      d['vietnameseText'] ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (d['audioUrl'] != null &&
+                            d['audioUrl'].toString().isNotEmpty) ...[
+                          GestureDetector(
+                            onTap: () => _playAudio(d['audioUrl']),
+                            child: const Icon(Icons.volume_up,
+                                size: 16, color: Color(0xFF2563EB)),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            d['vietnameseText'] ?? '',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

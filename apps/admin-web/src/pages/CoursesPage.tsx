@@ -3,12 +3,14 @@ import { coursesApi } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEdit2, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiEye, FiEyeOff, FiUpload } from 'react-icons/fi';
 
 export default function CoursesPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importJson, setImportJson] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: '', description: '', level: 'BEGINNER', isPremium: false });
 
@@ -20,6 +22,17 @@ export default function CoursesPage() {
   const createMut = useMutation({
     mutationFn: (data: typeof form) => coursesApi.create(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); toast.success('Course created'); resetForm(); },
+  });
+
+  const importMut = useMutation({
+    mutationFn: (data: any) => coursesApi.importCourse(data),
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['courses'] }); 
+      toast.success('Course imported successfully'); 
+      setShowImport(false);
+      setImportJson('');
+    },
+    onError: (err: any) => toast.error('Import failed: ' + (err.response?.data?.message || err.message))
   });
 
   const updateMut = useMutation({
@@ -51,16 +64,52 @@ export default function CoursesPage() {
     else createMut.mutate(form);
   };
 
+  const handleImport = () => {
+    try {
+      const parsed = JSON.parse(importJson);
+      importMut.mutate(parsed);
+    } catch (e) {
+      toast.error('Invalid JSON format');
+    }
+  };
+
   if (isLoading) return <div className="text-center py-12 text-gray-500">Loading...</div>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Courses</h1>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
-          <FiPlus /> {showForm ? 'Cancel' : 'Add Course'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(!showImport)} className="btn-secondary flex items-center gap-2">
+            <FiUpload /> {showImport ? 'Cancel Import' : 'Import JSON'}
+          </button>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
+            <FiPlus /> {showForm ? 'Cancel' : 'Add Course'}
+          </button>
+        </div>
       </div>
+
+      {showImport && (
+        <div className="card mb-6">
+          <h2 className="text-lg font-bold mb-4">Import Course Data</h2>
+          <textarea
+            className="input font-mono text-sm leading-tight h-64"
+            placeholder={'{\n  "title": "...",\n  "sections": [\n    ...\n  ]\n}'}
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
+          />
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => { setShowImport(false); setImportJson(''); }} className="btn-secondary">Cancel</button>
+            <button 
+              onClick={handleImport} 
+              disabled={importMut.isPending || !importJson.trim()} 
+              className="btn-primary flex items-center gap-2"
+            >
+              <FiUpload /> {importMut.isPending ? 'Importing...' : 'Start Import'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">

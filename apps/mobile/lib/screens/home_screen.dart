@@ -142,53 +142,98 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
+                      child: Column(
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.flag,
-                                    color: Color(0xFF2563EB),
-                                    size: 20,
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.flag,
+                                        color: Color(0xFF2563EB),
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Mục tiêu hôm nay',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(height: 12),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: (_dailyGoal?['currentXP'] ?? 0) /
+                                          (_dailyGoal?['targetXP'] ?? 50),
+                                      minHeight: 10,
+                                      backgroundColor: Colors.grey.shade200,
+                                      valueColor: const AlwaysStoppedAnimation(
+                                        Color(0xFF10B981),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
                                   Text(
-                                    'Mục tiêu hôm nay',
+                                    '${_dailyGoal?['currentXP'] ?? 0} / ${_dailyGoal?['targetXP'] ?? 50} XP',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: (_dailyGoal?['currentXP'] ?? 0) /
-                                      (_dailyGoal?['targetXP'] ?? 50),
-                                  minHeight: 10,
-                                  backgroundColor: Colors.grey.shade200,
-                                  valueColor: const AlwaysStoppedAnimation(
-                                    Color(0xFF10B981),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${_dailyGoal?['currentXP'] ?? 0} / ${_dailyGoal?['targetXP'] ?? 50} XP',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          InkWell(
+                            onTap: () => context.push('/ai-practice'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [
+                                  Color(0xFF10B981),
+                                  Color(0xFF34D399)
+                                ]),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.edit_note,
+                                      color: Colors.white, size: 32),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Luyện Viết AI',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18)),
+                                        Text('Chấm điểm & nhận xét tự động',
+                                            style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios,
+                                      color: Colors.white, size: 16),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -348,12 +393,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
         ],
         onTap: (index) {
-          if (index == 1 || index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Tính năng sắp ra mắt!')),
-            );
+          if (index == 1) {
+            context.push('/review');
+          } else if (index == 2) {
+            context.push('/leaderboard');
+          } else if (index == 3) {
+            context.push('/profile');
           }
-          if (index == 3) context.push('/profile');
         },
       ),
     );
