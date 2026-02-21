@@ -16,7 +16,8 @@ class AdminLessonDetailScreen extends ConsumerStatefulWidget {
       _AdminLessonDetailScreenState();
 }
 
-class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScreen>
+class _AdminLessonDetailScreenState
+    extends ConsumerState<AdminLessonDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
@@ -34,7 +35,10 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
     {'id': 'openai/gpt-4o-mini', 'label': 'gpt-4o-mini'},
     {'id': 'anthropic/claude-3.5-haiku', 'label': 'claude-3.5-haiku'},
     {'id': 'meta-llama/llama-3.1-70b-instruct', 'label': 'llama-3.1-70b'},
-    {'id': 'meta-llama/llama-3.3-70b-instruct:free', 'label': 'llama-3.3-70b-instruct:free'},
+    {
+      'id': 'meta-llama/llama-3.3-70b-instruct:free',
+      'label': 'llama-3.3-70b-instruct:free'
+    },
   ];
 
   Map<String, dynamic>? _lesson;
@@ -323,7 +327,7 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: difficulty,
+                initialValue: difficulty,
                 decoration: const InputDecoration(
                   labelText: 'Difficulty',
                   border: OutlineInputBorder(),
@@ -441,8 +445,7 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
             maxLines: 18,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
-              hintText:
-                  '[{ "korean": "...", "vietnamese": "..." }, ...]',
+              hintText: '[{ "korean": "...", "vietnamese": "..." }, ...]',
             ),
           ),
         ),
@@ -495,7 +498,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
 
   // Grammar
   Future<void> _upsertGrammar([Map<String, dynamic>? item]) async {
-    final patternCtrl = TextEditingController(text: item?['pattern']?.toString());
+    final patternCtrl =
+        TextEditingController(text: item?['pattern']?.toString());
     final expCtrl =
         TextEditingController(text: item?['explanationVN']?.toString());
     final exCtrl = TextEditingController(text: item?['example']?.toString());
@@ -576,11 +580,13 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
 
   // Dialogues
   Future<void> _upsertDialogue([Map<String, dynamic>? item]) async {
-    final speakerCtrl = TextEditingController(text: item?['speaker']?.toString());
+    final speakerCtrl =
+        TextEditingController(text: item?['speaker']?.toString());
     final koCtrl = TextEditingController(text: item?['koreanText']?.toString());
     final viCtrl =
         TextEditingController(text: item?['vietnameseText']?.toString());
-    final audioCtrl = TextEditingController(text: item?['audioUrl']?.toString());
+    final audioCtrl =
+        TextEditingController(text: item?['audioUrl']?.toString());
     final orderCtrl =
         TextEditingController(text: (item?['orderIndex'] ?? 0).toString());
 
@@ -698,7 +704,7 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: quizType,
+              initialValue: quizType,
               decoration: const InputDecoration(
                 labelText: 'Quiz type',
                 border: OutlineInputBorder(),
@@ -706,8 +712,10 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
               items: const [
                 DropdownMenuItem(
                     value: 'MULTIPLE_CHOICE', child: Text('MULTIPLE_CHOICE')),
-                DropdownMenuItem(value: 'TRUE_FALSE', child: Text('TRUE_FALSE')),
-                DropdownMenuItem(value: 'FILL_BLANK', child: Text('FILL_BLANK')),
+                DropdownMenuItem(
+                    value: 'TRUE_FALSE', child: Text('TRUE_FALSE')),
+                DropdownMenuItem(
+                    value: 'FILL_BLANK', child: Text('FILL_BLANK')),
               ],
               onChanged: (v) {
                 if (v == null) return;
@@ -770,7 +778,7 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: qType,
+                initialValue: qType,
                 decoration: const InputDecoration(
                   labelText: 'Question type',
                   border: OutlineInputBorder(),
@@ -778,8 +786,10 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
                 items: const [
                   DropdownMenuItem(
                       value: 'MULTIPLE_CHOICE', child: Text('MULTIPLE_CHOICE')),
-                  DropdownMenuItem(value: 'TRUE_FALSE', child: Text('TRUE_FALSE')),
-                  DropdownMenuItem(value: 'FILL_BLANK', child: Text('FILL_BLANK')),
+                  DropdownMenuItem(
+                      value: 'TRUE_FALSE', child: Text('TRUE_FALSE')),
+                  DropdownMenuItem(
+                      value: 'FILL_BLANK', child: Text('FILL_BLANK')),
                 ],
                 onChanged: (v) {
                   if (v == null) return;
@@ -846,9 +856,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
       if (trimmed.isEmpty) continue;
       final parts = trimmed.split('|');
       final text = parts.first.trim();
-      final isCorrect = parts.length > 1
-          ? (parts[1].trim().toLowerCase() == 'true')
-          : false;
+      final isCorrect =
+          parts.length > 1 ? (parts[1].trim().toLowerCase() == 'true') : false;
       if (text.isEmpty) continue;
       options.add({'text': text, 'isCorrect': isCorrect});
     }
@@ -992,7 +1001,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
               onPressed: _aiLoading
                   ? null
                   : () => _confirmDelete(
-                        title: 'Xóa ${_selectedVocabIds.length} từ vựng đã chọn?',
+                        title:
+                            'Xóa ${_selectedVocabIds.length} từ vựng đã chọn?',
                         onDelete: () => ref
                             .read(apiClientProvider)
                             .deleteVocabularyBulk(_selectedVocabIds.toList()),
@@ -1084,7 +1094,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
               onPressed: _aiLoading
                   ? null
                   : () => _confirmDelete(
-                        title: 'Xóa ${_selectedGrammarIds.length} ngữ pháp đã chọn?',
+                        title:
+                            'Xóa ${_selectedGrammarIds.length} ngữ pháp đã chọn?',
                         onDelete: () => ref
                             .read(apiClientProvider)
                             .deleteGrammarBulk(_selectedGrammarIds.toList()),
@@ -1171,7 +1182,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
               onPressed: _aiLoading
                   ? null
                   : () => _confirmDelete(
-                        title: 'Xóa ${_selectedDialogueIds.length} hội thoại đã chọn?',
+                        title:
+                            'Xóa ${_selectedDialogueIds.length} hội thoại đã chọn?',
                         onDelete: () => ref
                             .read(apiClientProvider)
                             .deleteDialoguesBulk(_selectedDialogueIds.toList()),
@@ -1286,7 +1298,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
                     Row(
                       children: [
                         Checkbox(
-                          value: quizId.isNotEmpty && _selectedQuizIds.contains(quizId),
+                          value: quizId.isNotEmpty &&
+                              _selectedQuizIds.contains(quizId),
                           onChanged: quizId.isEmpty
                               ? null
                               : (checked) {
@@ -1320,8 +1333,9 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
                             ),
                           ),
                         IconButton(
-                          onPressed:
-                              quizId.isEmpty ? null : () => _addQuestion(quizId),
+                          onPressed: quizId.isEmpty
+                              ? null
+                              : () => _addQuestion(quizId),
                           icon: const Icon(Icons.add),
                           tooltip: 'Add question',
                         ),
@@ -1351,7 +1365,8 @@ class _AdminLessonDetailScreenState extends ConsumerState<AdminLessonDetailScree
                       ...questions.map<Widget>((qu) {
                         final question = (qu as Map).cast<String, dynamic>();
                         final qId = question['id']?.toString() ?? '';
-                        final qText = question['questionText']?.toString() ?? '';
+                        final qText =
+                            question['questionText']?.toString() ?? '';
                         final correct =
                             question['correctAnswer']?.toString() ?? '';
                         return ListTile(

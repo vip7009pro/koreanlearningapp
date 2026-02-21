@@ -304,7 +304,8 @@ class _AdminCourseDetailScreenState
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            onPressed: () => context.push('/admin/courses/${widget.courseId}/edit'),
+            onPressed: () =>
+                context.push('/admin/courses/${widget.courseId}/edit'),
             icon: const Icon(Icons.edit),
           ),
         ],
@@ -384,9 +385,9 @@ class _AdminCourseDetailScreenState
                                         lesson['id']?.toString() ?? '';
                                     final lessonTitle =
                                         lesson['title']?.toString() ?? '';
-                                    final minutes =
-                                        lesson['estimatedMinutes']?.toString() ??
-                                            '';
+                                    final minutes = lesson['estimatedMinutes']
+                                            ?.toString() ??
+                                        '';
                                     return ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       title: Text(lessonTitle),
@@ -395,8 +396,8 @@ class _AdminCourseDetailScreenState
                                           : Text('$minutes phút'),
                                       onTap: lessonId.isEmpty
                                           ? null
-                                          : () =>
-                                              context.push('/admin/lessons/$lessonId'),
+                                          : () => context
+                                              .push('/admin/lessons/$lessonId'),
                                       trailing: IconButton(
                                         onPressed: lessonId.isEmpty
                                             ? null

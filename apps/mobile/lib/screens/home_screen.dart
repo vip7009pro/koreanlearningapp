@@ -161,7 +161,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     .isNotEmpty)
                                             ? NetworkImage(
                                                 api.absoluteUrl(
-                                                    user?['avatarUrl'] as String?),
+                                                    user?['avatarUrl']
+                                                        as String?),
                                               )
                                             : null,
                                         child: (user?['avatarUrl'] == null ||
@@ -265,7 +266,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: theme.gradient),
+                                gradient:
+                                    LinearGradient(colors: theme.gradient),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Row(

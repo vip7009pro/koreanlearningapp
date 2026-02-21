@@ -43,7 +43,10 @@ class BiometricAuth {
   static Future<({String email, String password})?> readCredentials() async {
     final email = await _storage.read(key: _kEmail);
     final password = await _storage.read(key: _kPassword);
-    if (email == null || email.isEmpty || password == null || password.isEmpty) {
+    if (email == null ||
+        email.isEmpty ||
+        password == null ||
+        password.isEmpty) {
       return null;
     }
     return (email: email, password: password);

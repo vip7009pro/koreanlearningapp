@@ -41,9 +41,7 @@ class ApiClient {
     final base = _dio.options.baseUrl;
     final host = base.endsWith('/api')
         ? base.substring(0, base.length - 4)
-        : (base.endsWith('/api/')
-            ? base.substring(0, base.length - 5)
-            : base);
+        : (base.endsWith('/api/') ? base.substring(0, base.length - 5) : base);
 
     return '$host$url';
   }
@@ -81,7 +79,8 @@ class ApiClient {
   Future<Response> updateCourse(String id, Map<String, dynamic> data) =>
       _dio.patch('/courses/$id', data: data);
   Future<Response> deleteCourse(String id) => _dio.delete('/courses/$id');
-  Future<Response> publishCourse(String id) => _dio.post('/courses/$id/publish');
+  Future<Response> publishCourse(String id) =>
+      _dio.post('/courses/$id/publish');
   Future<Response> unpublishCourse(String id) =>
       _dio.post('/courses/$id/unpublish');
   Future<Response> importCourse(Map<String, dynamic> data) =>
@@ -116,7 +115,8 @@ class ApiClient {
       _dio.post('/vocabulary', data: data);
   Future<Response> updateVocabulary(String id, Map<String, dynamic> data) =>
       _dio.patch('/vocabulary/$id', data: data);
-  Future<Response> deleteVocabulary(String id) => _dio.delete('/vocabulary/$id');
+  Future<Response> deleteVocabulary(String id) =>
+      _dio.delete('/vocabulary/$id');
   Future<Response> createVocabularyBulk(List<Map<String, dynamic>> items) =>
       _dio.post('/vocabulary/bulk', data: items);
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
- 
 
 const List<Map<String, String>> _defaultTopics = [
   {
@@ -150,8 +149,10 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                         label: Text(e.value['title']!,
                             style: const TextStyle(fontSize: 13)),
                         selected: isSelected,
-                        selectedColor:
-                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                        selectedColor: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.2),
                         onSelected: (_) => setState(() {
                           _selectedTopicIndex = e.key;
                           _isCustomTopic = false;

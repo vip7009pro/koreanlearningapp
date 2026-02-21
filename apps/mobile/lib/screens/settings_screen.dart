@@ -29,14 +29,16 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: const Text('Thay đổi theme'),
-            subtitle: Text(AppSettingsNotifier.themeById(settings.themeId).name),
+            subtitle:
+                Text(AppSettingsNotifier.themeById(settings.themeId).name),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/theme'),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.fingerprint),
             title: const Text('Đăng nhập sinh trắc học'),
-            subtitle: const Text('Bật để cho phép đăng nhập bằng vân tay/FaceID'),
+            subtitle:
+                const Text('Bật để cho phép đăng nhập bằng vân tay/FaceID'),
             value: settings.biometricLoginEnabled,
             onChanged: (v) async {
               if (v) {

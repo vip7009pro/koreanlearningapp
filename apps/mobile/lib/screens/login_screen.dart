@@ -93,7 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Chưa có thông tin đăng nhập sinh trắc học. Hãy đăng nhập 1 lần trước.'),
+            content: Text(
+                'Chưa có thông tin đăng nhập sinh trắc học. Hãy đăng nhập 1 lần trước.'),
           ),
         );
         return;
@@ -103,7 +104,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!ok) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xác thực sinh trắc học thất bại hoặc bị huỷ.')),
+          const SnackBar(
+              content: Text('Xác thực sinh trắc học thất bại hoặc bị huỷ.')),
         );
         return;
       }
@@ -177,10 +179,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _isLogin ? 'Đăng nhập để tiếp tục' : 'Tạo tài khoản mới',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                    style:
+                        TextStyle(color: Colors.white.withValues(alpha: 0.8)),
                   ),
                   const SizedBox(height: 32),
-
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -240,16 +242,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ? null
                                 : () {
                                     if (_isLogin) {
-                                      ref
-                                          .read(authProvider.notifier)
-                                          .login(
+                                      ref.read(authProvider.notifier).login(
                                             _emailCtrl.text,
                                             _passwordCtrl.text,
                                           );
                                     } else {
-                                      ref
-                                          .read(authProvider.notifier)
-                                          .register(
+                                      ref.read(authProvider.notifier).register(
                                             _emailCtrl.text,
                                             _passwordCtrl.text,
                                             _nameCtrl.text,

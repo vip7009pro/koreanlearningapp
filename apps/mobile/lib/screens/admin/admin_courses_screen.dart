@@ -9,8 +9,7 @@ class AdminCoursesScreen extends ConsumerStatefulWidget {
   const AdminCoursesScreen({super.key});
 
   @override
-  ConsumerState<AdminCoursesScreen> createState() =>
-      _AdminCoursesScreenState();
+  ConsumerState<AdminCoursesScreen> createState() => _AdminCoursesScreenState();
 }
 
 class _AdminCoursesScreenState extends ConsumerState<AdminCoursesScreen> {
@@ -37,7 +36,9 @@ class _AdminCoursesScreenState extends ConsumerState<AdminCoursesScreen> {
 
       if (!mounted) return;
       setState(() {
-        _courses = (data is Map && data['data'] is List) ? data['data'] : (data as List? ?? []);
+        _courses = (data is Map && data['data'] is List)
+            ? data['data']
+            : (data as List? ?? []);
         _loading = false;
       });
     } catch (e) {
@@ -218,7 +219,8 @@ class _AdminCoursesScreenState extends ConsumerState<AdminCoursesScreen> {
                     itemCount: _courses.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final course = (_courses[index] as Map).cast<String, dynamic>();
+                      final course =
+                          (_courses[index] as Map).cast<String, dynamic>();
                       final id = course['id']?.toString() ?? '';
                       final title = course['title']?.toString() ?? '';
                       final level = course['level']?.toString() ?? '';
@@ -253,7 +255,8 @@ class _AdminCoursesScreenState extends ConsumerState<AdminCoursesScreen> {
                             itemBuilder: (_) => [
                               PopupMenuItem(
                                 value: 'togglePublish',
-                                child: Text(published ? 'Unpublish' : 'Publish'),
+                                child:
+                                    Text(published ? 'Unpublish' : 'Publish'),
                               ),
                               const PopupMenuItem(
                                 value: 'edit',

@@ -30,32 +30,34 @@ class ThemePickerScreen extends ConsumerWidget {
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
-                  RadioListTile<ThemeMode>(
-                    value: ThemeMode.system,
-                    groupValue: currentMode,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref.read(appSettingsProvider.notifier).setThemeMode(v);
-                    },
-                    title: const Text('Theo hệ thống'),
-                  ),
-                  RadioListTile<ThemeMode>(
-                    value: ThemeMode.light,
-                    groupValue: currentMode,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref.read(appSettingsProvider.notifier).setThemeMode(v);
-                    },
-                    title: const Text('Light mode'),
-                  ),
-                  RadioListTile<ThemeMode>(
-                    value: ThemeMode.dark,
-                    groupValue: currentMode,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref.read(appSettingsProvider.notifier).setThemeMode(v);
-                    },
-                    title: const Text('Dark mode'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<ThemeMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            label: Text('Hệ thống'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            label: Text('Light'),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            label: Text('Dark'),
+                          ),
+                        ],
+                        selected: {currentMode},
+                        onSelectionChanged: (s) {
+                          final v = s.first;
+                          ref
+                              .read(appSettingsProvider.notifier)
+                              .setThemeMode(v);
+                        },
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -65,7 +67,8 @@ class ThemePickerScreen extends ConsumerWidget {
           ...AppSettingsNotifier.themes.map((t) {
             final selected = t.id == current;
             return InkWell(
-              onTap: () => ref.read(appSettingsProvider.notifier).setTheme(t.id),
+              onTap: () =>
+                  ref.read(appSettingsProvider.notifier).setTheme(t.id),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(14),

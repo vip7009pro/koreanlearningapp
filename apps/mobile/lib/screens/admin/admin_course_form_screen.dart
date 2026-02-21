@@ -83,7 +83,8 @@ class _AdminCourseFormScreenState extends ConsumerState<AdminCourseFormScreen> {
       'description': _descCtrl.text.trim(),
       'level': _level,
       'isPremium': _isPremium,
-      'thumbnailUrl': _thumbCtrl.text.trim().isEmpty ? null : _thumbCtrl.text.trim(),
+      'thumbnailUrl':
+          _thumbCtrl.text.trim().isEmpty ? null : _thumbCtrl.text.trim(),
     };
 
     setState(() {
@@ -155,7 +156,7 @@ class _AdminCourseFormScreenState extends ConsumerState<AdminCourseFormScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _level,
+                        initialValue: _level,
                         decoration: const InputDecoration(
                           labelText: 'Level',
                           border: OutlineInputBorder(),

@@ -273,7 +273,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  if (_lessonCompleted[(lesson['id'] ?? '').toString()] == true)
+                                  if (_lessonCompleted[
+                                          (lesson['id'] ?? '').toString()] ==
+                                      true)
                                     Container(
                                       width: 22,
                                       height: 22,
@@ -287,7 +289,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                                       child: Icon(
                                         Icons.check,
                                         size: 14,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                       ),
                                     )
                                   else
@@ -297,7 +301,8 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                                     width: 36,
                                     height: 36,
                                     decoration: BoxDecoration(
-                                      color: theme.seedColor.withValues(alpha: 0.12),
+                                      color: theme.seedColor
+                                          .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Center(

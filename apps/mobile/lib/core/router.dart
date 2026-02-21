@@ -87,7 +87,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             WritingDetailScreen(item: state.extra as Map<String, dynamic>),
       ),
-
       GoRoute(path: '/admin', builder: (_, __) => const AdminHomeScreen()),
       GoRoute(
           path: '/admin/dashboard',
@@ -118,11 +117,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-          path: '/admin/users',
-          builder: (_, __) => const AdminUsersScreen()),
+          path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
       GoRoute(
-          path: '/admin/upload',
-          builder: (_, __) => const AdminUploadScreen()),
+          path: '/admin/upload', builder: (_, __) => const AdminUploadScreen()),
     ],
   );
 });

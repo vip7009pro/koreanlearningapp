@@ -102,7 +102,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         title: const Text('Cập nhật role'),
         content: StatefulBuilder(
           builder: (context, setLocal) => DropdownButtonFormField<String>(
-            value: selected,
+            initialValue: selected,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               labelText: 'Role',
@@ -177,10 +177,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         child: ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemCount: _users.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final user = (_users[index] as Map)
-                                .cast<String, dynamic>();
+                            final user =
+                                (_users[index] as Map).cast<String, dynamic>();
                             final displayName =
                                 user['displayName']?.toString() ?? '';
                             final email = user['email']?.toString() ?? '';
@@ -192,10 +193,10 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
                             return Card(
                               child: ListTile(
-                                title: Text(displayName.isEmpty
-                                    ? email
-                                    : displayName),
-                                subtitle: Text('$email\nRole: $uRole • XP: $xp • 🔥 $streak'),
+                                title: Text(
+                                    displayName.isEmpty ? email : displayName),
+                                subtitle: Text(
+                                    '$email\nRole: $uRole • XP: $xp • 🔥 $streak'),
                                 isThreeLine: true,
                                 trailing: PopupMenuButton<String>(
                                   onSelected: (v) {

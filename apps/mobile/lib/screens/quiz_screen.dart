@@ -20,6 +20,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   String _quizTitle = '';
   bool _loading = true;
   String? _error;
+  bool _reviewMode = false;
 
   @override
   void initState() {
@@ -46,6 +47,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _currentQuestion = 0;
         _answers.clear();
         _submitted = false;
+        _reviewMode = false;
         _result = null;
         _loading = false;
       });
@@ -118,9 +120,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                       ),
                     )
                   : _submitted
-                      ? _buildResults()
+                      ? (_reviewMode ? _buildReview() : _buildResults())
                       : _buildQuestion(),
     );
+  }
+
+  bool _isCorrect(dynamic question) {
+    final qId = (question['id'] ?? '').toString();
+    final userAnswer = _answers[qId];
+    final correct = (question['correctAnswer'] ?? '').toString();
+    if (userAnswer == null) return false;
+    return userAnswer.trim() == correct.trim();
   }
 
   Widget _buildQuestion() {
@@ -172,14 +182,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: selected
-                          ? primary
-                          : Colors.grey.shade300,
+                      color: selected ? primary : Colors.grey.shade300,
                       width: selected ? 2 : 1,
                     ),
-                    color: selected
-                        ? primary.withValues(alpha: 0.05)
-                        : null,
+                    color: selected ? primary.withValues(alpha: 0.05) : null,
                   ),
                   child: Text(
                     optText,
@@ -209,16 +215,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               if (_currentQuestion > 0) const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed:
-                      _answers.containsKey((_questions[_currentQuestion]['id'] ?? '').toString())
-                          ? () {
-                              if (_currentQuestion < _questions.length - 1) {
-                                setState(() => _currentQuestion++);
-                              } else {
-                                _submitQuiz();
-                              }
-                            }
-                          : null,
+                  onPressed: _answers.containsKey(
+                          (_questions[_currentQuestion]['id'] ?? '').toString())
+                      ? () {
+                          if (_currentQuestion < _questions.length - 1) {
+                            setState(() => _currentQuestion++);
+                          } else {
+                            _submitQuiz();
+                          }
+                        }
+                      : null,
                   child: Text(
                     _currentQuestion < _questions.length - 1
                         ? 'Tiếp theo'
@@ -270,6 +276,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _reviewMode = true),
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Xem lại bài đã làm'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Quay lại'),
@@ -278,6 +293,124 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReview() {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey.shade200,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Xem lại bài làm',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => setState(() => _reviewMode = false),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Kết quả'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: _questions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, idx) {
+              final q = _questions[idx];
+              final qId = (q['id'] ?? '').toString();
+              final userAnswer = _answers[qId];
+              final correct = (q['correctAnswer'] ?? '').toString();
+              final ok = _isCorrect(q);
+
+              final borderColor =
+                  ok ? const Color(0xFF10B981) : Colors.redAccent;
+
+              return Card(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: borderColor.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: borderColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'Câu ${idx + 1}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: borderColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            ok ? Icons.check_circle : Icons.cancel,
+                            color: borderColor,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        (q['questionText'] ?? '').toString(),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Bạn chọn: ${userAnswer ?? '(chưa chọn)'}',
+                        style: TextStyle(
+                          color:
+                              ok ? const Color(0xFF10B981) : Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Đáp án đúng: $correct',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -300,6 +433,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       if (!mounted) return;
       setState(() {
         _submitted = true;
+        _reviewMode = false;
         _result = (res.data as Map?)?.cast<String, dynamic>();
         _loading = false;
       });

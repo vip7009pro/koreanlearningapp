@@ -120,8 +120,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 40,
-                            backgroundColor:
-                                primary.withValues(alpha: 0.1),
+                            backgroundColor: primary.withValues(alpha: 0.1),
                             backgroundImage: (user?['avatarUrl'] != null &&
                                     (user?['avatarUrl'] as String)
                                         .toString()
@@ -131,8 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   )
                                 : null,
                             child: (user?['avatarUrl'] == null ||
-                                    (user?['avatarUrl'] as String?)
-                                            ?.isEmpty ==
+                                    (user?['avatarUrl'] as String?)?.isEmpty ==
                                         true)
                                 ? Text(
                                     (user?['displayName'] ?? 'U')[0],
@@ -243,7 +241,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 subtitle: Text(
                   'Mở khóa toàn bộ bài học, luyện AI và không quảng cáo.',
                   style: TextStyle(
-                    color: isDark ? Colors.amber.shade100.withValues(alpha: 0.85) : null,
+                    color: isDark
+                        ? Colors.amber.shade100.withValues(alpha: 0.85)
+                        : null,
                   ),
                 ),
                 trailing: Icon(

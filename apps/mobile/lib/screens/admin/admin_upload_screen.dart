@@ -28,9 +28,8 @@ class _AdminUploadScreenState extends ConsumerState<AdminUploadScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: isImage ? FileType.image : FileType.custom,
-        allowedExtensions: isImage
-            ? null
-            : ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'],
+        allowedExtensions:
+            isImage ? null : ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'],
         withData: false,
       );
 
@@ -42,7 +41,8 @@ class _AdminUploadScreenState extends ConsumerState<AdminUploadScreen> {
       }
 
       final api = ref.read(apiClientProvider);
-      final res = isImage ? await api.uploadImage(path) : await api.uploadAudio(path);
+      final res =
+          isImage ? await api.uploadImage(path) : await api.uploadAudio(path);
       final url = (res.data as Map)['url']?.toString();
 
       if (!mounted) return;

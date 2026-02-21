@@ -39,10 +39,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
   Future<void> _subscribe(String planType) async {
     setState(() => _isLoading = true);
+    final router = GoRouter.of(context);
     final api = ref.read(apiClientProvider);
     try {
       await api.subscribe(planType);
       if (mounted) {
+        router.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Thanh toán thành công! Bạn đã là Premium.')),
@@ -65,7 +67,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         } catch (_) {}
 
         // Notify previous screen purchase succeeded
-        context.pop(true);
+        router.pop(true);
       }
     } catch (e) {
       if (mounted) {

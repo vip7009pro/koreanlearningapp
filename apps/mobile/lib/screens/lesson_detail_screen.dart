@@ -23,6 +23,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   int _currentVocabIndex = 0;
   bool _showMeaning = false;
   bool _vocabListView = false;
+  bool _isDialoguePlaying = false;
+  int _dialoguePlaySession = 0;
   late AudioPlayer _audioPlayer;
 
   @override
@@ -52,6 +54,63 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
 
   void _speakKorean(String text) {
     ref.read(ttsProvider).speak(text);
+  }
+
+  Future<void> _stopDialoguePlayback() async {
+    _dialoguePlaySession++;
+    if (mounted) setState(() => _isDialoguePlaying = false);
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+    try {
+      await ref.read(ttsProvider).stop();
+    } catch (_) {}
+  }
+
+  Future<void> _playAllDialogues() async {
+    if (_dialogues.isEmpty) return;
+
+    final session = ++_dialoguePlaySession;
+    if (mounted) setState(() => _isDialoguePlaying = true);
+
+    try {
+      for (final item in _dialogues) {
+        if (!mounted) return;
+        if (session != _dialoguePlaySession) return;
+
+        final d = item as dynamic;
+        final koreanText = (d['koreanText'] ?? '').toString();
+        final audioUrl = (d['audioUrl'] ?? '').toString();
+
+        if (audioUrl.isNotEmpty) {
+          try {
+            await _audioPlayer.stop();
+          } catch (_) {}
+
+          try {
+            await _audioPlayer.play(UrlSource(audioUrl));
+            await _audioPlayer.onPlayerComplete.first;
+          } catch (_) {
+            if (koreanText.isNotEmpty) {
+              _speakKorean(koreanText);
+              await Future.delayed(const Duration(milliseconds: 1600));
+            }
+          }
+        } else {
+          if (koreanText.isNotEmpty) {
+            _speakKorean(koreanText);
+            await Future.delayed(const Duration(milliseconds: 1600));
+          }
+        }
+
+        if (session != _dialoguePlaySession) return;
+        await Future.delayed(const Duration(milliseconds: 450));
+      }
+    } finally {
+      if (mounted && session == _dialoguePlaySession) {
+        setState(() => _isDialoguePlaying = false);
+      }
+    }
   }
 
   Future<void> _loadData() async {
@@ -111,7 +170,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
         actions: [
           if (_tabCtrl.index == 0)
             IconButton(
-              tooltip: _vocabListView ? 'Xem dạng card lật' : 'Xem dạng danh sách',
+              tooltip:
+                  _vocabListView ? 'Xem dạng card lật' : 'Xem dạng danh sách',
               icon: Icon(_vocabListView ? Icons.style : Icons.view_list),
               onPressed: () {
                 setState(() {
@@ -367,28 +427,27 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                             ElevatedButton.icon(
                               onPressed: () async {
                                 final api = ref.read(apiClientProvider);
+                                final messenger = ScaffoldMessenger.of(context);
                                 try {
                                   await api.addToReview(v['id']);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Đã thêm vào danh sách ôn tập!')),
-                                    );
-                                  }
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Đã thêm vào danh sách ôn tập!'),
+                                    ),
+                                  );
                                 } catch (_) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Có lỗi xảy ra, vui lòng thử lại')),
-                                    );
-                                  }
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Có lỗi xảy ra, vui lòng thử lại'),
+                                    ),
+                                  );
                                 }
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.seedColor
-                                    .withValues(alpha: 0.1),
+                                backgroundColor:
+                                    theme.seedColor.withValues(alpha: 0.1),
                                 foregroundColor: theme.seedColor,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -536,124 +595,168 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     }
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _dialogues.length,
-      itemBuilder: (_, i) {
-        final d = _dialogues[i];
-        final isLeft = i % 2 == 0;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
-            mainAxisAlignment:
-                isLeft ? MainAxisAlignment.start : MainAxisAlignment.end,
             children: [
-              if (isLeft)
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor:
-                      theme.seedColor.withValues(alpha: 0.2),
-                  child: Text(
-                    (d['speaker'] ?? '?')[0],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: theme.seedColor,
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isDialoguePlaying
+                      ? _stopDialoguePlayback
+                      : _playAllDialogues,
+                  icon:
+                      Icon(_isDialoguePlaying ? Icons.stop : Icons.play_arrow),
+                  label: Text(_isDialoguePlaying ? 'Dừng phát' : 'Phát tất cả'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.seedColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ),
-              if (isLeft) const SizedBox(width: 8),
-              Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.65,
-                ),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isLeft
-                      ? Colors.white
-                      : theme.seedColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      d['speaker'] ?? '',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            d['koreanText'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _speakKorean(d['koreanText'] ?? ''),
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(Icons.volume_up,
-                                size: 16, color: theme.seedColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (d['audioUrl'] != null &&
-                            d['audioUrl'].toString().isNotEmpty) ...[
-                          GestureDetector(
-                            onTap: () => _playAudio(d['audioUrl']),
-                            child: Icon(Icons.volume_up,
-                                size: 16, color: theme.seedColor),
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                        Expanded(
-                          child: Text(
-                            d['vietnameseText'] ?? '',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
-              if (!isLeft) const SizedBox(width: 8),
-              if (!isLeft)
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.purple.withValues(alpha: 0.2),
-                  child: Text(
-                    (d['speaker'] ?? '?')[0],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.purple,
-                    ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: _stopDialoguePlayback,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.seedColor,
+                  side:
+                      BorderSide(color: theme.seedColor.withValues(alpha: 0.6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+                child: const Text('Reset'),
+              ),
             ],
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            itemCount: _dialogues.length,
+            itemBuilder: (_, i) {
+              final d = _dialogues[i];
+              final isLeft = i % 2 == 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment:
+                      isLeft ? MainAxisAlignment.start : MainAxisAlignment.end,
+                  children: [
+                    if (isLeft)
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: theme.seedColor.withValues(alpha: 0.2),
+                        child: Text(
+                          (d['speaker'] ?? '?')[0],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.seedColor,
+                          ),
+                        ),
+                      ),
+                    if (isLeft) const SizedBox(width: 8),
+                    Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.65,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isLeft
+                            ? Colors.white
+                            : theme.seedColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d['speaker'] ?? '',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  d['koreanText'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    _speakKorean(d['koreanText'] ?? ''),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.volume_up,
+                                      size: 16, color: theme.seedColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (d['audioUrl'] != null &&
+                                  d['audioUrl'].toString().isNotEmpty) ...[
+                                GestureDetector(
+                                  onTap: () => _playAudio(d['audioUrl']),
+                                  child: Icon(Icons.volume_up,
+                                      size: 16, color: theme.seedColor),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  d['vietnameseText'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isLeft) const SizedBox(width: 8),
+                    if (!isLeft)
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: theme.seedColor.withValues(alpha: 0.2),
+                        child: Text(
+                          (d['speaker'] ?? '?')[0],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.seedColor,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
