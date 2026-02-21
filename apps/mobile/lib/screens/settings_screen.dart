@@ -16,8 +16,13 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cài đặt'),
-        backgroundColor: theme.seedColor,
         foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: theme.gradient),
+          ),
+        ),
       ),
       body: ListView(
         children: [

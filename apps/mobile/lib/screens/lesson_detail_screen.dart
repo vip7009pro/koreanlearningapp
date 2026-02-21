@@ -101,8 +101,13 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
           _lesson?['title'] ?? '',
           style: const TextStyle(fontSize: 16),
         ),
-        backgroundColor: theme.seedColor,
         foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: theme.gradient),
+          ),
+        ),
         actions: [
           if (_tabCtrl.index == 0)
             IconButton(
