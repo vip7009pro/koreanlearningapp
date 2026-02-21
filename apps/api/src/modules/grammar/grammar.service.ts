@@ -33,4 +33,12 @@ export class GrammarService {
     await this.prisma.grammar.delete({ where: { id } });
     return { message: 'Grammar deleted successfully' };
   }
+
+  async removeMany(ids: string[]) {
+    const safeIds = Array.from(new Set((ids || []).filter((x) => typeof x === 'string' && x.trim())));
+    if (safeIds.length === 0) return { deleted: 0 };
+
+    const res = await this.prisma.grammar.deleteMany({ where: { id: { in: safeIds } } });
+    return { deleted: res.count };
+  }
 }

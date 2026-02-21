@@ -7,11 +7,15 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
+    const pageNum = typeof page === 'string' ? Number(page) : page;
+    const limitNum = typeof limit === 'string' ? Number(limit) : limit;
+    const safePage = Number.isFinite(pageNum) && pageNum > 0 ? Math.floor(pageNum) : 1;
+    const safeLimit = Number.isFinite(limitNum) && limitNum > 0 ? Math.floor(limitNum) : 20;
+    const skip = (safePage - 1) * safeLimit;
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -30,9 +34,9 @@ export class UsersService {
     return {
       data,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
     };
   }
 

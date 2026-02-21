@@ -35,4 +35,11 @@ export class DialoguesController {
   @UseGuards(AuthGuard('jwt'), RolesGuard) @Roles(UserRole.ADMIN) @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete dialogue (Admin only)' })
   remove(@Param('id') id: string) { return this.dialoguesService.remove(id); }
+
+  @Post('bulk-delete')
+  @UseGuards(AuthGuard('jwt'), RolesGuard) @Roles(UserRole.ADMIN) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk delete dialogues (Admin only)' })
+  bulkDelete(@Body() body: { ids: string[] }) {
+    return this.dialoguesService.removeMany(body?.ids || []);
+  }
 }

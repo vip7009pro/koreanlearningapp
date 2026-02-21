@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../core/api_client.dart';
 import '../core/tts_service.dart';
+import '../providers/app_settings_provider.dart';
 
 class LessonDetailScreen extends ConsumerStatefulWidget {
   final String lessonId;
@@ -86,6 +87,9 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -94,13 +98,15 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
         ),
         bottom: TabBar(
           controller: _tabCtrl,
-          labelColor: const Color(0xFF2563EB),
+          isScrollable: true,
+          labelColor: theme.seedColor,
           unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF2563EB),
+          indicatorColor: theme.seedColor,
           labelStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: 'Từ vựng (${_vocab.length})'),
             Tab(text: 'Ngữ pháp (${_grammar.length})'),
@@ -124,6 +130,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   // Flashcard-style vocab
   Widget _buildVocabTab() {
     if (_vocab.isEmpty) return const Center(child: Text('Chưa có từ vựng'));
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
     final v = _vocab[_currentVocabIndex];
     return Column(
       children: [
@@ -150,8 +158,10 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF2563EB).withValues(alpha: 0.05),
-                    const Color(0xFF7C3AED).withValues(alpha: 0.05),
+                    theme.seedColor.withValues(alpha: 0.05),
+                    theme.gradient.length > 1
+                        ? theme.gradient[1].withValues(alpha: 0.05)
+                        : theme.seedColor.withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
@@ -182,8 +192,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                             ),
                             const SizedBox(height: 12),
                             IconButton(
-                              icon: const Icon(Icons.volume_up,
-                                  size: 32, color: Color(0xFF2563EB)),
+                              icon: Icon(Icons.volume_up,
+                                  size: 32, color: theme.seedColor),
                               onPressed: () => _speakKorean(v['korean'] ?? ''),
                             ),
                             const SizedBox(height: 16),
@@ -259,8 +269,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                             ),
                             const SizedBox(height: 12),
                             IconButton(
-                              icon: const Icon(Icons.volume_up,
-                                  size: 32, color: Color(0xFF2563EB)),
+                              icon: Icon(Icons.volume_up,
+                                  size: 32, color: theme.seedColor),
                               onPressed: () => _speakKorean(v['korean'] ?? ''),
                             ),
                             const SizedBox(height: 20),
@@ -287,9 +297,9 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                 }
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB)
+                                backgroundColor: theme.seedColor
                                     .withValues(alpha: 0.1),
-                                foregroundColor: const Color(0xFF2563EB),
+                                foregroundColor: theme.seedColor,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -318,7 +328,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             padding: const EdgeInsets.only(bottom: 16),
             child: FloatingActionButton(
               heroTag: 'vocab_audio',
-              backgroundColor: const Color(0xFF2563EB),
+              backgroundColor: theme.seedColor,
               onPressed: () => _playAudio(v['audioUrl']),
               child: const Icon(Icons.volume_up, color: Colors.white),
             ),
@@ -360,6 +370,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
 
   Widget _buildGrammarTab() {
     if (_grammar.isEmpty) return const Center(child: Text('Chưa có ngữ pháp'));
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _grammar.length,
@@ -377,12 +389,11 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2563EB),
+                    color: Colors.black,
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.volume_up,
-                      color: Color(0xFF2563EB), size: 20),
+                  icon: Icon(Icons.volume_up, color: theme.seedColor, size: 20),
                   onPressed: () => _speakKorean(g['pattern'] ?? ''),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -413,8 +424,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.volume_up,
-                              color: Color(0xFF2563EB), size: 18),
+                          icon: Icon(Icons.volume_up,
+                              color: theme.seedColor, size: 18),
                           onPressed: () => _speakKorean(g['example'] ?? ''),
                         ),
                       ],
@@ -433,6 +444,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     if (_dialogues.isEmpty) {
       return const Center(child: Text('Chưa có hội thoại'));
     }
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _dialogues.length,
@@ -449,13 +462,13 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                 CircleAvatar(
                   radius: 16,
                   backgroundColor:
-                      const Color(0xFF2563EB).withValues(alpha: 0.2),
+                      theme.seedColor.withValues(alpha: 0.2),
                   child: Text(
                     (d['speaker'] ?? '?')[0],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2563EB),
+                      color: theme.seedColor,
                     ),
                   ),
                 ),
@@ -468,7 +481,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                 decoration: BoxDecoration(
                   color: isLeft
                       ? Colors.white
-                      : const Color(0xFF2563EB).withValues(alpha: 0.1),
+                      : theme.seedColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
@@ -498,10 +511,10 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                         ),
                         GestureDetector(
                           onTap: () => _speakKorean(d['koreanText'] ?? ''),
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 4),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4),
                             child: Icon(Icons.volume_up,
-                                size: 16, color: Color(0xFF2563EB)),
+                                size: 16, color: theme.seedColor),
                           ),
                         ),
                       ],
@@ -514,8 +527,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                             d['audioUrl'].toString().isNotEmpty) ...[
                           GestureDetector(
                             onTap: () => _playAudio(d['audioUrl']),
-                            child: const Icon(Icons.volume_up,
-                                size: 16, color: Color(0xFF2563EB)),
+                            child: Icon(Icons.volume_up,
+                                size: 16, color: theme.seedColor),
                           ),
                           const SizedBox(width: 4),
                         ],
@@ -585,7 +598,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             ),
             trailing: const Icon(
               Icons.play_arrow_rounded,
-              color: Color(0xFF2563EB),
+              color: Colors.black,
             ),
             onTap: () => context.push('/quiz/${q['id']}'),
           ),

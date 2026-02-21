@@ -86,6 +86,39 @@ export class UploadController {
     };
   }
 
+  @Post('avatar')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (_req, file, cb) => {
+          const name = `${uuidv4()}${extname(file.originalname)}`;
+          cb(null, name);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload avatar image (Authenticated user)' })
+  uploadAvatar(@UploadedFile() file: Express.Multer.File) {
+    return {
+      filename: file.filename,
+      url: this.uploadService.getFileUrl(`avatars/${file.filename}`),
+      size: file.size,
+      mimetype: file.mimetype,
+    };
+  }
+
   @Get('files/:folder/:filename')
   @ApiOperation({ summary: 'Get uploaded file' })
   getFile(@Param('folder') folder: string, @Param('filename') filename: string, @Res() res: Response) {

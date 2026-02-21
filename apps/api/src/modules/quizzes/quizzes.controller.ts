@@ -37,6 +37,13 @@ export class QuizzesController {
   @ApiOperation({ summary: 'Delete quiz (Admin only)' })
   removeQuiz(@Param('id') id: string) { return this.quizzesService.removeQuiz(id); }
 
+  @Post('bulk-delete')
+  @UseGuards(AuthGuard('jwt'), RolesGuard) @Roles(UserRole.ADMIN) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk delete quizzes (Admin only)' })
+  bulkDelete(@Body() body: { ids: string[] }) {
+    return this.quizzesService.removeMany(body?.ids || []);
+  }
+
   @Post('questions')
   @UseGuards(AuthGuard('jwt'), RolesGuard) @Roles(UserRole.ADMIN) @ApiBearerAuth()
   @ApiOperation({ summary: 'Create question (Admin only)' })

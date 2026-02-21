@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/api_client.dart';
+
 class QuizScreen extends ConsumerStatefulWidget {
   final String quizId;
   const QuizScreen({super.key, required this.quizId});
@@ -14,8 +16,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   final Map<String, String> _answers = {};
   bool _submitted = false;
   Map<String, dynamic>? _result;
-  final List<dynamic> _questions = [];
-  final String _quizTitle = '';
+  List<dynamic> _questions = [];
+  String _quizTitle = '';
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,9 +28,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _loadQuiz() async {
-    // For now, load from the lesson detail API
-    // In a real app, you'd have a dedicated quiz endpoint
-    setState(() {});
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final api = ref.read(apiClientProvider);
+    try {
+      final res = await api.getQuiz(widget.quizId);
+      final data = res.data as Map<String, dynamic>;
+      final questions = (data['questions'] as List?) ?? [];
+
+      if (!mounted) return;
+      setState(() {
+        _quizTitle = (data['title'] ?? '').toString().trim();
+        _questions = questions;
+        _currentQuestion = 0;
+        _answers.clear();
+        _submitted = false;
+        _result = null;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Không tải được bài tập. Vui lòng thử lại.';
+      });
+    }
   }
 
   @override
@@ -47,28 +76,50 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ),
         ],
       ),
-      body: _questions.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.quiz_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Bài kiểm tra sẽ sớm có',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.redAccent),
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadQuiz,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Chức năng đang phát triển',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : _submitted
-              ? _buildResults()
-              : _buildQuestion(),
+                )
+              : _questions.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.quiz_outlined,
+                              size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'Chưa có câu hỏi cho bài tập này',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _submitted
+                      ? _buildResults()
+                      : _buildQuestion(),
     );
   }
 
@@ -78,6 +129,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     }
     final q = _questions[_currentQuestion];
     final options = (q['options'] as List?) ?? [];
+
+    final qId = (q['id'] ?? '').toString();
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -91,7 +145,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               value: (_currentQuestion + 1) / _questions.length,
               minHeight: 6,
               backgroundColor: Colors.grey.shade200,
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF2563EB)),
+              valueColor: AlwaysStoppedAnimation(primary),
             ),
           ),
           const SizedBox(height: 24),
@@ -103,11 +157,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           const SizedBox(height: 24),
 
           ...options.map<Widget>((opt) {
-            final selected = _answers[q['id']] == opt['text'];
+            final optText = (opt['text'] ?? '').toString().trim();
+            final selected = _answers[qId] == optText;
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
-                onTap: () => setState(() => _answers[q['id']] = opt['text']),
+                onTap: optText.isEmpty
+                    ? null
+                    : () => setState(() => _answers[qId] = optText),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: double.infinity,
@@ -116,21 +173,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected
-                          ? const Color(0xFF2563EB)
+                          ? primary
                           : Colors.grey.shade300,
                       width: selected ? 2 : 1,
                     ),
                     color: selected
-                        ? const Color(0xFF2563EB).withValues(alpha: 0.05)
+                        ? primary.withValues(alpha: 0.05)
                         : null,
                   ),
                   child: Text(
-                    opt['text'] ?? '',
+                    optText,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight:
                           selected ? FontWeight.w600 : FontWeight.normal,
-                      color: selected ? const Color(0xFF2563EB) : null,
+                      color: selected ? primary : null,
                     ),
                   ),
                 ),
@@ -153,7 +210,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed:
-                      _answers.containsKey(_questions[_currentQuestion]['id'])
+                      _answers.containsKey((_questions[_currentQuestion]['id'] ?? '').toString())
                           ? () {
                               if (_currentQuestion < _questions.length - 1) {
                                 setState(() => _currentQuestion++);
@@ -225,9 +282,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _submitQuiz() async {
-    setState(() {
-      _submitted = true;
-      _result = {'score': 85};
-    }); // Mock
+    final api = ref.read(apiClientProvider);
+
+    final answers = _questions
+        .map<Map<String, dynamic>>((q) {
+          final qId = (q['id'] ?? '').toString();
+          final a = _answers[qId];
+          if (qId.isEmpty || a == null) return {};
+          return {'questionId': qId, 'answer': a};
+        })
+        .where((x) => x.isNotEmpty)
+        .toList();
+
+    setState(() => _loading = true);
+    try {
+      final res = await api.submitQuiz(widget.quizId, answers);
+      if (!mounted) return;
+      setState(() {
+        _submitted = true;
+        _result = (res.data as Map?)?.cast<String, dynamic>();
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nộp bài thất bại. Vui lòng thử lại.')),
+      );
+    }
   }
 }

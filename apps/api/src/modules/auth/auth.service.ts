@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateProfileDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -139,6 +139,26 @@ export class AuthService {
       streakDays: user.streakDays,
       createdAt: user.createdAt,
       subscription: user.subscriptions[0] || null,
+    };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.displayName != null ? { displayName: dto.displayName } : {}),
+        ...(dto.avatarUrl != null ? { avatarUrl: dto.avatarUrl } : {}),
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      role: user.role,
+      totalXP: user.totalXP,
+      streakDays: user.streakDays,
     };
   }
 

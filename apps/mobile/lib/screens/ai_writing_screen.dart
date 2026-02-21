@@ -151,7 +151,7 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                             style: const TextStyle(fontSize: 13)),
                         selected: isSelected,
                         selectedColor:
-                            const Color(0xFF2563EB).withValues(alpha: 0.2),
+                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                         onSelected: (_) => setState(() {
                           _selectedTopicIndex = e.key;
                           _isCustomTopic = false;

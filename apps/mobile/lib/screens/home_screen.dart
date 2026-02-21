@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> _courses = [];
   Map<String, dynamic>? _dailyGoal;
   bool _loading = true;
+  bool _isPremiumUser = false;
 
   @override
   void initState() {
@@ -27,10 +29,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final coursesRes = await api.getCourses();
       final goalRes = await api.getDailyGoal();
+      final premiumRes = await api.checkPremiumStatus();
       if (mounted) {
         setState(() {
           _courses = coursesRes.data?['data'] ?? [];
           _dailyGoal = goalRes.data;
+          _isPremiumUser = premiumRes.data?['isPremium'] ?? false;
           _loading = false;
         });
       }
@@ -41,10 +45,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Future<void> _handleOpenCourse(dynamic course) async {
+    final isPremiumCourse = course['isPremium'] == true;
+
+    if (!isPremiumCourse || _isPremiumUser) {
+      if (mounted) context.push('/course/${course['id']}');
+      return;
+    }
+
+    final shouldUpgrade = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Khóa học Premium'),
+        content: const Text(
+          'Khóa học này chỉ dành cho tài khoản Premium. Bạn muốn nâng cấp ngay không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Để sau'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Nâng cấp'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldUpgrade == true && mounted) {
+      final upgraded = await context.push<bool>('/subscription');
+      if (!mounted) return;
+      if (upgraded == true) {
+        setState(() {
+          _isPremiumUser = true;
+        });
+
+        // Open course immediately after successful upgrade
+        if (mounted) {
+          context.push('/course/${course['id']}');
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final user = auth.user;
+    final api = ref.read(apiClientProvider);
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
 
     return Scaffold(
       body: _loading
@@ -60,10 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     pinned: true,
                     flexibleSpace: FlexibleSpaceBar(
                       background: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                          ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: theme.gradient),
                         ),
                         child: SafeArea(
                           child: Padding(
@@ -105,10 +154,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         radius: 22,
                                         backgroundColor:
                                             Colors.white.withValues(alpha: 0.2),
-                                        child: const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                        ),
+                                        backgroundImage: (user?['avatarUrl'] !=
+                                                    null &&
+                                                (user?['avatarUrl'] as String)
+                                                    .toString()
+                                                    .isNotEmpty)
+                                            ? NetworkImage(
+                                                api.absoluteUrl(
+                                                    user?['avatarUrl'] as String?),
+                                              )
+                                            : null,
+                                        child: (user?['avatarUrl'] == null ||
+                                                (user?['avatarUrl'] as String?)
+                                                        ?.isEmpty ==
+                                                    true)
+                                            ? const Icon(
+                                                Icons.person,
+                                                color: Colors.white,
+                                              )
+                                            : null,
                                       ),
                                     ),
                                   ],
@@ -150,11 +214,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
                                       Icon(
                                         Icons.flag,
-                                        color: Color(0xFF2563EB),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                         size: 20,
                                       ),
                                       SizedBox(width: 8),
@@ -199,10 +265,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(colors: [
-                                  Color(0xFF10B981),
-                                  Color(0xFF34D399)
-                                ]),
+                                gradient: LinearGradient(colors: theme.gradient),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Row(
@@ -275,8 +338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         child: Card(
                           child: InkWell(
-                            onTap: () =>
-                                context.push('/course/${course['id']}'),
+                            onTap: () => _handleOpenCourse(course),
                             borderRadius: BorderRadius.circular(16),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -377,28 +439,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
-        selectedItemColor: const Color(0xFF2563EB),
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.home), label: 'Trang chủ'),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.auto_stories),
             label: 'Ôn tập',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
             label: 'Bảng xếp hạng',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: 'Cá nhân'),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Cài đặt',
+          ),
+          if ((user?['role'] ?? '') == 'ADMIN')
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
         ],
         onTap: (index) {
+          final isAdmin = (user?['role'] ?? '') == 'ADMIN';
           if (index == 1) {
             context.push('/review');
           } else if (index == 2) {
             context.push('/leaderboard');
           } else if (index == 3) {
             context.push('/profile');
+          } else if (index == 4) {
+            context.push('/settings');
+          } else if (index == 5 && isAdmin) {
+            context.push('/admin');
           }
         },
       ),

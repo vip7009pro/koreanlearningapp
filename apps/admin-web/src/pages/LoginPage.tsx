@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@koreanapp.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const lastEmail = localStorage.getItem('admin_last_login_email') || '';
+    const lastPassword = localStorage.getItem('admin_last_login_password') || '';
+    setEmail(lastEmail);
+    setPassword(lastPassword);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +27,10 @@ export default function LoginPage() {
         toast.error('Admin access required');
         return;
       }
+
+      localStorage.setItem('admin_last_login_email', email);
+      localStorage.setItem('admin_last_login_password', password);
+
       login(data.accessToken, data.user);
       toast.success('Login successful!');
       navigate('/');
@@ -53,7 +64,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-6">Default: admin@koreanapp.com / Admin123!</p>
+        <p className="text-center text-xs text-gray-400 mt-6">Tip: Email/mật khẩu sẽ được nhớ để tự điền lần sau.</p>
       </div>
     </div>
   );

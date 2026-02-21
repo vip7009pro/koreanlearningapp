@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/biometric_auth.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -10,22 +13,149 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailCtrl = TextEditingController(text: 'nguyen@example.com');
-  final _passwordCtrl = TextEditingController(text: 'User123!');
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   bool _isLogin = true;
   final _nameCtrl = TextEditingController();
+
+  bool _isBiometricLoading = false;
+  bool _savedBiometricCreds = false;
+  bool _autoBiometricTried = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastLogin();
+    _loadBiometricCredsStatus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeAutoBiometricLogin();
+    });
+  }
+
+  Future<void> _maybeAutoBiometricLogin() async {
+    if (!mounted) return;
+    if (_autoBiometricTried) return;
+    if (!_isLogin) return;
+    if (_isBiometricLoading) return;
+    if (ref.read(authProvider).isLoading) return;
+
+    final settings = ref.read(appSettingsProvider);
+    if (!settings.biometricLoginEnabled) return;
+
+    final creds = await BiometricAuth.readCredentials();
+    if (!mounted) return;
+    if (creds == null) return;
+
+    _autoBiometricTried = true;
+    await _handleBiometricLogin();
+  }
+
+  Future<void> _loadLastLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('last_login_email');
+    final password = prefs.getString('last_login_password');
+    if (!mounted) return;
+    setState(() {
+      _emailCtrl.text = email ?? '';
+      _passwordCtrl.text = password ?? '';
+    });
+  }
+
+  Future<void> _loadBiometricCredsStatus() async {
+    final creds = await BiometricAuth.readCredentials();
+    if (!mounted) return;
+    setState(() {
+      _savedBiometricCreds = creds != null;
+    });
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    final settings = ref.read(appSettingsProvider);
+    if (!settings.biometricLoginEnabled) return;
+
+    setState(() => _isBiometricLoading = true);
+    try {
+      final canBio = await BiometricAuth.canCheckBiometrics();
+      if (!canBio) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Thiết bị chưa hỗ trợ hoặc chưa thiết lập sinh trắc học (vân tay/FaceID).',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final creds = await BiometricAuth.readCredentials();
+      if (creds == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chưa có thông tin đăng nhập sinh trắc học. Hãy đăng nhập 1 lần trước.'),
+          ),
+        );
+        return;
+      }
+
+      final ok = await BiometricAuth.authenticate();
+      if (!ok) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xác thực sinh trắc học thất bại hoặc bị huỷ.')),
+        );
+        return;
+      }
+
+      await ref.read(authProvider.notifier).login(creds.email, creds.password);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi sinh trắc học: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isBiometricLoading = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final theme = AppSettingsNotifier.themeById(settings.themeId);
+
+    ref.listen<AuthState>(authProvider, (prev, next) async {
+      final wasAuthed = prev?.isAuthenticated == true;
+      final isAuthed = next.isAuthenticated;
+      if (wasAuthed || !isAuthed) return;
+
+      if (!settings.biometricLoginEnabled) return;
+      final email = _emailCtrl.text.trim();
+      final password = _passwordCtrl.text;
+      if (email.isEmpty || password.isEmpty) return;
+
+      await BiometricAuth.saveCredentials(email: email, password: password);
+      await _loadBiometricCredsStatus();
+    });
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
+            colors: theme.gradient,
           ),
         ),
         child: SafeArea(
@@ -138,9 +268,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 : Text(_isLogin ? 'Đăng nhập' : 'Đăng ký'),
                           ),
                         ),
+                        if (_isLogin) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: (!settings.biometricLoginEnabled ||
+                                      auth.isLoading ||
+                                      _isBiometricLoading)
+                                  ? null
+                                  : _handleBiometricLogin,
+                              icon: _isBiometricLoading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.fingerprint),
+                              label: Text(
+                                _savedBiometricCreds
+                                    ? 'Đăng nhập bằng sinh trắc học'
+                                    : 'Sinh trắc học (chưa thiết lập)',
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         TextButton(
-                          onPressed: () => setState(() => _isLogin = !_isLogin),
+                          onPressed: () => setState(() {
+                            _isLogin = !_isLogin;
+                            _autoBiometricTried = false;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _maybeAutoBiometricLogin();
+                            });
+                          }),
                           child: Text(
                             _isLogin
                                 ? 'Chưa có tài khoản? Đăng ký'

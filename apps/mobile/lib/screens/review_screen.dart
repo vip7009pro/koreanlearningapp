@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+import '../providers/app_settings_provider.dart';
 import '../core/tts_service.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
@@ -86,11 +87,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ôn tập SRS 📚'),
         elevation: 0,
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: theme.seedColor,
         foregroundColor: Colors.white,
         actions: [
           if (_reviews.isNotEmpty)
@@ -163,6 +167,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   }
 
   Widget _buildFlashcard() {
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
+
     final r = _reviews[_currentIndex];
     final vocab = r['vocabulary'] ?? {};
     final alreadyAnswered = _answered.contains(_currentIndex);
@@ -189,7 +196,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             value: _reviews.isEmpty ? 0 : _answered.length / _reviews.length,
             minHeight: 8,
             backgroundColor: Colors.grey.shade200,
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF2563EB)),
+            valueColor: AlwaysStoppedAnimation(theme.seedColor),
           ),
           Expanded(
             child: GestureDetector(
@@ -238,8 +245,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         ),
                         const SizedBox(height: 16),
                         IconButton(
-                          icon: const Icon(Icons.volume_up,
-                              size: 32, color: Color(0xFF2563EB)),
+                          icon: Icon(Icons.volume_up,
+                              size: 32, color: theme.seedColor),
                           onPressed: () => _speakKorean(vocab['korean'] ?? ''),
                         ),
                         const SizedBox(height: 16),
@@ -279,8 +286,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.volume_up,
-                                      size: 14, color: Color(0xFF2563EB)),
+                                  Icon(Icons.volume_up,
+                                      size: 14, color: theme.seedColor),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(

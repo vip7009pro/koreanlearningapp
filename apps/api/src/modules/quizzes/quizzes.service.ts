@@ -37,6 +37,14 @@ export class QuizzesService {
     return { message: 'Quiz deleted successfully' };
   }
 
+  async removeMany(ids: string[]) {
+    const safeIds = Array.from(new Set((ids || []).filter((x) => typeof x === 'string' && x.trim())));
+    if (safeIds.length === 0) return { deleted: 0 };
+
+    const res = await this.prisma.quiz.deleteMany({ where: { id: { in: safeIds } } });
+    return { deleted: res.count };
+  }
+
   async createQuestion(dto: CreateQuestionDto) {
     const question = await this.prisma.question.create({
       data: {

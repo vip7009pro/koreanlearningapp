@@ -18,6 +18,39 @@ export interface GeneratedQuiz {
   }[];
 }
 
+type GeneratedVocabularyItem = {
+  korean: string;
+  vietnamese: string;
+  pronunciation?: string;
+  exampleSentence?: string;
+  exampleMeaning?: string;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+};
+
+type GeneratedGrammarItem = {
+  pattern: string;
+  explanationVN: string;
+  example: string;
+};
+
+type GeneratedDialogueItem = {
+  speaker: string;
+  koreanText: string;
+  vietnameseText: string;
+  orderIndex?: number;
+};
+
+type GeneratedQuizItem = {
+  title: string;
+  quizType?: 'MULTIPLE_CHOICE' | 'FILL_IN_BLANK' | 'LISTENING' | 'MATCHING';
+  questions: {
+    questionType?: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_BLANK' | 'AUDIO';
+    questionText: string;
+    correctAnswer: string;
+    options?: { text: string; isCorrect?: boolean }[];
+  }[];
+};
+
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
@@ -25,6 +58,482 @@ export class AIService {
 
   private get apiKey(): string {
     return process.env.OPENROUTER_API_KEY || '';
+  }
+
+  private async getLessonContext(lessonId: string) {
+    return this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        section: {
+          include: {
+            course: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async callOpenRouterJson(
+    systemPrompt: string,
+    userPrompt: string,
+    modelOverride?: string,
+  ): Promise<any> {
+    if (!this.apiKey) {
+      throw new Error('OPENROUTER_API_KEY is not configured');
+    }
+
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model:
+          (modelOverride && String(modelOverride).trim()) ||
+          process.env.OPENROUTER_MODEL ||
+          'google/gemini-2.0-flash-001',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 18000,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+          'X-Title': 'Korean Learning App',
+        },
+        timeout: 45000,
+      },
+    );
+
+    const content = response.data?.choices?.[0]?.message?.content || '';
+
+    const jsonMatch =
+      content.match(/```json\s*([\s\S]*?)```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : content;
+
+    const trimmed = String(jsonStr).trim();
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      const msg = (e as any)?.message ? String((e as any).message) : String(e);
+      const posMatch = msg.match(/position\s+(\d+)/i);
+      const pos = posMatch ? Number(posMatch[1]) : null;
+
+      // Common failure mode: model output gets truncated and misses closing brackets.
+      // If the error position is at end-of-string, try a minimal repair by appending closing tokens.
+      if (typeof pos === 'number' && !Number.isNaN(pos) && pos >= trimmed.length - 1) {
+        const repairedCandidates = [
+          `${trimmed}\n]}`,
+          `${trimmed}\n]}}`,
+        ];
+        for (const candidate of repairedCandidates) {
+          try {
+            const repaired = JSON.parse(candidate);
+            this.logger.warn(
+              {
+                model: modelOverride || 'default',
+                jsonLength: trimmed.length,
+                repairedJsonLength: candidate.length,
+                parseError: msg,
+              },
+              'OpenRouter JSON.parse failed but was auto-repaired',
+            );
+            return repaired;
+          } catch (_) {
+            // ignore and try next candidate
+          }
+        }
+      }
+
+      const clamp = (n: number, min: number, max: number) =>
+        Math.max(min, Math.min(max, n));
+      const excerptAround = (s: string, center: number, radius: number) => {
+        const start = clamp(center - radius, 0, s.length);
+        const end = clamp(center + radius, 0, s.length);
+        return s.slice(start, end);
+      };
+
+      const head = trimmed.slice(0, 500);
+      const tail = trimmed.length > 500 ? trimmed.slice(-500) : '';
+      const around =
+        typeof pos === 'number' && !Number.isNaN(pos)
+          ? excerptAround(trimmed, pos, 250)
+          : '';
+
+      this.logger.warn(
+        {
+          model: modelOverride || 'default',
+          contentLength: String(content).length,
+          jsonLength: trimmed.length,
+          parseError: msg,
+          errorPosition: pos,
+          jsonHead: head,
+          jsonTail: tail,
+          jsonAroundError: around,
+        },
+        'OpenRouter JSON.parse failed',
+      );
+      throw e;
+    }
+  }
+
+  async generateAndInsertVocabulary(lessonId: string, count: number, model?: string) {
+    const ctx = await this.getLessonContext(lessonId);
+    if (!ctx) throw new Error('Lesson not found');
+
+    const safeCount = Math.max(1, Math.min(200, Math.floor(count || 10)));
+    const courseTitle = ctx.section?.course?.title || '';
+    const sectionTitle = ctx.section?.title || '';
+    const lessonTitle = ctx.title || '';
+
+    const existingKorean = await this.prisma.vocabulary.findMany({
+      where: { lessonId },
+      select: { korean: true },
+      orderBy: { createdAt: 'asc' },
+      take: 500,
+    });
+    const existingList = existingKorean
+      .map((x) => String(x.korean || '').trim())
+      .filter((x) => x.length)
+      .slice(0, 500);
+
+    const systemPrompt = `Bạn là trợ lý tạo nội dung học tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.`;
+    const userPrompt = `Hãy tạo danh sách ${safeCount} từ vựng MỚI cho bài học tiếng Hàn.
+
+Ngữ cảnh:
+- Course: "${courseTitle}"
+- Section: "${sectionTitle}"
+- Lesson: "${lessonTitle}"
+
+KHÔNG ĐƯỢC tạo trùng (korean) với các từ đã tồn tại sau:
+${existingList.length ? existingList.map((x) => `- ${x}`).join('\n') : '- (trống)'}
+
+YÊU CẦU JSON:
+{
+  "items": [
+    {
+      "korean": "...",
+      "vietnamese": "...",
+      "pronunciation": "...",
+      "exampleSentence": "...",
+      "exampleMeaning": "...",
+      "difficulty": "EASY"|"MEDIUM"|"HARD"
+    }
+  ]
+}
+
+Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề.`;
+
+    let items: GeneratedVocabularyItem[] = [];
+    if (this.apiKey) {
+      try {
+        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        items = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch (e) {
+        this.logger.warn('AI vocab generation failed, falling back to mock', e as any);
+      }
+    }
+
+    if (!items.length) {
+      items = Array.from({ length: safeCount }).map((_, i) => ({
+        korean: `단어 ${i + 1}`,
+        vietnamese: `Từ ${i + 1}`,
+        pronunciation: '',
+        exampleSentence: '',
+        exampleMeaning: '',
+        difficulty: 'EASY',
+      }));
+    }
+
+    const rawItems = items.slice(0, safeCount).map((it) => ({
+      lessonId,
+      korean: String(it.korean || '').trim(),
+      vietnamese: String(it.vietnamese || '').trim(),
+      pronunciation: String(it.pronunciation || ''),
+      exampleSentence: String(it.exampleSentence || ''),
+      exampleMeaning: String(it.exampleMeaning || ''),
+      difficulty: (it.difficulty as any) || 'EASY',
+    }));
+
+    const uniqueByKorean = new Map<string, (typeof rawItems)[number]>();
+    for (const it of rawItems) {
+      if (!it.korean) continue;
+      const key = it.korean.toLowerCase();
+      if (!uniqueByKorean.has(key)) uniqueByKorean.set(key, it);
+    }
+
+    const uniqueItems = Array.from(uniqueByKorean.values());
+    const existing = await this.prisma.vocabulary.findMany({
+      where: {
+        lessonId,
+        korean: { in: uniqueItems.map((x) => x.korean) },
+      },
+      select: { korean: true },
+    });
+
+    const existingSet = new Set(existing.map((x) => String(x.korean).toLowerCase()));
+    const createItems = uniqueItems.filter((x) => !existingSet.has(x.korean.toLowerCase()));
+
+    const created = createItems.length
+      ? await this.prisma.vocabulary.createMany({
+          data: createItems,
+          skipDuplicates: false,
+        })
+      : { count: 0 };
+
+    return {
+      inserted: created.count,
+      requested: safeCount,
+      generatedUnique: uniqueItems.length,
+      skippedExisting: uniqueItems.length - createItems.length,
+      lessonId,
+    };
+  }
+
+  async generateAndInsertGrammar(lessonId: string, count: number, model?: string) {
+    const ctx = await this.getLessonContext(lessonId);
+    if (!ctx) throw new Error('Lesson not found');
+
+    const safeCount = Math.max(1, Math.min(30, Math.floor(count || 5)));
+    const courseTitle = ctx.section?.course?.title || '';
+    const sectionTitle = ctx.section?.title || '';
+    const lessonTitle = ctx.title || '';
+
+    const systemPrompt = `Bạn là trợ lý tạo ngữ pháp tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.`;
+    const userPrompt = `Hãy tạo ${safeCount} mục ngữ pháp cho bài học.
+
+Ngữ cảnh:
+- Course: "${courseTitle}"
+- Section: "${sectionTitle}"
+- Lesson: "${lessonTitle}"
+
+YÊU CẦU JSON:
+{
+  "items": [
+    {
+      "pattern": "...",
+      "explanationVN": "...",
+      "example": "..."
+    }
+  ]
+}`;
+
+    let items: GeneratedGrammarItem[] = [];
+    if (this.apiKey) {
+      try {
+        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        items = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch (e) {
+        this.logger.warn('AI grammar generation failed, falling back to mock', e as any);
+      }
+    }
+
+    if (!items.length) {
+      items = Array.from({ length: safeCount }).map((_, i) => ({
+        pattern: `패턴 ${i + 1}`,
+        explanationVN: `Giải thích ${i + 1}`,
+        example: `예문 ${i + 1}`,
+      }));
+    }
+
+    const data = items.slice(0, safeCount).map((it) => ({
+      lessonId,
+      pattern: String(it.pattern || '').trim(),
+      explanationVN: String(it.explanationVN || '').trim(),
+      example: String(it.example || '').trim(),
+    }));
+
+    const created = await this.prisma.grammar.createMany({ data });
+    return { inserted: created.count, requested: safeCount, lessonId };
+  }
+
+  async generateAndInsertDialogues(lessonId: string, count: number, model?: string) {
+    const ctx = await this.getLessonContext(lessonId);
+    if (!ctx) throw new Error('Lesson not found');
+
+    const safeCount = Math.max(1, Math.min(50, Math.floor(count || 10)));
+    const courseTitle = ctx.section?.course?.title || '';
+    const sectionTitle = ctx.section?.title || '';
+    const lessonTitle = ctx.title || '';
+
+    const systemPrompt = `Bạn là trợ lý tạo hội thoại tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.`;
+    const userPrompt = `Hãy tạo hội thoại gồm ${safeCount} câu (lines) cho bài học.
+
+Ngữ cảnh:
+- Course: "${courseTitle}"
+- Section: "${sectionTitle}"
+- Lesson: "${lessonTitle}"
+
+YÊU CẦU JSON:
+{
+  "items": [
+    {
+      "speaker": "A|B|...",
+      "koreanText": "...",
+      "vietnameseText": "...",
+      "orderIndex": 0
+    }
+  ]
+}
+
+Lưu ý: orderIndex tăng dần từ 0.`;
+
+    let items: GeneratedDialogueItem[] = [];
+    if (this.apiKey) {
+      try {
+        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        items = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch (e) {
+        this.logger.warn('AI dialogues generation failed, falling back to mock', e as any);
+      }
+    }
+
+    if (!items.length) {
+      items = Array.from({ length: safeCount }).map((_, i) => ({
+        speaker: i % 2 == 0 ? 'A' : 'B',
+        koreanText: `대화 ${i + 1}`,
+        vietnameseText: `Hội thoại ${i + 1}`,
+        orderIndex: i,
+      }));
+    }
+
+    const data = items.slice(0, safeCount).map((it, i) => ({
+      lessonId,
+      speaker: String(it.speaker || (i % 2 === 0 ? 'A' : 'B')).trim(),
+      koreanText: String(it.koreanText || '').trim(),
+      vietnameseText: String(it.vietnameseText || '').trim(),
+      orderIndex: Number.isFinite(Number(it.orderIndex)) ? Number(it.orderIndex) : i,
+    }));
+
+    const created = await this.prisma.dialogue.createMany({ data });
+    return { inserted: created.count, requested: safeCount, lessonId };
+  }
+
+  async generateAndInsertQuizzes(lessonId: string, count: number, model?: string) {
+    const ctx = await this.getLessonContext(lessonId);
+    if (!ctx) throw new Error('Lesson not found');
+
+    const safeCount = Math.max(1, Math.min(10, Math.floor(count || 1)));
+    const courseTitle = ctx.section?.course?.title || '';
+    const sectionTitle = ctx.section?.title || '';
+    const lessonTitle = ctx.title || '';
+
+    const systemPrompt = `Bạn là trợ lý tạo quiz tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.`;
+    const userPrompt = `Hãy tạo ${safeCount} quiz cho bài học.
+
+Ngữ cảnh:
+- Course: "${courseTitle}"
+- Section: "${sectionTitle}"
+- Lesson: "${lessonTitle}"
+
+YÊU CẦU JSON:
+{
+  "items": [
+    {
+      "title": "...",
+      "quizType": "MULTIPLE_CHOICE",
+      "questions": [
+        {
+          "questionType": "MULTIPLE_CHOICE",
+          "questionText": "...",
+          "correctAnswer": "...",
+          "options": [
+            {"text": "...", "isCorrect": true},
+            {"text": "...", "isCorrect": false}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Lưu ý: mỗi quiz nên có 3-10 câu hỏi, options tối thiểu 4 lựa chọn.`;
+
+    let items: GeneratedQuizItem[] = [];
+    if (this.apiKey) {
+      try {
+        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        items = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch (e) {
+        this.logger.warn('AI quiz generation failed, falling back to mock', e as any);
+      }
+    }
+
+    if (!items.length) {
+      items = Array.from({ length: safeCount }).map((_, i) => ({
+        title: `Quiz ${i + 1}: ${lessonTitle}`,
+        quizType: 'MULTIPLE_CHOICE',
+        questions: [
+          {
+            questionType: 'MULTIPLE_CHOICE',
+            questionText: `Câu hỏi ${i + 1}?`,
+            correctAnswer: 'Đáp án đúng',
+            options: [
+              { text: 'Đáp án đúng', isCorrect: true },
+              { text: 'Đáp án sai 1', isCorrect: false },
+              { text: 'Đáp án sai 2', isCorrect: false },
+              { text: 'Đáp án sai 3', isCorrect: false },
+            ],
+          },
+        ],
+      }));
+    }
+
+    const createdIds: string[] = [];
+
+    for (const quiz of items.slice(0, safeCount)) {
+      const quizTitle = String(quiz.title || '').trim() || `Quiz: ${lessonTitle}`;
+      const quizType = (quiz.quizType as any) || 'MULTIPLE_CHOICE';
+
+      const createdQuiz = await this.prisma.quiz.create({
+        data: {
+          lessonId,
+          title: quizTitle,
+          quizType,
+        },
+      });
+
+      createdIds.push(createdQuiz.id);
+
+      const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+      for (const q of questions) {
+        const questionText = String(q.questionText || '').trim();
+        if (!questionText) continue;
+
+        const correctAnswer = String(q.correctAnswer || '').trim();
+        const questionType = (q.questionType as any) || 'MULTIPLE_CHOICE';
+        const createdQ = await this.prisma.question.create({
+          data: {
+            quizId: createdQuiz.id,
+            questionType,
+            questionText,
+            correctAnswer,
+          },
+        });
+
+        const options = Array.isArray(q.options) ? q.options : [];
+        if (options.length) {
+          await this.prisma.option.createMany({
+            data: options
+              .filter((o) => String(o?.text || '').trim().length)
+              .map((o) => ({
+                questionId: createdQ.id,
+                text: String(o.text).trim(),
+                isCorrect: o.isCorrect === true || String(o.text).trim() === correctAnswer,
+              })),
+          });
+        }
+      }
+    }
+
+    return {
+      inserted: createdIds.length,
+      requested: safeCount,
+      lessonId,
+      quizIds: createdIds,
+    };
   }
 
   /**

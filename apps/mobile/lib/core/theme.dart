@@ -13,10 +13,10 @@ class AppTheme {
   static const darkText = Color(0xFFE2E8F0);
   static const darkTextSecondary = Color(0xFF94A3B8);
 
-  static ThemeData get lightTheme => ThemeData(
+  static ThemeData lightThemeForSeed(Color seedColor) => ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
+          seedColor: seedColor,
           brightness: Brightness.light,
         ),
         textTheme: GoogleFonts.interTextTheme(),
@@ -40,7 +40,7 @@ class AppTheme {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
+            backgroundColor: seedColor,
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -62,11 +62,13 @@ class AppTheme {
         ),
       );
 
-  static ThemeData get darkTheme => ThemeData(
+  static ThemeData get lightTheme => lightThemeForSeed(primary);
+
+  static ThemeData darkThemeForSeed(Color seedColor) => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
+          seedColor: seedColor,
           brightness: Brightness.dark,
           surface: darkSurface,
         ),
@@ -121,14 +123,14 @@ class AppTheme {
         ),
         chipTheme: ChipThemeData(
           backgroundColor: darkCard,
-          selectedColor: primary.withValues(alpha: 0.3),
+          selectedColor: seedColor.withValues(alpha: 0.3),
           labelStyle: const TextStyle(color: darkText),
           secondaryLabelStyle: const TextStyle(color: darkText),
           side: const BorderSide(color: Color(0xFF334155)),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
+            backgroundColor: seedColor,
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -164,7 +166,7 @@ class AppTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: primary, width: 2),
+            borderSide: BorderSide(color: seedColor, width: 2),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -182,4 +184,6 @@ class AppTheme {
           indicatorColor: primary,
         ),
       );
+
+  static ThemeData get darkTheme => darkThemeForSeed(primary);
 }

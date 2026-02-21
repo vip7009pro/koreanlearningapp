@@ -33,6 +33,26 @@ export const authApi = {
   profile: () => api.get('/auth/profile'),
 };
 
+// AI (Admin)
+export const aiAdminApi = {
+  generateVocabulary: (lessonId: string, count: number, model?: string) =>
+    api.post(`/ai/admin/lessons/${lessonId}/generate-vocabulary`, {}, {
+      params: { count, model },
+    }),
+  generateGrammar: (lessonId: string, count: number, model?: string) =>
+    api.post(`/ai/admin/lessons/${lessonId}/generate-grammar`, {}, {
+      params: { count, model },
+    }),
+  generateDialogues: (lessonId: string, count: number, model?: string) =>
+    api.post(`/ai/admin/lessons/${lessonId}/generate-dialogues`, {}, {
+      params: { count, model },
+    }),
+  generateQuizzes: (lessonId: string, count: number, model?: string) =>
+    api.post(`/ai/admin/lessons/${lessonId}/generate-quizzes`, {}, {
+      params: { count, model },
+    }),
+};
+
 // Courses
 export const coursesApi = {
   getAll: (params?: Record<string, unknown>) => api.get('/courses', { params }),
@@ -69,6 +89,7 @@ export const vocabularyApi = {
   createBulk: (data: Record<string, unknown>[]) => api.post('/vocabulary/bulk', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/vocabulary/${id}`, data),
   delete: (id: string) => api.delete(`/vocabulary/${id}`),
+  bulkDelete: (ids: string[]) => api.post('/vocabulary/bulk-delete', { ids }),
 };
 
 // Grammar
@@ -77,6 +98,7 @@ export const grammarApi = {
   create: (data: Record<string, unknown>) => api.post('/grammar', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/grammar/${id}`, data),
   delete: (id: string) => api.delete(`/grammar/${id}`),
+  bulkDelete: (ids: string[]) => api.post('/grammar/bulk-delete', { ids }),
 };
 
 // Dialogues
@@ -85,6 +107,7 @@ export const dialoguesApi = {
   create: (data: Record<string, unknown>) => api.post('/dialogues', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/dialogues/${id}`, data),
   delete: (id: string) => api.delete(`/dialogues/${id}`),
+  bulkDelete: (ids: string[]) => api.post('/dialogues/bulk-delete', { ids }),
 };
 
 // Quizzes
@@ -93,6 +116,7 @@ export const quizzesApi = {
   create: (data: Record<string, unknown>) => api.post('/quizzes', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/quizzes/${id}`, data),
   delete: (id: string) => api.delete(`/quizzes/${id}`),
+  bulkDelete: (ids: string[]) => api.post('/quizzes/bulk-delete', { ids }),
   createQuestion: (data: Record<string, unknown>) => api.post('/quizzes/questions', data),
   updateQuestion: (id: string, data: Record<string, unknown>) => api.patch(`/quizzes/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/quizzes/questions/${id}`),

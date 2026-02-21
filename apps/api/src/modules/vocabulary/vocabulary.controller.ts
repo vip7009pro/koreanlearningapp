@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -38,7 +38,7 @@ export class VocabularyController {
   findByLesson(
     @Query('lessonId') lessonId: string,
     @Query('page') page = 1,
-    @Query('limit') limit = 50,
+    @Query('limit') limit = 200,
   ) {
     return this.vocabularyService.findByLesson(lessonId, page, limit);
   }
@@ -65,5 +65,14 @@ export class VocabularyController {
   @ApiOperation({ summary: 'Delete vocabulary (Admin only)' })
   remove(@Param('id') id: string) {
     return this.vocabularyService.remove(id);
+  }
+
+  @Post('bulk-delete')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk delete vocabulary (Admin only)' })
+  bulkDelete(@Body() body: { ids: string[] }) {
+    return this.vocabularyService.removeMany(body?.ids || []);
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../providers/app_settings_provider.dart';
 
-class WritingDetailScreen extends StatelessWidget {
+class WritingDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> item;
   const WritingDetailScreen({super.key, required this.item});
 
@@ -12,7 +14,9 @@ class WritingDetailScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final score = item['score'] ?? 0;
     final prompt = item['prompt'] ?? '';
@@ -90,7 +94,7 @@ class WritingDetailScreen extends StatelessWidget {
               context,
               icon: Icons.edit_note,
               title: 'Chủ đề viết',
-              color: Colors.blue,
+              color: theme.seedColor,
               child: Text(prompt, style: const TextStyle(fontSize: 15)),
             ),
             const SizedBox(height: 16),
@@ -100,7 +104,7 @@ class WritingDetailScreen extends StatelessWidget {
               context,
               icon: Icons.person,
               title: 'Bài viết của bạn',
-              color: const Color(0xFF7C3AED),
+              color: theme.seedColor,
               child: Text(answer, style: const TextStyle(fontSize: 15)),
             ),
             const SizedBox(height: 16),

@@ -48,6 +48,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
+      await prefs.setString('last_login_email', email);
+      await prefs.setString('last_login_password', password);
 
       state = AuthState(isAuthenticated: true, user: res.data['user']);
     } catch (e) {
@@ -68,6 +70,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
+      await prefs.setString('last_login_email', email);
+      await prefs.setString('last_login_password', password);
 
       state = AuthState(isAuthenticated: true, user: res.data['user']);
     } catch (e) {
@@ -80,6 +84,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     state = AuthState();
+  }
+
+  Future<void> refreshProfile() async {
+    if (!state.isAuthenticated) return;
+    final res = await _api.getProfile();
+    state = AuthState(
+      isAuthenticated: true,
+      user: res.data,
+      isLoading: false,
+      error: null,
+    );
+  }
+
+  Future<void> updateAvatarUrl(String avatarUrl) async {
+    if (!state.isAuthenticated) return;
+
+    final currentUser = state.user;
+    if (currentUser != null) {
+      state = AuthState(
+        isAuthenticated: true,
+        user: {
+          ...currentUser,
+          'avatarUrl': avatarUrl,
+        },
+        isLoading: false,
+        error: null,
+      );
+    }
+
+    await _api.updateMyProfile(avatarUrl: avatarUrl);
+
+    try {
+      await refreshProfile();
+    } catch (_) {
+      // Keep optimistic avatar if refresh fails
+    }
   }
 }
 

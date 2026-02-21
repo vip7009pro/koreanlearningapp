@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Param, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { UserRole } from '@prisma/client';
 import { AIService } from './ai.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { IsString, IsInt, IsNotEmpty, IsOptional, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -41,5 +44,65 @@ export class AIController {
   @ApiQuery({ name: 'page', required: false }) @ApiQuery({ name: 'limit', required: false })
   getWritingHistory(@CurrentUser('id') userId: string, @Query('page') page = 1, @Query('limit') limit = 20) {
     return this.aiService.getWritingHistory(userId, page, limit);
+  }
+
+  @Post('admin/lessons/:lessonId/generate-vocabulary')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate + insert vocabulary by lesson (Admin only)' })
+  @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'model', required: false })
+  generateVocabulary(
+    @Param('lessonId') lessonId: string,
+    @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateAndInsertVocabulary(lessonId, count, model);
+  }
+
+  @Post('admin/lessons/:lessonId/generate-grammar')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate + insert grammar by lesson (Admin only)' })
+  @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'model', required: false })
+  generateGrammar(
+    @Param('lessonId') lessonId: string,
+    @Query('count', new DefaultValuePipe(5), ParseIntPipe) count: number,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateAndInsertGrammar(lessonId, count, model);
+  }
+
+  @Post('admin/lessons/:lessonId/generate-dialogues')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate + insert dialogues by lesson (Admin only)' })
+  @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'model', required: false })
+  generateDialogues(
+    @Param('lessonId') lessonId: string,
+    @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateAndInsertDialogues(lessonId, count, model);
+  }
+
+  @Post('admin/lessons/:lessonId/generate-quizzes')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate + insert quizzes by lesson (Admin only)' })
+  @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'model', required: false })
+  generateQuizzes(
+    @Param('lessonId') lessonId: string,
+    @Query('count', new DefaultValuePipe(1), ParseIntPipe) count: number,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateAndInsertQuizzes(lessonId, count, model);
   }
 }

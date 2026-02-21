@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../core/api_client.dart';
 
@@ -14,6 +15,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   List<dynamic> _badges = [];
   Map<String, dynamic>? _reviewStats;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -35,10 +37,57 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {}
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    if (_uploadingAvatar) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1024,
+    );
+    if (picked == null) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final uploadRes = await api.uploadAvatar(picked.path);
+      final url = uploadRes.data['url'] as String?;
+
+      if (url == null || url.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Upload avatar thất bại')),
+          );
+        }
+        return;
+      }
+
+      await ref.read(authProvider.notifier).updateAvatarUrl(url);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật avatar thành công')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi upload avatar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final user = auth.user;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final api = ref.read(apiClientProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trang cá nhân')),
@@ -52,17 +101,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor:
-                          const Color(0xFF2563EB).withValues(alpha: 0.1),
-                      child: Text(
-                        (user?['displayName'] ?? 'U')[0],
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2563EB),
-                        ),
+                    GestureDetector(
+                      onTap: _pickAndUploadAvatar,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor:
+                                primary.withValues(alpha: 0.1),
+                            backgroundImage: (user?['avatarUrl'] != null &&
+                                    (user?['avatarUrl'] as String)
+                                        .toString()
+                                        .isNotEmpty)
+                                ? NetworkImage(
+                                    api.absoluteUrl(user?['avatarUrl']),
+                                  )
+                                : null,
+                            child: (user?['avatarUrl'] == null ||
+                                    (user?['avatarUrl'] as String?)
+                                            ?.isEmpty ==
+                                        true)
+                                ? Text(
+                                    (user?['displayName'] ?? 'U')[0],
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: primary,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.black.withValues(alpha: 0.6)
+                                  : Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.2)
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: _uploadingAvatar
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.camera_alt,
+                                    size: 14,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
+                                  ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -109,18 +208,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Premium Upgrade Banner
             Card(
-              color: Colors.amber.shade50,
+              color: isDark ? const Color(0xFF3B2F0B) : Colors.amber.shade50,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Colors.amber),
+                side: BorderSide(
+                  color: isDark ? Colors.amber.shade700 : Colors.amber,
+                ),
               ),
               child: ListTile(
-                leading: const Icon(Icons.star, color: Colors.amber, size: 32),
-                title: const Text('Nâng cấp Premium',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text(
-                    'Mở khóa toàn bộ bài học, luyện AI và không quảng cáo.'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                leading: Icon(
+                  Icons.star,
+                  color: isDark ? Colors.amber.shade300 : Colors.amber,
+                  size: 32,
+                ),
+                title: Text(
+                  'Nâng cấp Premium',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.amber.shade100 : Colors.black87,
+                  ),
+                ),
+                subtitle: Text(
+                  'Mở khóa toàn bộ bài học, luyện AI và không quảng cáo.',
+                  style: TextStyle(
+                    color: isDark ? Colors.amber.shade100.withValues(alpha: 0.85) : null,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: isDark ? Colors.amber.shade100 : null,
+                ),
                 onTap: () => context.push('/subscription'),
               ),
             ),
@@ -134,12 +252,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Icon(
                             Icons.auto_stories,
                             size: 20,
-                            color: Color(0xFF2563EB),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           SizedBox(width: 8),
                           Text(

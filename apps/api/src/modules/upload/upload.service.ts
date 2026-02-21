@@ -12,8 +12,10 @@ export class UploadService {
     }
     const audioDir = path.join(this.uploadDir, 'audio');
     const imageDir = path.join(this.uploadDir, 'images');
+    const avatarDir = path.join(this.uploadDir, 'avatars');
     if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
     if (!fs.existsSync(imageDir)) fs.mkdirSync(imageDir, { recursive: true });
+    if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
   }
 
   getFileUrl(filename: string): string {

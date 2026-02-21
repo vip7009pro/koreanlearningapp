@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -41,4 +41,13 @@ export class GrammarController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete grammar (Admin only)' })
   remove(@Param('id') id: string) { return this.grammarService.remove(id); }
+
+  @Post('bulk-delete')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk delete grammar (Admin only)' })
+  bulkDelete(@Body() body: { ids: string[] }) {
+    return this.grammarService.removeMany(body?.ids || []);
+  }
 }

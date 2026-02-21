@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+import '../providers/auth_provider.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
@@ -47,7 +48,24 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               content: Text('Thanh toán thành công! Bạn đã là Premium.')),
         );
         setState(() => _isPremium = true);
-        context.pop(); // Go back to profile
+
+        // Refresh global auth/user state (if backend stores premium on user)
+        try {
+          await ref.read(authProvider.notifier).refreshProfile();
+        } catch (_) {}
+
+        // Ensure local premium status is also up-to-date
+        try {
+          final resStatus = await api.checkPremiumStatus();
+          if (mounted) {
+            setState(() {
+              _isPremium = resStatus.data['isPremium'] ?? true;
+            });
+          }
+        } catch (_) {}
+
+        // Notify previous screen purchase succeeded
+        context.pop(true);
       }
     } catch (e) {
       if (mounted) {

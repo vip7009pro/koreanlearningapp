@@ -14,7 +14,7 @@ export class VocabularyService {
     return this.prisma.vocabulary.createMany({ data: items });
   }
 
-  async findByLesson(lessonId: string, page = 1, limit = 50) {
+  async findByLesson(lessonId: string, page = 1, limit = 1000) {
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.prisma.vocabulary.findMany({
@@ -43,5 +43,13 @@ export class VocabularyService {
     await this.findOne(id);
     await this.prisma.vocabulary.delete({ where: { id } });
     return { message: 'Vocabulary deleted successfully' };
+  }
+
+  async removeMany(ids: string[]) {
+    const safeIds = Array.from(new Set((ids || []).filter((x) => typeof x === 'string' && x.trim())));
+    if (safeIds.length === 0) return { deleted: 0 };
+
+    const res = await this.prisma.vocabulary.deleteMany({ where: { id: { in: safeIds } } });
+    return { deleted: res.count };
   }
 }

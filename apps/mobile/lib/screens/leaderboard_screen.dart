@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_settings_provider.dart';
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
@@ -39,12 +40,15 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final currentUserId = auth.user?['id'];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bảng xếp hạng 🏆'),
         elevation: 0,
-        backgroundColor: const Color(0xFF2563EB),
+        backgroundColor: theme.seedColor,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -56,8 +60,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                     Container(
                       padding: const EdgeInsets.only(
                           bottom: 24, left: 16, right: 16, top: 16),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2563EB),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: theme.gradient),
                         borderRadius: BorderRadius.only(
                           bottomLeft: Radius.circular(32),
                           bottomRight: Radius.circular(32),
@@ -93,7 +97,12 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
 
                           return Card(
                             elevation: isMe ? 4 : 1,
-                            color: isMe ? Colors.blue.shade50 : Colors.white,
+                            color: isMe
+                                ? (isDark
+                                    ? const Color(0xFF1E3A8A)
+                                        .withValues(alpha: 0.25)
+                                    : Colors.blue.shade50)
+                                : Theme.of(context).cardColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
@@ -110,13 +119,20 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                                   '$rank',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: isMe ? Colors.white : Colors.black87,
+                                    color: isMe
+                                        ? Colors.white
+                                        : (isDark
+                                            ? Colors.grey.shade900
+                                            : Colors.black87),
                                   ),
                                 ),
                               ),
                               title: Text(
                                 '${u['displayName'] ?? 'User'}${isMe ? ' (Bạn)' : ''}',
                                 style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade100
+                                      : Colors.black87,
                                   fontWeight: isMe
                                       ? FontWeight.bold
                                       : FontWeight.normal,
@@ -124,9 +140,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                               ),
                               trailing: Text(
                                 '${u['totalXP']} XP',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2563EB),
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
