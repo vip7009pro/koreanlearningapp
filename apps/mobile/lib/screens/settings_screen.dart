@@ -11,10 +11,13 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
+    final theme = AppSettingsNotifier.themeById(settings.themeId);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cài đặt'),
+        backgroundColor: theme.seedColor,
+        foregroundColor: Colors.white,
       ),
       body: ListView(
         children: [

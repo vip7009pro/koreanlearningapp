@@ -11,16 +11,16 @@ export default function DashboardPage() {
   if (isLoading) return <div className="text-center py-12 text-gray-500">Loading dashboard...</div>;
 
   const stats = [
-    { label: 'Total Users', value: data?.totalUsers || 0, icon: <FiUsers />, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Total Courses', value: data?.totalCourses || 0, icon: <FiBook />, color: 'bg-green-100 text-green-600' },
-    { label: 'Total Lessons', value: data?.totalLessons || 0, icon: <FiFileText />, color: 'bg-purple-100 text-purple-600' },
-    { label: 'Total Vocabulary', value: data?.totalVocab || 0, icon: <FiType />, color: 'bg-orange-100 text-orange-600' },
-    { label: 'Active Subscriptions', value: data?.activeSubscriptions || 0, icon: <FiStar />, color: 'bg-yellow-100 text-yellow-600' },
+    { label: 'Total Users', value: data?.totalUsers || 0, icon: <FiUsers />, color: 'bg-primary-100 text-primary-700' },
+    { label: 'Total Courses', value: data?.totalCourses || 0, icon: <FiBook />, color: 'bg-primary-100 text-primary-700' },
+    { label: 'Total Lessons', value: data?.totalLessons || 0, icon: <FiFileText />, color: 'bg-primary-100 text-primary-700' },
+    { label: 'Total Vocabulary', value: data?.totalVocab || 0, icon: <FiType />, color: 'bg-primary-100 text-primary-700' },
+    { label: 'Active Subscriptions', value: data?.activeSubscriptions || 0, icon: <FiStar />, color: 'bg-primary-100 text-primary-700' },
   ];
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-primary-800 mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {stats.map((stat) => (
@@ -56,7 +56,7 @@ export default function DashboardPage() {
             {data?.recentEvents?.map((event: { eventType: string; count: number }) => (
               <div key={event.eventType} className="flex items-center justify-between p-2">
                 <span className="text-sm text-gray-700">{event.eventType}</span>
-                <span className="badge badge-blue">{event.count}</span>
+                <span className="badge bg-primary-100 text-primary-800">{event.count}</span>
               </div>
             ))}
             {(!data?.recentEvents || data.recentEvents.length === 0) && (

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../core/api_client.dart';
+import '../providers/app_settings_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -88,9 +89,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final api = ref.read(apiClientProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final theme = AppSettingsNotifier.themeById(settings.themeId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trang cá nhân')),
+      appBar: AppBar(
+        title: const Text('Trang cá nhân'),
+        backgroundColor: theme.seedColor,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

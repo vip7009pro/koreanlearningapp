@@ -22,12 +22,17 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   bool _loading = true;
   int _currentVocabIndex = 0;
   bool _showMeaning = false;
+  bool _vocabListView = false;
   late AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
     _audioPlayer = AudioPlayer();
     _loadData();
   }
@@ -96,12 +101,27 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
           _lesson?['title'] ?? '',
           style: const TextStyle(fontSize: 16),
         ),
+        backgroundColor: theme.seedColor,
+        foregroundColor: Colors.white,
+        actions: [
+          if (_tabCtrl.index == 0)
+            IconButton(
+              tooltip: _vocabListView ? 'Xem dạng card lật' : 'Xem dạng danh sách',
+              icon: Icon(_vocabListView ? Icons.style : Icons.view_list),
+              onPressed: () {
+                setState(() {
+                  _vocabListView = !_vocabListView;
+                  _showMeaning = false;
+                });
+              },
+            ),
+        ],
         bottom: TabBar(
           controller: _tabCtrl,
           isScrollable: true,
-          labelColor: theme.seedColor,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: theme.seedColor,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.75),
+          indicatorColor: Colors.white,
           labelStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -132,6 +152,71 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     if (_vocab.isEmpty) return const Center(child: Text('Chưa có từ vựng'));
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
+
+    if (_vocabListView) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _vocab.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final v = _vocab[i];
+          return Card(
+            child: ListTile(
+              title: Text(
+                v['korean'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  if ((v['pronunciation'] ?? '').toString().isNotEmpty)
+                    Text(
+                      v['pronunciation'] ?? '',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    v['vietnamese'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  if ((v['exampleSentence'] ?? '').toString().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      v['exampleSentence'] ?? '',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    if ((v['exampleMeaning'] ?? '').toString().isNotEmpty)
+                      Text(
+                        v['exampleMeaning'] ?? '',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                  ],
+                ],
+              ),
+              trailing: IconButton(
+                icon: Icon(Icons.volume_up, color: theme.seedColor),
+                onPressed: () => _speakKorean((v['korean'] ?? '').toString()),
+              ),
+              onTap: () {
+                setState(() {
+                  _currentVocabIndex = i;
+                  _vocabListView = false;
+                  _showMeaning = false;
+                });
+              },
+            ),
+          );
+        },
+      );
+    }
+
     final v = _vocab[_currentVocabIndex];
     return Column(
       children: [
