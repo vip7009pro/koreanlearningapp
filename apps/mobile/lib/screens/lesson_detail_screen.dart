@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   bool _vocabListView = false;
   bool _isDialoguePlaying = false;
   int _dialoguePlaySession = 0;
+  int? _playingDialogueIndex;
+  List<GlobalKey> _dialogueItemKeys = [];
   late AudioPlayer _audioPlayer;
 
   @override
@@ -58,13 +62,41 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
 
   Future<void> _stopDialoguePlayback() async {
     _dialoguePlaySession++;
-    if (mounted) setState(() => _isDialoguePlaying = false);
+    if (mounted) {
+      setState(() {
+        _isDialoguePlaying = false;
+        _playingDialogueIndex = null;
+      });
+    }
     try {
       await _audioPlayer.stop();
     } catch (_) {}
     try {
       await ref.read(ttsProvider).stop();
     } catch (_) {}
+  }
+
+  void _setPlayingDialogueIndex(int? index) {
+    if (!mounted) return;
+
+    setState(() {
+      _playingDialogueIndex = index;
+    });
+
+    if (index == null) return;
+    if (index < 0 || index >= _dialogueItemKeys.length) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _dialogueItemKeys[index].currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+        alignment: 0.2,
+      );
+    });
   }
 
   Future<void> _playAllDialogues() async {
@@ -74,9 +106,12 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     if (mounted) setState(() => _isDialoguePlaying = true);
 
     try {
-      for (final item in _dialogues) {
+      for (var i = 0; i < _dialogues.length; i++) {
+        final item = _dialogues[i];
         if (!mounted) return;
         if (session != _dialoguePlaySession) return;
+
+        _setPlayingDialogueIndex(i);
 
         final d = item as dynamic;
         final koreanText = (d['koreanText'] ?? '').toString();
@@ -88,27 +123,46 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
           } catch (_) {}
 
           try {
+            final done = Completer<void>();
+            final sub = _audioPlayer.onPlayerComplete.listen((_) {
+              if (!done.isCompleted) done.complete();
+            });
+
             await _audioPlayer.play(UrlSource(audioUrl));
-            await _audioPlayer.onPlayerComplete.first;
+
+            try {
+              await done.future.timeout(const Duration(seconds: 30));
+            } catch (_) {
+              // Don't hang forever if the completion event doesn't fire.
+            } finally {
+              await sub.cancel();
+            }
           } catch (_) {
             if (koreanText.isNotEmpty) {
-              _speakKorean(koreanText);
-              await Future.delayed(const Duration(milliseconds: 1600));
+              await ref.read(ttsProvider).speakAndWait(
+                    koreanText,
+                    timeout: const Duration(seconds: 12),
+                  );
             }
           }
         } else {
           if (koreanText.isNotEmpty) {
-            _speakKorean(koreanText);
-            await Future.delayed(const Duration(milliseconds: 1600));
+            await ref.read(ttsProvider).speakAndWait(
+                  koreanText,
+                  timeout: const Duration(seconds: 12),
+                );
           }
         }
 
         if (session != _dialoguePlaySession) return;
-        await Future.delayed(const Duration(milliseconds: 450));
+        await Future.delayed(const Duration(milliseconds: 650));
       }
     } finally {
       if (mounted && session == _dialoguePlaySession) {
-        setState(() => _isDialoguePlaying = false);
+        setState(() {
+          _isDialoguePlaying = false;
+          _playingDialogueIndex = null;
+        });
       }
     }
   }
@@ -122,6 +176,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       _grammar = _lesson?['grammars'] ?? [];
       _dialogues = _lesson?['dialogues'] ?? [];
       _quizzes = _lesson?['quizzes'] ?? [];
+      _dialogueItemKeys = List.generate(_dialogues.length, (_) => GlobalKey());
       if (mounted) setState(() => _loading = false);
 
       // Track progress: mark lesson as visited and add XP
@@ -642,7 +697,9 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             itemBuilder: (_, i) {
               final d = _dialogues[i];
               final isLeft = i % 2 == 0;
+              final isPlaying = _isDialoguePlaying && _playingDialogueIndex == i;
               return Padding(
+                key: _dialogueItemKeys.length > i ? _dialogueItemKeys[i] : null,
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   mainAxisAlignment:
@@ -668,11 +725,18 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                       ),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isLeft
-                            ? Colors.white
-                            : theme.seedColor.withValues(alpha: 0.1),
+                        color: isPlaying
+                            ? theme.seedColor.withValues(alpha: 0.14)
+                            : (isLeft
+                                ? Colors.white
+                                : theme.seedColor.withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(
+                          color: isPlaying
+                              ? theme.seedColor.withValues(alpha: 0.55)
+                              : Colors.grey.shade200,
+                          width: isPlaying ? 1.4 : 1.0,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,6 +762,14 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                   ),
                                 ),
                               ),
+                              if (isPlaying) ...[
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.graphic_eq,
+                                  size: 16,
+                                  color: theme.seedColor,
+                                ),
+                              ],
                               GestureDetector(
                                 onTap: () =>
                                     _speakKorean(d['koreanText'] ?? ''),
