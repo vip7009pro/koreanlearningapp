@@ -54,7 +54,9 @@ enum Difficulty {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String
+  passwordHash String?
+  phoneNumber  String?  @unique
+  googleSub    String?  @unique
   displayName  String
   avatarUrl    String?
   role         UserRole @default(USER)
@@ -71,6 +73,21 @@ model User {
   analyticsEvents   AnalyticsEvent[]
   badges            UserBadge[]
   dailyGoals        DailyGoal[]
+  passwordResetCodes PasswordResetCode[]
+}
+
+model PasswordResetCode {
+  id        String   @id @default(uuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Subscription {

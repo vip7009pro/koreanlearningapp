@@ -321,8 +321,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () {},
+                            onPressed: () => context.push('/courses'),
                             child: const Text('Xem tất cả'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // TOPIK section
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Luyện đề TOPIK',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          InkWell(
+                            onTap: () => context.push('/topik'),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: theme.gradient),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.assignment_turned_in_outlined,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Luyện đề TOPIK',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Làm đề - lưu tiến độ - chấm điểm - review',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -350,9 +423,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     width: 56,
                                     height: 56,
                                     decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFF2563EB,
-                                      ).withValues(alpha: 0.1),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: const Center(
@@ -432,7 +506,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       );
-                    }, childCount: _courses.length),
+                    }, childCount: _courses.length > 3 ? 3 : _courses.length),
                   ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 20)),

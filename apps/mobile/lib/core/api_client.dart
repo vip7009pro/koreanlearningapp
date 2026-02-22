@@ -66,6 +66,34 @@ class ApiClient {
 
   Future<Response> getProfile() => _dio.get('/auth/profile');
 
+  Future<Response> loginWithGoogle(String idToken) =>
+      _dio.post('/auth/google', data: {'idToken': idToken});
+
+  Future<Response> loginWithPhone(String firebaseIdToken, {String? displayName}) =>
+      _dio.post(
+        '/auth/phone',
+        data: {
+          'firebaseIdToken': firebaseIdToken,
+          if (displayName != null) 'displayName': displayName,
+        },
+      );
+
+  Future<Response> setPassword(String password) =>
+      _dio.post('/auth/password/set', data: {'password': password});
+
+  Future<Response> requestPasswordReset(String email) =>
+      _dio.post('/auth/password/reset/request', data: {'email': email});
+
+  Future<Response> verifyPasswordReset(
+    String email,
+    String code,
+    String newPassword,
+  ) =>
+      _dio.post(
+        '/auth/password/reset/verify',
+        data: {'email': email, 'code': code, 'newPassword': newPassword},
+      );
+
   // Courses
   Future<Response> getCourses({String? level, bool? published}) => _dio.get(
         '/courses',

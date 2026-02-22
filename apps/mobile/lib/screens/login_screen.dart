@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:go_router/go_router.dart';
 import '../core/biometric_auth.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
@@ -21,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isBiometricLoading = false;
   bool _savedBiometricCreds = false;
   bool _autoBiometricTried = false;
+  bool _needsPasswordNavigated = false;
 
   @override
   void initState() {
@@ -136,6 +139,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final auth = ref.watch(authProvider);
     final settings = ref.watch(appSettingsProvider);
     final theme = AppSettingsNotifier.themeById(settings.themeId);
+
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      final wasAuthed = prev?.isAuthenticated == true;
+      final isAuthed = next.isAuthenticated;
+
+      if (!wasAuthed && isAuthed) {
+        _needsPasswordNavigated = false;
+      }
+
+      if (!isAuthed) return;
+      if (next.needsPassword != true) return;
+      if (_needsPasswordNavigated) return;
+
+      _needsPasswordNavigated = true;
+      context.push('/set-password');
+    });
 
     ref.listen<AuthState>(authProvider, (prev, next) async {
       final wasAuthed = prev?.isAuthenticated == true;
@@ -266,6 +285,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 : Text(_isLogin ? 'Đăng nhập' : 'Đăng ký'),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () async {
+                                    try {
+                                      final google = GoogleSignIn(
+                                        scopes: const ['email', 'profile'],
+                                      );
+                                      final acct = await google.signIn();
+                                      if (acct == null) return;
+                                      final gAuth = await acct.authentication;
+                                      final idToken = gAuth.idToken;
+                                      if (idToken == null || idToken.isEmpty) {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Không lấy được Google token.'),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      await ref
+                                          .read(authProvider.notifier)
+                                          .loginWithGoogle(idToken);
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Google login lỗi: ${e.toString()}'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                            icon: const Icon(Icons.g_mobiledata),
+                            label: const Text('Đăng nhập bằng Google'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () => context.push('/phone-login'),
+                            icon: const Icon(Icons.phone_outlined),
+                            label: const Text('Đăng nhập bằng SĐT (OTP)'),
+                          ),
+                        ),
                         if (_isLogin) ...[
                           const SizedBox(height: 12),
                           SizedBox(
@@ -293,11 +363,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                         ],
+                        if (_isLogin) ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: auth.isLoading
+                                  ? null
+                                  : () => context.push('/forgot-password'),
+                              child: const Text('Quên mật khẩu?'),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         TextButton(
                           onPressed: () => setState(() {
                             _isLogin = !_isLogin;
                             _autoBiometricTried = false;
+                            _needsPasswordNavigated = false;
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               _maybeAutoBiometricLogin();
                             });

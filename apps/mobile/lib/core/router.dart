@@ -7,6 +7,11 @@ import '../screens/home_screen.dart';
 import '../screens/course_detail_screen.dart';
 import '../screens/lesson_detail_screen.dart';
 import '../screens/quiz_screen.dart';
+import '../screens/courses_screen.dart';
+import '../screens/topik_exams_screen.dart';
+import '../screens/phone_login_screen.dart';
+import '../screens/forgot_password_screen.dart';
+import '../screens/set_password_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/subscription_screen.dart';
 import '../screens/ai_writing_screen.dart';
@@ -49,7 +54,21 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: '/phone-login',
+        builder: (_, __) => const PhoneLoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/set-password',
+        builder: (_, __) => const SetPasswordScreen(),
+      ),
       GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
+      GoRoute(path: '/topik', builder: (_, __) => const TopikExamsScreen()),
       GoRoute(
         path: '/course/:courseId',
         builder: (_, state) =>

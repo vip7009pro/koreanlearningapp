@@ -7,12 +7,14 @@ class AuthState {
   final bool isLoading;
   final Map<String, dynamic>? user;
   final String? error;
+  final bool needsPassword;
 
   AuthState({
     this.isAuthenticated = false,
     this.isLoading = false,
     this.user,
     this.error,
+    this.needsPassword = false,
   });
 }
 
@@ -51,7 +53,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setString('last_login_email', email);
       await prefs.setString('last_login_password', password);
 
-      state = AuthState(isAuthenticated: true, user: res.data['user']);
+      state = AuthState(
+        isAuthenticated: true,
+        user: res.data['user'],
+        needsPassword: res.data['needsPassword'] == true,
+      );
     } catch (e) {
       state = AuthState(error: 'Invalid credentials');
     }
@@ -73,10 +79,108 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setString('last_login_email', email);
       await prefs.setString('last_login_password', password);
 
-      state = AuthState(isAuthenticated: true, user: res.data['user']);
+      state = AuthState(
+        isAuthenticated: true,
+        user: res.data['user'],
+        needsPassword: res.data['needsPassword'] == true,
+      );
     } catch (e) {
       state = AuthState(error: 'Registration failed');
     }
+  }
+
+  Future<void> loginWithGoogle(String idToken) async {
+    state = AuthState(isLoading: true);
+    try {
+      final res = await _api.loginWithGoogle(idToken);
+      final token = res.data['accessToken'] as String;
+      _api.setToken(token);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+
+      state = AuthState(
+        isAuthenticated: true,
+        user: res.data['user'],
+        needsPassword: res.data['needsPassword'] == true,
+      );
+    } catch (_) {
+      state = AuthState(error: 'Google login failed');
+    }
+  }
+
+  Future<void> loginWithPhone(
+    String firebaseIdToken, {
+    String? displayName,
+  }) async {
+    state = AuthState(isLoading: true);
+    try {
+      final res = await _api.loginWithPhone(firebaseIdToken, displayName: displayName);
+      final token = res.data['accessToken'] as String;
+      _api.setToken(token);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+
+      state = AuthState(
+        isAuthenticated: true,
+        user: res.data['user'],
+        needsPassword: res.data['needsPassword'] == true,
+      );
+    } catch (_) {
+      state = AuthState(error: 'Phone login failed');
+    }
+  }
+
+  Future<void> setPassword(String password) async {
+    if (!state.isAuthenticated) return;
+    state = AuthState(
+      isAuthenticated: true,
+      isLoading: true,
+      user: state.user,
+      needsPassword: state.needsPassword,
+    );
+    try {
+      await _api.setPassword(password);
+      state = AuthState(
+        isAuthenticated: true,
+        isLoading: false,
+        user: state.user,
+        needsPassword: false,
+      );
+    } catch (_) {
+      state = AuthState(
+        isAuthenticated: true,
+        isLoading: false,
+        user: state.user,
+        needsPassword: state.needsPassword,
+        error: 'Set password failed',
+      );
+    }
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    await _api.requestPasswordReset(email);
+  }
+
+  Future<void> verifyPasswordReset(
+    String email,
+    String code,
+    String newPassword,
+  ) async {
+    final res = await _api.verifyPasswordReset(email, code, newPassword);
+    final token = res.data['accessToken'] as String;
+    _api.setToken(token);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
+
+    state = AuthState(
+      isAuthenticated: true,
+      isLoading: false,
+      user: res.data['user'],
+      needsPassword: false,
+    );
   }
 
   Future<void> logout() async {
