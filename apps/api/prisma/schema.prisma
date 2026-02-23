@@ -51,6 +51,35 @@ enum Difficulty {
   HARD
 }
 
+enum TopikLevel {
+  TOPIK_I
+  TOPIK_II
+}
+
+enum TopikExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TopikSectionType {
+  LISTENING
+  READING
+  WRITING
+}
+
+enum TopikQuestionType {
+  MCQ
+  SHORT_TEXT
+  ESSAY
+}
+
+enum TopikSessionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -74,6 +103,8 @@ model User {
   badges            UserBadge[]
   dailyGoals        DailyGoal[]
   passwordResetCodes PasswordResetCode[]
+
+  topikSessions TopikSession[]
 }
 
 model PasswordResetCode {
@@ -88,6 +119,129 @@ model PasswordResetCode {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model TopikExam {
+  id              String          @id @default(uuid())
+  title           String
+  year            Int
+  topikLevel      TopikLevel
+  level           String?
+  durationMinutes Int
+  totalQuestions  Int
+  status          TopikExamStatus @default(DRAFT)
+  createdBy       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  sections  TopikExamSection[]
+  sessions  TopikSession[]
+
+  @@index([topikLevel])
+  @@index([year])
+  @@index([status])
+}
+
+model TopikExamSection {
+  id              String           @id @default(uuid())
+  examId          String
+  type            TopikSectionType
+  orderIndex      Int
+  durationMinutes Int?
+  maxScore        Int              @default(100)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  exam      TopikExam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questions TopikQuestion[]
+
+  @@unique([examId, orderIndex])
+  @@index([examId])
+}
+
+model TopikQuestion {
+  id            String            @id @default(uuid())
+  examSectionId String
+  questionType  TopikQuestionType
+  orderIndex    Int
+  contentHtml   String
+  audioUrl      String?
+  listeningScript String?
+  correctTextAnswer String?
+  scoreWeight   Int               @default(1)
+  explanation   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  section TopikExamSection @relation(fields: [examSectionId], references: [id], onDelete: Cascade)
+  choices TopikChoice[]
+  answers TopikAnswer[]
+
+  @@unique([examSectionId, orderIndex])
+  @@index([examSectionId])
+}
+
+model TopikChoice {
+  id         String       @id @default(uuid())
+  questionId String
+  content    String
+  isCorrect  Boolean      @default(false)
+  orderIndex Int
+  createdAt  DateTime     @default(now())
+
+  question TopikQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  TopikAnswer[]
+
+  @@unique([questionId, orderIndex])
+  @@index([questionId])
+}
+
+model TopikSession {
+  id                   String            @id @default(uuid())
+  userId               String
+  examId               String
+  status               TopikSessionStatus @default(IN_PROGRESS)
+  startedAt            DateTime          @default(now())
+  submittedAt          DateTime?
+  expiresAt            DateTime?
+  remainingSeconds     Int
+  currentQuestionIndex Int               @default(0)
+  totalScore           Int?
+  bestScoreSnapshot    Int?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam    TopikExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers TopikAnswer[]
+
+  @@index([userId])
+  @@index([examId])
+  @@index([status])
+}
+
+model TopikAnswer {
+  id              String   @id @default(uuid())
+  sessionId       String
+  questionId      String
+  selectedChoiceId String?
+  textAnswer      String?
+  isCorrect       Boolean?
+  score           Int?
+  flagged         Boolean  @default(false)
+  aiScore         Int?
+  aiFeedback      Json?
+  aiReviewedAt    DateTime?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  session TopikSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question TopikQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedChoice TopikChoice? @relation(fields: [selectedChoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
 }
 
 model Subscription {

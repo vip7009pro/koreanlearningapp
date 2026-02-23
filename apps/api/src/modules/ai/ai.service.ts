@@ -51,6 +51,53 @@ type GeneratedQuizItem = {
   }[];
 };
 
+type TopikGeneratedChoice = {
+  orderIndex: number;
+  content: string;
+  isCorrect: boolean;
+};
+
+type TopikGeneratedQuestion = {
+  questionType: 'MCQ' | 'SHORT_TEXT' | 'ESSAY';
+  orderIndex: number;
+  contentHtml: string;
+  audioUrl?: string | null;
+  listeningScript?: string | null;
+  correctTextAnswer?: string | null;
+  scoreWeight?: number;
+  explanation?: string | null;
+  choices?: TopikGeneratedChoice[];
+};
+
+type TopikGeneratedSection = {
+  type: 'LISTENING' | 'READING' | 'WRITING';
+  orderIndex: number;
+  durationMinutes?: number;
+  maxScore?: number;
+  questions: TopikGeneratedQuestion[];
+};
+
+export type TopikExamImportPayload = {
+  exam: {
+    title: string;
+    year: number;
+    topikLevel: 'TOPIK_I' | 'TOPIK_II';
+    level?: string | null;
+    durationMinutes: number;
+    totalQuestions: number;
+    status?: 'DRAFT' | 'PUBLISHED';
+  };
+  sections: TopikGeneratedSection[];
+};
+
+type GenerateTopikExamInput = {
+  topikLevel: 'TOPIK_I' | 'TOPIK_II';
+  year?: number;
+  title?: string;
+  status?: 'DRAFT' | 'PUBLISHED';
+  batchSize?: number;
+};
+
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
@@ -58,6 +105,226 @@ export class AIService {
 
   private get apiKey(): string {
     return process.env.OPENROUTER_API_KEY || '';
+  }
+
+  private readonly TOPIK_SYSTEM_PROMPT = `Bạn là chuyên gia ra đề thi TOPIK (Kỳ thi năng lực tiếng Hàn). Bạn phải tạo nội dung giống đề TOPIK thật: tự nhiên, chuẩn phong cách thi, có bẫy hợp lý nhưng không mơ hồ.
+
+QUY TẮC BẮT BUỘC:
+1) Chỉ trả về JSON hợp lệ, KHÔNG markdown, KHÔNG giải thích.
+2) contentHtml có thể là text thuần, nhưng phải là chuỗi (không được null).
+3) Với câu MCQ: phải có đúng 4 lựa chọn, orderIndex tăng dần từ 1..4, đúng 1 lựa chọn isCorrect=true.
+4) Với LISTENING: luôn tạo listeningScript bằng tiếng Hàn (có thể 1-3 câu) phù hợp với câu hỏi. audioUrl = null.
+5) Với WRITING:
+   - SHORT_TEXT: có correctTextAnswer (một đáp án mẫu ngắn).
+   - ESSAY: không cần correctTextAnswer.
+6) Không tạo nội dung nhạy cảm/vi phạm pháp luật. Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn nếu cần, nhưng ưu tiên giống đề TOPIK (chủ yếu tiếng Hàn).
+`;
+
+  private getTopikBlueprint(topikLevel: 'TOPIK_I' | 'TOPIK_II') {
+    if (topikLevel === 'TOPIK_I') {
+      return {
+        durationMinutes: 100,
+        sections: [
+          { type: 'LISTENING' as const, orderIndex: 1, durationMinutes: 40, maxScore: 100, questionCount: 30 },
+          { type: 'READING' as const, orderIndex: 2, durationMinutes: 60, maxScore: 100, questionCount: 40 },
+        ],
+      };
+    }
+    return {
+      durationMinutes: 180,
+      sections: [
+        { type: 'LISTENING' as const, orderIndex: 1, durationMinutes: 60, maxScore: 100, questionCount: 50 },
+        { type: 'WRITING' as const, orderIndex: 2, durationMinutes: 50, maxScore: 100, questionCount: 4 },
+        { type: 'READING' as const, orderIndex: 3, durationMinutes: 70, maxScore: 100, questionCount: 50 },
+      ],
+    };
+  }
+
+  private async generateTopikQuestionsChunk(params: {
+    topikLevel: 'TOPIK_I' | 'TOPIK_II';
+    sectionType: 'LISTENING' | 'READING' | 'WRITING';
+    startIndex: number;
+    endIndex: number;
+    model?: string;
+  }): Promise<TopikGeneratedQuestion[]> {
+    const count = params.endIndex - params.startIndex + 1;
+    const systemPrompt = this.TOPIK_SYSTEM_PROMPT;
+
+    const writingHint =
+      params.sectionType === 'WRITING'
+        ? `WRITING phải gồm 4 câu theo phong cách TOPIK II: thường có câu điền từ/viết câu ngắn (SHORT_TEXT) và 1 câu bài viết dài (ESSAY). Hãy phân bổ hợp lý trong ${count} câu của chunk này.`
+        : '';
+
+    const userPrompt = `Hãy tạo ${count} câu hỏi cho section ${params.sectionType} của đề ${params.topikLevel}.
+
+Ràng buộc:
+- orderIndex phải chạy từ ${params.startIndex} đến ${params.endIndex}.
+- Cấu trúc JSON phải đúng:
+{
+  "questions": [
+    {
+      "questionType": "MCQ"|"SHORT_TEXT"|"ESSAY",
+      "orderIndex": 1,
+      "contentHtml": "...",
+      "audioUrl": null,
+      "listeningScript": "...",
+      "correctTextAnswer": "...",
+      "scoreWeight": 1,
+      "explanation": "...",
+      "choices": [
+        {"orderIndex":1,"content":"...","isCorrect":false}
+      ]
+    }
+  ]
+}
+
+Ghi chú:
+- LISTENING: luôn có listeningScript (tiếng Hàn), audioUrl = null, thường là MCQ.
+- READING: thường là MCQ.
+- WRITING: có thể SHORT_TEXT hoặc ESSAY. ESSAY có prompt rõ ràng như đề TOPIK thật.
+${writingHint}`;
+
+    const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, params.model);
+    const items = Array.isArray(parsed?.questions) ? parsed.questions : [];
+    return items as TopikGeneratedQuestion[];
+  }
+
+  async generateTopikExamPayload(input: GenerateTopikExamInput, model?: string): Promise<{ payload: TopikExamImportPayload; stats: any }> {
+    const topikLevel = input.topikLevel;
+    const year = Number.isFinite(Number(input.year)) ? Number(input.year) : new Date().getFullYear();
+    const blueprint = this.getTopikBlueprint(topikLevel);
+    const batchSizeDefault = topikLevel === 'TOPIK_II' ? 10 : 10;
+    const batchSize = Math.max(1, Math.min(20, Math.floor(input.batchSize || batchSizeDefault)));
+
+    const totalQuestions = blueprint.sections.reduce((sum, s) => sum + s.questionCount, 0);
+    const title = (input.title && String(input.title).trim()) || `${topikLevel.replace('_', ' ')} ${year}`;
+
+    const payload: TopikExamImportPayload = {
+      exam: {
+        title,
+        year,
+        topikLevel,
+        level: null,
+        durationMinutes: blueprint.durationMinutes,
+        totalQuestions,
+        status: input.status || 'DRAFT',
+      },
+      sections: [],
+    };
+
+    const stats: any = {
+      topikLevel,
+      year,
+      totalQuestions,
+      sections: [],
+      batchSize,
+      model: model || 'google/gemini-2.0-flash-001',
+    };
+
+    for (const s of blueprint.sections) {
+      const section: TopikGeneratedSection = {
+        type: s.type,
+        orderIndex: s.orderIndex,
+        durationMinutes: s.durationMinutes,
+        maxScore: s.maxScore,
+        questions: [],
+      };
+
+      const sectionStats: any = {
+        type: s.type,
+        questionCount: s.questionCount,
+        batches: 0,
+      };
+
+      let start = 1;
+      while (start <= s.questionCount) {
+        const end = Math.min(s.questionCount, start + batchSize - 1);
+        sectionStats.batches++;
+
+        const chunk = await this.generateTopikQuestionsChunk({
+          topikLevel,
+          sectionType: s.type,
+          startIndex: start,
+          endIndex: end,
+          model,
+        });
+
+        // Normalize
+        for (const q of chunk) {
+          const qt = String((q as any).questionType || '').trim();
+          const orderIndex = Number((q as any).orderIndex);
+          if (!Number.isFinite(orderIndex)) continue;
+
+          const normalized: TopikGeneratedQuestion = {
+            questionType: (qt as any) || 'MCQ',
+            orderIndex,
+            contentHtml: String((q as any).contentHtml || '').trim(),
+            audioUrl: (q as any).audioUrl ?? null,
+            listeningScript: (q as any).listeningScript ?? null,
+            correctTextAnswer: (q as any).correctTextAnswer ?? null,
+            scoreWeight: Number.isFinite(Number((q as any).scoreWeight)) ? Number((q as any).scoreWeight) : 1,
+            explanation: (q as any).explanation ?? null,
+            choices: Array.isArray((q as any).choices)
+              ? (q as any).choices.map((c: any, idx: number) => ({
+                  orderIndex: Number.isFinite(Number(c?.orderIndex)) ? Number(c.orderIndex) : idx + 1,
+                  content: String(c?.content || '').trim(),
+                  isCorrect: c?.isCorrect === true,
+                }))
+              : undefined,
+          };
+
+          if (s.type === 'LISTENING') {
+            normalized.audioUrl = null;
+            normalized.listeningScript = String(normalized.listeningScript || '').trim();
+          }
+
+          // Ensure MCQ has 4 choices
+          if (normalized.questionType === 'MCQ') {
+            const choices = Array.isArray(normalized.choices) ? normalized.choices : [];
+            const trimmed = choices.filter((c) => String(c.content || '').trim().length).slice(0, 4);
+            while (trimmed.length < 4) {
+              trimmed.push({ orderIndex: trimmed.length + 1, content: `선택 ${trimmed.length + 1}`, isCorrect: false });
+            }
+            // Ensure exactly one correct
+            const correctCount = trimmed.filter((c) => c.isCorrect).length;
+            if (correctCount === 0) trimmed[0].isCorrect = true;
+            if (correctCount > 1) {
+              let first = true;
+              for (const c of trimmed) {
+                if (c.isCorrect) {
+                  if (first) first = false;
+                  else c.isCorrect = false;
+                }
+              }
+            }
+            normalized.choices = trimmed.map((c, i) => ({ ...c, orderIndex: i + 1 }));
+          } else {
+            delete (normalized as any).choices;
+          }
+
+          section.questions.push(normalized);
+        }
+
+        start = end + 1;
+      }
+
+      // Sort and clamp
+      section.questions.sort((a, b) => a.orderIndex - b.orderIndex);
+      section.questions = section.questions.filter((q) => q.orderIndex >= 1 && q.orderIndex <= s.questionCount);
+
+      payload.sections.push(section);
+      stats.sections.push(sectionStats);
+    }
+
+    return { payload, stats };
+  }
+
+  async callJson(
+    systemPrompt: string,
+    userPrompt: string,
+    modelOverride?: string,
+  ): Promise<any> {
+    return this.callOpenRouterJson(systemPrompt, userPrompt, modelOverride);
   }
 
   private async getLessonContext(lessonId: string) {

@@ -104,9 +104,19 @@ export class AuthService {
     return `+${p}`;
   }
 
+  private normalizeEmail(email: string) {
+    return (email || '').trim().toLowerCase();
+  }
+
   async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const email = this.normalizeEmail(dto.email);
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
+      },
     });
 
     if (existing) {
@@ -117,7 +127,7 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email,
         passwordHash,
         displayName: dto.displayName,
       },
@@ -151,8 +161,14 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const email = this.normalizeEmail(dto.email);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
+      },
     });
 
     if (!user) {
@@ -212,7 +228,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Google token');
     }
 
-    const email = (payload?.email || '').trim().toLowerCase();
+    const email = this.normalizeEmail(payload?.email || '');
     const googleSub = (payload?.sub || '').trim();
     if (!email || !googleSub) {
       throw new UnauthorizedException('Invalid Google token');
@@ -383,14 +399,25 @@ export class AuthService {
   }
 
   async requestPasswordReset(emailRaw: string) {
-    const email = (emailRaw || '').trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = this.normalizeEmail(emailRaw);
+    const generic = {
+      message:
+        'Nếu email tồn tại, chúng tôi đã gửi mã xác nhận để đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.',
+    };
 
-    // Do not reveal whether email exists.
-    if (!user) return { message: 'If the email exists, a code has been sent.' };
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!user) return generic;
 
     if (!this.mailer) {
-      return { message: 'If the email exists, a code has been sent.' };
+      return generic;
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -423,13 +450,20 @@ export class AuthService {
       // best-effort
     }
 
-    return { message: 'If the email exists, a code has been sent.' };
+    return generic;
   }
 
   async verifyPasswordReset(emailRaw: string, code: string, newPassword: string) {
-    const email = (emailRaw || '').trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('Invalid reset code');
+    const normalizedEmail = this.normalizeEmail(emailRaw);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive',
+        },
+      },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
 
     const now = new Date();
     const recentCodes = await this.prisma.passwordResetCode.findMany({

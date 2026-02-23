@@ -14,6 +14,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> _courses = [];
+  List<dynamic> _topikExams = [];
   Map<String, dynamic>? _dailyGoal;
   bool _loading = true;
   bool _isPremiumUser = false;
@@ -28,11 +29,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final api = ref.read(apiClientProvider);
     try {
       final coursesRes = await api.getCourses();
+      final topikRes = await api.getTopikExams();
       final goalRes = await api.getDailyGoal();
       final premiumRes = await api.checkPremiumStatus();
       if (mounted) {
         setState(() {
           _courses = coursesRes.data?['data'] ?? [];
+          _topikExams = (topikRes.data as List?) ?? [];
           _dailyGoal = goalRes.data;
           _isPremiumUser = premiumRes.data?['isPremium'] ?? false;
           _loading = false;
@@ -329,79 +332,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
 
-                  // TOPIK section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Luyện đề TOPIK',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          InkWell(
-                            onTap: () => context.push('/topik'),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: theme.gradient),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.assignment_turned_in_outlined,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Luyện đề TOPIK',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          'Làm đề - lưu tiến độ - chấm điểm - review',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
                   // Course List
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -507,6 +437,161 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       );
                     }, childCount: _courses.length > 3 ? 3 : _courses.length),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                  // TOPIK section
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Luyện đề TOPIK',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          InkWell(
+                            onTap: () => context.push('/topik'),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: theme.gradient),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.assignment_turned_in_outlined,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Luyện đề TOPIK',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Làm đề - lưu tiến độ - chấm điểm - review',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // TOPIK trending exams (top 3)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final exams = _topikExams;
+                        final exam = exams[index] as Map;
+                        final id = (exam['id'] ?? '').toString();
+                        final title = (exam['title'] ?? 'TOPIK').toString();
+                        final topikLevel = (exam['topikLevel'] ?? '').toString();
+                        final year = exam['year'];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: Card(
+                            child: InkWell(
+                              onTap: id.isEmpty ? null : () => context.push('/topik/exam/$id'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Center(
+                                        child: Text('📝', style: TextStyle(fontSize: 26)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              if (topikLevel.isNotEmpty)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blue.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    topikLevel.replaceAll('_', ' '),
+                                                    style: TextStyle(fontSize: 11, color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                                                  ),
+                                                ),
+                                              if (year != null) ...[
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Năm $year',
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: _topikExams.length > 3 ? 3 : _topikExams.length,
+                    ),
                   ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 20)),

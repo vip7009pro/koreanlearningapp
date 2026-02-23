@@ -20,6 +20,37 @@ class GenerateQuizDto {
   @ApiPropertyOptional({ example: 5 }) @IsOptional() @IsInt() @Min(1) @Max(20) questionCount?: number;
 }
 
+class GenerateTopikExamDto {
+  @ApiProperty({ enum: ['TOPIK_I', 'TOPIK_II'] })
+  @IsString()
+  @IsNotEmpty()
+  topikLevel: 'TOPIK_I' | 'TOPIK_II';
+
+  @ApiPropertyOptional({ example: 2025 })
+  @IsOptional()
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year?: number;
+
+  @ApiPropertyOptional({ example: 'TOPIK II 2025 - Mock 01' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional({ enum: ['DRAFT', 'PUBLISHED'], example: 'DRAFT' })
+  @IsOptional()
+  @IsString()
+  status?: 'DRAFT' | 'PUBLISHED';
+
+  @ApiPropertyOptional({ description: 'How many questions to generate per chunk/batch (1..20)', example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  batchSize?: number;
+}
+
 @ApiTags('ai')
 @Controller('ai')
 @UseGuards(AuthGuard('jwt'))
@@ -104,5 +135,27 @@ export class AIController {
     @Query('model') model?: string,
   ) {
     return this.aiService.generateAndInsertQuizzes(lessonId, count, model);
+  }
+
+  @Post('admin/topik/generate-exam')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate TOPIK exam payload for import (Admin only)' })
+  @ApiQuery({ name: 'model', required: false })
+  generateTopikExam(
+    @Body() dto: GenerateTopikExamDto,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateTopikExamPayload(
+      {
+        topikLevel: dto.topikLevel,
+        year: dto.year,
+        title: dto.title,
+        status: dto.status,
+        batchSize: dto.batchSize,
+      },
+      model,
+    );
   }
 }

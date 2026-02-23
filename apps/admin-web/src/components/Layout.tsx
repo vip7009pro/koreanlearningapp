@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { FiHome, FiBook, FiUsers, FiLogOut, FiMenu } from 'react-icons/fi';
+import { FiHome, FiBook, FiUsers, FiLogOut, FiMenu, FiFileText } from 'react-icons/fi';
 import { useState } from 'react';
 
 export default function Layout() {
@@ -16,6 +16,7 @@ export default function Layout() {
   const navItems = [
     { to: '/', icon: <FiHome size={20} />, label: 'Dashboard' },
     { to: '/courses', icon: <FiBook size={20} />, label: 'Courses' },
+    { to: '/topik', icon: <FiFileText size={20} />, label: 'TOPIK' },
     { to: '/users', icon: <FiUsers size={20} />, label: 'Users' },
   ];
 

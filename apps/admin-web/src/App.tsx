@@ -7,6 +7,8 @@ import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import LessonDetailPage from './pages/LessonDetailPage';
 import UsersPage from './pages/UsersPage';
+import TopikPage from './pages/TopikPage';
+import TopikExamEditorPage from './pages/TopikExamEditorPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -24,6 +26,8 @@ export default function App() {
         <Route path="courses/:courseId" element={<CourseDetailPage />} />
         <Route path="lessons/:lessonId" element={<LessonDetailPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="topik" element={<TopikPage />} />
+        <Route path="topik/exams/:examId" element={<TopikExamEditorPage />} />
       </Route>
     </Routes>
   );

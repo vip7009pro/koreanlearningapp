@@ -94,6 +94,52 @@ class ApiClient {
         data: {'email': email, 'code': code, 'newPassword': newPassword},
       );
 
+  // TOPIK
+  Future<Response> getTopikExams({Map<String, dynamic>? query}) =>
+      _dio.get('/topik/exams', queryParameters: query);
+
+  Future<Response> getTopikExamDetail(String examId) =>
+      _dio.get('/topik/exams/$examId');
+
+  Future<Response> startTopikSession(String examId) =>
+      _dio.post('/topik/sessions/start', data: {'examId': examId});
+
+  Future<Response> saveTopikAnswer(
+    String sessionId, {
+    required String questionId,
+    String? selectedChoiceId,
+    String? textAnswer,
+    int? currentQuestionIndex,
+    int? remainingSeconds,
+    bool? flagged,
+  }) =>
+      _dio.post(
+        '/topik/sessions/$sessionId/answer',
+        data: {
+          'questionId': questionId,
+          if (selectedChoiceId != null) 'selectedChoiceId': selectedChoiceId,
+          if (textAnswer != null) 'textAnswer': textAnswer,
+          if (currentQuestionIndex != null)
+            'currentQuestionIndex': currentQuestionIndex,
+          if (remainingSeconds != null) 'remainingSeconds': remainingSeconds,
+          if (flagged != null) 'flagged': flagged,
+        },
+      );
+
+  Future<Response> submitTopikSession(
+    String sessionId, {
+    int? remainingSeconds,
+  }) =>
+      _dio.post(
+        '/topik/sessions/$sessionId/submit',
+        data: {
+          if (remainingSeconds != null) 'remainingSeconds': remainingSeconds,
+        },
+      );
+
+  Future<Response> getTopikSessionReview(String sessionId) =>
+      _dio.get('/topik/sessions/$sessionId/review');
+
   // Courses
   Future<Response> getCourses({String? level, bool? published}) => _dio.get(
         '/courses',

@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "764620337786",
+    "project_id": "hoctienghan-bd780",
+    "storage_bucket": "hoctienghan-bd780.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764620337786:android:faaf332fe80572929901c3",
+        "android_client_info": {
+          "package_name": "com.example.korean_learning_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764620337786-7eu6i923p8pgt9vgt5n6n4ifq5oajf3r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.korean_learning_app",
+            "certificate_hash": "9ebfc157c5618734a3c68b165a674819486b557b"
+          }
+        },
+        {
+          "client_id": "764620337786-nf3f5ajrlreibtvr333a20gsoiimv7ii.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.korean_learning_app",
+            "certificate_hash": "c31ab2e09d3910f6479583d4bc448988097cfaa6"
+          }
+        },
+        {
+          "client_id": "764620337786-d3h20kntr93s3ft4e92ilfkos9ufla9a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnE52WNiakw7nFNmzFh3P0FlwlnJAw1Bg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764620337786-d3h20kntr93s3ft4e92ilfkos9ufla9a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

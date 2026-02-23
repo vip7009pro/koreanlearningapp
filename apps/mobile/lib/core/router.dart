@@ -9,6 +9,9 @@ import '../screens/lesson_detail_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/courses_screen.dart';
 import '../screens/topik_exams_screen.dart';
+import '../screens/topik_exam_detail_screen.dart';
+import '../screens/topik_take_screen.dart';
+import '../screens/topik_review_screen.dart';
 import '../screens/phone_login_screen.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/set_password_screen.dart';
@@ -43,12 +46,19 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authRefresh,
     redirect: (context, state) {
       final isLoggedIn = ref.read(authProvider).isAuthenticated;
-      final loggingIn = state.matchedLocation == '/login';
-      final isSplash = state.matchedLocation == '/splash';
+      final loc = state.matchedLocation;
+      final isSplash = loc == '/splash';
+      final publicRoutes = <String>{
+        '/login',
+        '/phone-login',
+        '/forgot-password',
+        '/set-password',
+      };
+      final isPublic = publicRoutes.contains(loc);
 
       if (isSplash) return null;
-      if (!isLoggedIn && !loggingIn) return '/login';
-      if (isLoggedIn && loggingIn) return '/';
+      if (!isLoggedIn && !isPublic) return '/login';
+      if (isLoggedIn && (loc == '/login' || loc == '/phone-login')) return '/';
       return null;
     },
     routes: [
@@ -69,6 +79,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/courses', builder: (_, __) => const CoursesScreen()),
       GoRoute(path: '/topik', builder: (_, __) => const TopikExamsScreen()),
+      GoRoute(
+        path: '/topik/exam/:examId',
+        builder: (_, state) =>
+            TopikExamDetailScreen(examId: state.pathParameters['examId']!),
+      ),
+      GoRoute(
+        path: '/topik/session/:sessionId/take',
+        builder: (_, state) => TopikTakeScreen(
+          sessionId: state.pathParameters['sessionId']!,
+          exam: state.extra as Map<String, dynamic>?,
+        ),
+      ),
+      GoRoute(
+        path: '/topik/session/:sessionId/review',
+        builder: (_, state) =>
+            TopikReviewScreen(sessionId: state.pathParameters['sessionId']!),
+      ),
       GoRoute(
         path: '/course/:courseId',
         builder: (_, state) =>

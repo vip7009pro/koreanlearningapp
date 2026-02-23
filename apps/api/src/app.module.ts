@@ -21,6 +21,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { HealthModule } from './modules/health/health.module';
+import { TopikModule } from './modules/topik/topik.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { HealthModule } from './modules/health/health.module';
     UploadModule,
     WebsocketModule,
     HealthModule,
+    TopikModule,
   ],
 })
 export class AppModule {}

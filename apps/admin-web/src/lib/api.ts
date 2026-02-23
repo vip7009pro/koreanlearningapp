@@ -51,6 +51,22 @@ export const aiAdminApi = {
     api.post(`/ai/admin/lessons/${lessonId}/generate-quizzes`, {}, {
       params: { count, model },
     }),
+  generateTopikExam: (data: Record<string, unknown>, model?: string) =>
+    api.post('/ai/admin/topik/generate-exam', data, {
+      params: { model },
+    }),
+};
+
+export const topikAdminApi = {
+  importExam: (payload: any) => api.post('/topik/admin/import', { payload }),
+  listExams: () => api.get('/topik/admin/exams'),
+  getExam: (id: string) => api.get(`/topik/admin/exams/${id}`),
+  updateExam: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/exams/${id}`, data),
+  publishExam: (id: string) => api.post(`/topik/admin/exams/${id}/publish`),
+  unpublishExam: (id: string) => api.post(`/topik/admin/exams/${id}/unpublish`),
+  deleteExam: (id: string) => api.delete(`/topik/admin/exams/${id}`),
+  updateSection: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/sections/${id}`, data),
+  updateQuestion: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/questions/${id}`, data),
 };
 
 // Courses
