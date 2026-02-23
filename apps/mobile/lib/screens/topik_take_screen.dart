@@ -173,7 +173,8 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
         if (examId.isNotEmpty) {
           final examRes = await api.getTopikExamDetail(examId);
           final examDetail = examRes.data as Map<String, dynamic>;
-          final sections = (examDetail['sections'] as List?) ?? [];
+          final examObj = (examDetail['exam'] as Map?)?.cast<String, dynamic>();
+          final sections = (examObj?['sections'] as List?) ?? [];
           final tmp = <Map<String, dynamic>>[];
           for (final s in sections) {
             final sm = (s as Map).cast<String, dynamic>();

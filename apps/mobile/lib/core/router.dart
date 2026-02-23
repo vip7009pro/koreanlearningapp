@@ -32,6 +32,8 @@ import '../screens/admin/admin_course_form_screen.dart';
 import '../screens/admin/admin_lesson_detail_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
 import '../screens/admin/admin_upload_screen.dart';
+import '../screens/admin/admin_topik_screen.dart';
+import '../screens/admin/admin_topik_exam_editor_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -137,6 +139,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/admin/dashboard',
           builder: (_, __) => const AdminDashboardScreen()),
+      GoRoute(
+        path: '/admin/topik',
+        builder: (_, __) => const AdminTopikScreen(),
+      ),
+      GoRoute(
+        path: '/admin/topik/exams/:examId',
+        builder: (_, state) => AdminTopikExamEditorScreen(
+          examId: state.pathParameters['examId']!,
+        ),
+      ),
       GoRoute(
           path: '/admin/courses',
           builder: (_, __) => const AdminCoursesScreen()),

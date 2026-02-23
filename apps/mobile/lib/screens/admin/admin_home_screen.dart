@@ -50,6 +50,14 @@ class AdminHomeScreen extends ConsumerWidget {
             onTap: () => context.push('/admin/upload'),
             color: theme.seedColor,
           ),
+          const SizedBox(height: 12),
+          _AdminNavCard(
+            icon: Icons.fact_check,
+            title: 'TOPIK',
+            subtitle: 'Quản lý đề thi TOPIK',
+            onTap: () => context.push('/admin/topik'),
+            color: theme.seedColor,
+          ),
         ],
       ),
     );

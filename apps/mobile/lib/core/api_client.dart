@@ -140,6 +140,42 @@ class ApiClient {
   Future<Response> getTopikSessionReview(String sessionId) =>
       _dio.get('/topik/sessions/$sessionId/review');
 
+  // TOPIK (Admin)
+  Future<Response> adminListTopikExams() => _dio.get('/topik/admin/exams');
+
+  Future<Response> adminGetTopikExam(String examId) =>
+      _dio.get('/topik/admin/exams/$examId');
+
+  Future<Response> adminCreateTopikExam(Map<String, dynamic> data) =>
+      _dio.post('/topik/admin/exams', data: data);
+
+  Future<Response> adminUpdateTopikExam(String examId, Map<String, dynamic> data) =>
+      _dio.patch('/topik/admin/exams/$examId', data: data);
+
+  Future<Response> adminPublishTopikExam(String examId) =>
+      _dio.post('/topik/admin/exams/$examId/publish');
+
+  Future<Response> adminUnpublishTopikExam(String examId) =>
+      _dio.post('/topik/admin/exams/$examId/unpublish');
+
+  Future<Response> adminDeleteTopikExam(String examId) =>
+      _dio.delete('/topik/admin/exams/$examId');
+
+  Future<Response> adminCreateTopikSection(Map<String, dynamic> data) =>
+      _dio.post('/topik/admin/sections', data: data);
+
+  Future<Response> adminUpdateTopikSection(String sectionId, Map<String, dynamic> data) =>
+      _dio.patch('/topik/admin/sections/$sectionId', data: data);
+
+  Future<Response> adminCreateTopikQuestion(Map<String, dynamic> data) =>
+      _dio.post('/topik/admin/questions', data: data);
+
+  Future<Response> adminUpdateTopikQuestion(String questionId, Map<String, dynamic> data) =>
+      _dio.patch('/topik/admin/questions/$questionId', data: data);
+
+  Future<Response> adminImportTopikExam(Map<String, dynamic> payload) =>
+      _dio.post('/topik/admin/import', data: {'payload': payload});
+
   // Courses
   Future<Response> getCourses({String? level, bool? published}) => _dio.get(
         '/courses',
@@ -324,6 +360,16 @@ class ApiClient {
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-quizzes',
         queryParameters: {'count': count, if (model != null) 'model': model},
+      );
+
+  Future<Response> adminGenerateTopikExam(
+    Map<String, dynamic> data, {
+    String? model,
+  }) =>
+      _dio.post(
+        '/ai/admin/topik/generate-exam',
+        data: data,
+        queryParameters: {if (model != null) 'model': model},
       );
 
   // Bulk delete (Admin)

@@ -41,7 +41,7 @@ export default function TopikExamEditorPage() {
     queryFn: () => topikAdminApi.getExam(examId as string).then((r) => r.data),
   });
 
-  const exam = data?.exam;
+  const exam = data;
   const sections = Array.isArray(exam?.sections) ? exam.sections : [];
 
   const questionIndex = useMemo(() => {
