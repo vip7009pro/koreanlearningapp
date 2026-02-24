@@ -97,35 +97,48 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
     final achievedLevel = data?['achievedLevel'];
     final maxTotalScore = data?['maxTotalScore'];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kết quả TOPIK'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                        const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _load, child: const Text('Thử lại')),
-                      ],
-                    ),
-                  ),
-                )
-              : session == null
-                  ? const Center(child: Text('Không có dữ liệu'))
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Ensure back always returns to TOPIK list instead of exiting app.
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Kết quả TOPIK'),
+          leading: IconButton(
+            onPressed: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            icon: const Icon(Icons.arrow_back),
+          ),
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                          const SizedBox(height: 12),
+                          Text(_error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          ElevatedButton(onPressed: _load, child: const Text('Thử lại')),
+                        ],
+                      ),
+                    ),
+                  )
+                : session == null
+                    ? const Center(child: Text('Không có dữ liệu'))
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
                           Card(
                             child: Padding(
                               padding: const EdgeInsets.all(14),
@@ -214,9 +227,10 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                           ),
                           const SizedBox(height: 10),
                           ..._buildAnswers(session),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+      ),
     );
   }
 

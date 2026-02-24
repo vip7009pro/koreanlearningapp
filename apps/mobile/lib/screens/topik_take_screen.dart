@@ -45,6 +45,10 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
   final FlutterTts _tts = FlutterTts();
   bool _ttsSpeaking = false;
 
+  List<dynamic>? _ttsVoices;
+  Map<String, dynamic>? _ttsMaleVoice;
+  Map<String, dynamic>? _ttsFemaleVoice;
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +99,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       await _tts.awaitSpeakCompletion(true);
       if (!mounted) return;
       setState(() => _ttsSpeaking = true);
-      await _tts.speak(text);
+      await _speakWithGenderIfPossible(text);
       if (!mounted) return;
       setState(() => _ttsSpeaking = false);
     } catch (_) {
@@ -104,6 +108,105 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể đọc TTS.')),
       );
+    }
+  }
+
+  Future<void> _ensureTtsVoicesLoaded() async {
+    if (_ttsVoices != null) return;
+    try {
+      final voices = await _tts.getVoices;
+      if (voices is List) {
+        _ttsVoices = voices;
+      } else {
+        _ttsVoices = const [];
+      }
+
+      Map<String, dynamic>? pickVoice(bool female) {
+        for (final v in _ttsVoices ?? const []) {
+          if (v is! Map) continue;
+          final m = v.cast<String, dynamic>();
+          final name = (m['name'] ?? '').toString().toLowerCase();
+          final locale = (m['locale'] ?? '').toString().toLowerCase();
+          if (!locale.contains('ko')) continue;
+
+          final isFemale =
+              name.contains('female') || name.contains('woman') || name.contains('여성');
+          final isMale =
+              name.contains('male') || name.contains('man') || name.contains('남성');
+          if (female && isFemale) return m;
+          if (!female && isMale) return m;
+        }
+        for (final v in _ttsVoices ?? const []) {
+          if (v is! Map) continue;
+          final m = v.cast<String, dynamic>();
+          final locale = (m['locale'] ?? '').toString().toLowerCase();
+          if (locale.contains('ko')) return m;
+        }
+        return null;
+      }
+
+      _ttsMaleVoice = pickVoice(false);
+      _ttsFemaleVoice = pickVoice(true);
+    } catch (_) {
+      _ttsVoices = const [];
+      _ttsMaleVoice = null;
+      _ttsFemaleVoice = null;
+    }
+  }
+
+  bool _looksLikeDialogueLine(String line) {
+    final t = line.trimLeft();
+    return t.startsWith('남자') ||
+        t.startsWith('여자') ||
+        t.startsWith('남:') ||
+        t.startsWith('여:') ||
+        t.startsWith('남자:') ||
+        t.startsWith('여자:');
+  }
+
+  ({String role, String text}) _parseDialogueLine(String line) {
+    var t = line.trim();
+    String role = '';
+    if (t.startsWith('남자')) role = 'male';
+    if (t.startsWith('여자')) role = 'female';
+    if (t.startsWith('남:') || t.startsWith('남자:')) role = 'male';
+    if (t.startsWith('여:') || t.startsWith('여자:')) role = 'female';
+
+    t = t
+        .replaceFirst(RegExp(r'^(남자|여자)\s*[:：\-]?\s*'), '')
+        .replaceFirst(RegExp(r'^(남|여)\s*[:：\-]\s*'), '')
+        .trim();
+    return (role: role, text: t);
+  }
+
+  Future<void> _speakWithGenderIfPossible(String script) async {
+    await _ensureTtsVoicesLoaded();
+
+    final lines = script
+        .split(RegExp(r'\r?\n'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final hasDialogue = lines.any(_looksLikeDialogueLine);
+    if (!hasDialogue) {
+      await _tts.speak(script);
+      return;
+    }
+
+    for (final line in lines) {
+      if (!mounted) return;
+      final parsed = _parseDialogueLine(line);
+      if (parsed.text.isEmpty) continue;
+
+      if (parsed.role == 'male' && _ttsMaleVoice != null) {
+        await _tts.setVoice(_ttsMaleVoice!.map((k, v) => MapEntry(k, v.toString())));
+      } else if (parsed.role == 'female' && _ttsFemaleVoice != null) {
+        await _tts.setVoice(_ttsFemaleVoice!.map((k, v) => MapEntry(k, v.toString())));
+      }
+
+      await _tts.speak(parsed.text);
+      // awaitSpeakCompletion(true) is enabled, so speak() blocks until completion.
     }
   }
 
@@ -167,10 +270,13 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       final exam = (widget.exam ?? session['exam']) as Map<String, dynamic>;
 
       final answers = (session['answers'] as List?) ?? [];
-      List<Map<String, dynamic>> qs;
-      if (answers.isEmpty) {
-        final examId = (exam['id'] ?? session['examId'] ?? '').toString();
-        if (examId.isNotEmpty) {
+      final examId = (exam['id'] ?? session['examId'] ?? '').toString();
+
+      // IMPORTANT: For resume sessions, session.answers contains only answered questions.
+      // We must always build the full question list from exam detail.
+      List<Map<String, dynamic>> qs = <Map<String, dynamic>>[];
+      if (examId.isNotEmpty) {
+        try {
           final examRes = await api.getTopikExamDetail(examId);
           final examDetail = examRes.data as Map<String, dynamic>;
           final examObj = (examDetail['exam'] as Map?)?.cast<String, dynamic>();
@@ -189,10 +295,13 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
             }
           }
           qs = tmp;
-        } else {
+        } catch (_) {
           qs = <Map<String, dynamic>>[];
         }
-      } else {
+      }
+
+      if (qs.isEmpty) {
+        // Fallback: best-effort when exam detail not available.
         qs = answers
             .map((a) => (a as Map<String, dynamic>)['question'])
             .whereType<Map<String, dynamic>>()

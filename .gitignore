@@ -45,6 +45,8 @@ apps/mobile/.flutter-plugins-dependencies
 apps/mobile/android/.gradle/
 apps/mobile/ios/Pods/
 
+apps/mobile/android/app/google-services.json
+
 # Docker
 docker/data/
 

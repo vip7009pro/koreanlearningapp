@@ -296,6 +296,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       final google = GoogleSignIn(
                                         scopes: const ['email', 'profile'],
                                       );
+                                      // Force account chooser instead of reusing the last signed-in account.
+                                      try {
+                                        await google.signOut();
+                                      } catch (_) {
+                                        // ignore
+                                      }
+                                      try {
+                                        await google.disconnect();
+                                      } catch (_) {
+                                        // ignore
+                                      }
                                       final acct = await google.signIn();
                                       if (acct == null) return;
                                       final gAuth = await acct.authentication;

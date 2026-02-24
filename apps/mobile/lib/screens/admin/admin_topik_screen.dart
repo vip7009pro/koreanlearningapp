@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class AdminTopikScreen extends ConsumerStatefulWidget {
@@ -19,13 +20,23 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
+  static const List<Map<String, String>> _aiModels = [
+    {'id': 'google/gemini-2.0-flash-001', 'label': 'gemini-2.0-flash-001'},
+    {'id': 'openai/gpt-4o-mini', 'label': 'gpt-4o-mini'},
+    {'id': 'anthropic/claude-3.5-haiku', 'label': 'claude-3.5-haiku'},
+    {'id': 'meta-llama/llama-3.1-70b-instruct', 'label': 'llama-3.1-70b'},
+    {
+      'id': 'meta-llama/llama-3.3-70b-instruct:free',
+      'label': 'llama-3.3-70b-instruct:free'
+    },
+  ];
+
   bool _loading = true;
   String? _error;
   List<dynamic> _exams = [];
 
   final _importCtrl = TextEditingController();
 
-  final _modelCtrl = TextEditingController();
   String _genTopikLevel = 'TOPIK_II';
   int _genYear = DateTime.now().year;
   final _genTitleCtrl = TextEditingController();
@@ -45,7 +56,6 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   void dispose() {
     _tab.dispose();
     _importCtrl.dispose();
-    _modelCtrl.dispose();
     _genTitleCtrl.dispose();
     super.dispose();
   }
@@ -209,6 +219,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   Future<void> _generate() async {
     try {
       final api = ref.read(apiClientProvider);
+      final model = ref.read(appSettingsProvider).adminAiModel;
       final input = <String, dynamic>{
         'topikLevel': _genTopikLevel,
         'year': _genYear,
@@ -219,7 +230,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
 
       final res = await api.adminGenerateTopikExam(
         input,
-        model: _modelCtrl.text.trim().isEmpty ? null : _modelCtrl.text.trim(),
+        model: model,
       );
 
       if (!mounted) return;
@@ -390,16 +401,45 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
 
   Widget _buildGenerateTab(BuildContext context) {
     final payload = _generated?['payload'];
+    final currentModel = ref.watch(appSettingsProvider).adminAiModel;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        TextField(
-          controller: _modelCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Model (optional, OpenRouter)',
-            hintText: 'vd: anthropic/claude-3.5-sonnet',
-            border: OutlineInputBorder(),
+        Card(
+          child: ListTile(
+            title: const Text('AI model'),
+            subtitle: Text(currentModel),
+            trailing: PopupMenuButton<String>(
+              tooltip: 'Chọn model',
+              onSelected: (v) {
+                ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Đã đổi AI model')),
+                );
+              },
+              itemBuilder: (_) {
+                return _aiModels
+                    .map(
+                      (m) => PopupMenuItem<String>(
+                        value: m['id']!,
+                        child: Row(
+                          children: [
+                            if (m['id'] == currentModel)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: Icon(Icons.check, size: 18),
+                              )
+                            else
+                              const SizedBox(width: 26),
+                            Expanded(child: Text(m['label']!)),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList();
+              },
+            ),
           ),
         ),
         const SizedBox(height: 12),
