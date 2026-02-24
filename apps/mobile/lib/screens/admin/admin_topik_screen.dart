@@ -44,6 +44,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   String _genStatus = 'DRAFT';
 
   Map<String, dynamic>? _generated;
+  bool _generating = false;
 
   @override
   void initState() {
@@ -217,7 +218,9 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   }
 
   Future<void> _generate() async {
+    if (_generating) return;
     try {
+      setState(() => _generating = true);
       final api = ref.read(apiClientProvider);
       final model = ref.read(appSettingsProvider).adminAiModel;
       final input = <String, dynamic>{
@@ -236,6 +239,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
       if (!mounted) return;
       setState(() {
         _generated = (res.data as Map?)?.cast<String, dynamic>();
+        _generating = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -243,6 +247,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
       );
     } catch (e) {
       if (!mounted) return;
+      setState(() => _generating = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi generate: $e')),
       );
@@ -406,13 +411,35 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (_generating)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Đang generate đề thi... vui lòng chờ'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_generating) const SizedBox(height: 12),
         Card(
           child: ListTile(
             title: const Text('AI model'),
             subtitle: Text(currentModel),
             trailing: PopupMenuButton<String>(
               tooltip: 'Chọn model',
-              onSelected: (v) {
+              onSelected: _generating
+                  ? null
+                  : (v) {
                 ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Đã đổi AI model')),
@@ -512,9 +539,35 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: _generate,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Generate payload'),
+          onPressed: _generating ? null : _generate,
+          icon: _generating
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_awesome),
+          label: Text(_generating ? 'Generating...' : 'Generate payload'),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _generating || payload == null ? null : _copyGeneratedToClipboard,
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy JSON'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _generating || payload == null ? null : _importGenerated,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('Import'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_generated != null) ...[
@@ -534,26 +587,6 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
                         ? 'No payload'
                         : 'Payload ready (${payload is Map ? 'object' : payload.runtimeType})',
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: payload == null ? null : _copyGeneratedToClipboard,
-                          icon: const Icon(Icons.copy),
-                          label: const Text('Copy JSON'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: payload == null ? null : _importGenerated,
-                          icon: const Icon(Icons.file_upload),
-                          label: const Text('Import'),
-                        ),
-                      ),
-                    ],
-                  )
                 ],
               ),
             ),

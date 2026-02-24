@@ -17,6 +17,15 @@ export default function TopikPage() {
   const [importJson, setImportJson] = useState('');
 
   const [model, setModel] = useState('');
+
+  const modelOptions = [
+    { id: '', label: '(default)' },
+    { id: 'google/gemini-2.0-flash-001', label: 'google/gemini-2.0-flash-001' },
+    { id: 'openai/gpt-4o-mini', label: 'openai/gpt-4o-mini' },
+    { id: 'anthropic/claude-3.5-haiku', label: 'anthropic/claude-3.5-haiku' },
+    { id: 'meta-llama/llama-3.1-70b-instruct', label: 'meta-llama/llama-3.1-70b-instruct' },
+    { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'meta-llama/llama-3.3-70b-instruct:free' },
+  ];
   const [topikLevel, setTopikLevel] = useState<TopikLevel>('TOPIK_II');
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [title, setTitle] = useState('');
@@ -96,7 +105,15 @@ export default function TopikPage() {
       toast.error('No generated payload');
       return;
     }
-    importMut.mutate(payload);
+
+    // Normalize payload to ensure it's plain JSON (some backends/validators are strict
+    // and may reject undefined/non-serializable values).
+    try {
+      const normalized = JSON.parse(JSON.stringify(payload));
+      importMut.mutate(normalized);
+    } catch {
+      importMut.mutate(payload);
+    }
   };
 
   const handleDownloadGenerated = () => {
@@ -240,13 +257,14 @@ export default function TopikPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Model (OpenRouter)</label>
-              <input
-                className="input"
-                placeholder="vd: google/gemini-2.0-flash-001"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-              <p className="text-xs text-gray-400 mt-1">Để trống = dùng OPENROUTER_MODEL mặc định.</p>
+              <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
+                {modelOptions.map((m) => (
+                  <option key={m.id || 'default'} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">(default) = dùng OPENROUTER_MODEL mặc định.</p>
             </div>
 
             <div>

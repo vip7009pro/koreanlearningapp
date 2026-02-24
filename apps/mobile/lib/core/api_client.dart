@@ -370,6 +370,12 @@ class ApiClient {
         '/ai/admin/topik/generate-exam',
         data: data,
         queryParameters: {if (model != null) 'model': model},
+        options: Options(
+          // TOPIK generation can take a long time due to chunked AI calls.
+          // Override default timeouts for this request only.
+          connectTimeout: const Duration(seconds: 300),
+          receiveTimeout: const Duration(seconds: 300),
+        ),
       );
 
   // Bulk delete (Admin)
