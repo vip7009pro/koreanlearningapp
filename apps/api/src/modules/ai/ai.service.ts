@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  HttpException,
+  HttpStatus,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 
@@ -103,6 +109,108 @@ export class AIService {
   private readonly logger = new Logger(AIService.name);
   constructor(private prisma: PrismaService) {}
 
+  // NOTE: In-memory quotas are best-effort (per process). If you run multiple API instances,
+  // you should move this to Redis for a shared limiter.
+  private static freeMinuteBucket = new Map<string, { windowKey: string; count: number }>();
+  private static freeDailyBucket = new Map<string, { dayKey: string; count: number }>();
+
+  private isFreeModel(modelId: string) {
+    // OpenRouter free variants commonly end with ':free'
+    return String(modelId || '').toLowerCase().includes(':free');
+  }
+
+  private enforceFreeModelQuota(modelId: string) {
+    const perMinuteLimit = Math.max(
+      1,
+      Number.parseInt(process.env.OPENROUTER_FREE_PER_MINUTE_LIMIT || '20', 10) || 20,
+    );
+    const dailyLimit = Math.max(
+      1,
+      Number.parseInt(process.env.OPENROUTER_FREE_DAILY_LIMIT || '50', 10) || 50,
+    );
+
+    const now = new Date();
+    const windowKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}T${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+    const dayKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+
+    const minute = AIService.freeMinuteBucket.get(modelId);
+    if (!minute || minute.windowKey !== windowKey) {
+      AIService.freeMinuteBucket.set(modelId, { windowKey, count: 0 });
+    }
+    const day = AIService.freeDailyBucket.get(modelId);
+    if (!day || day.dayKey !== dayKey) {
+      AIService.freeDailyBucket.set(modelId, { dayKey, count: 0 });
+    }
+
+    const m = AIService.freeMinuteBucket.get(modelId)!;
+    const d = AIService.freeDailyBucket.get(modelId)!;
+
+    if (m.count >= perMinuteLimit) {
+      throw new HttpException(
+        `Đã đạt rate limit của OpenRouter free model: ${perMinuteLimit} requests/phút. Vui lòng chờ sang phút tiếp theo hoặc giảm số lần generate đồng thời.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (d.count >= dailyLimit) {
+      throw new HttpException(
+        `Đã đạt daily limit của OpenRouter free model: ${dailyLimit} requests/ngày. Vui lòng chờ sang ngày mới hoặc nạp credits để tăng hạn mức.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    m.count += 1;
+    d.count += 1;
+  }
+
+  private sanitizeJsonControlChars(input: string) {
+    // OpenRouter models sometimes output raw control characters inside JSON strings
+    // (e.g. literal newlines), which makes JSON.parse fail with "Bad control character".
+    // This sanitizer escapes control characters only when inside a quoted string.
+    let out = '';
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+
+      if (!inString) {
+        if (ch === '"') inString = true;
+        out += ch;
+        continue;
+      }
+
+      if (escaped) {
+        escaped = false;
+        out += ch;
+        continue;
+      }
+
+      if (ch === '\\') {
+        escaped = true;
+        out += ch;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = false;
+        out += ch;
+        continue;
+      }
+
+      const code = ch.charCodeAt(0);
+      if (code >= 0 && code <= 0x1f) {
+        if (ch === '\n') out += '\\n';
+        else if (ch === '\r') out += '\\r';
+        else if (ch === '\t') out += '\\t';
+        else out += `\\u${code.toString(16).padStart(4, '0')}`;
+        continue;
+      }
+
+      out += ch;
+    }
+    return out;
+  }
+
   private get apiKey(): string {
     return process.env.OPENROUTER_API_KEY || '';
   }
@@ -184,9 +292,35 @@ Ghi chú:
 - WRITING: có thể SHORT_TEXT hoặc ESSAY. ESSAY có prompt rõ ràng như đề TOPIK thật.
 ${writingHint}`;
 
-    const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, params.model);
-    const items = Array.isArray(parsed?.questions) ? parsed.questions : [];
-    return items as TopikGeneratedQuestion[];
+    const tryParseOnce = async () => {
+      // Use a slightly lower maxTokens to reduce the chance of truncation/invalid JSON.
+      const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, params.model, 12000);
+      const items = Array.isArray(parsed?.questions) ? parsed.questions : [];
+      return items as TopikGeneratedQuestion[];
+    };
+
+    try {
+      return await tryParseOnce();
+    } catch (e) {
+      // If JSON parse fails, split the chunk into smaller chunks and retry.
+      // This reduces output size and improves reliability.
+      if (count <= 1) {
+        return await tryParseOnce();
+      }
+
+      const mid = params.startIndex + Math.floor((count - 1) / 2);
+      const left = await this.generateTopikQuestionsChunk({
+        ...params,
+        startIndex: params.startIndex,
+        endIndex: mid,
+      });
+      const right = await this.generateTopikQuestionsChunk({
+        ...params,
+        startIndex: mid + 1,
+        endIndex: params.endIndex,
+      });
+      return [...left, ...right];
+    }
   }
 
   async generateTopikExamPayload(input: GenerateTopikExamInput, model?: string): Promise<{ payload: TopikExamImportPayload; stats: any }> {
@@ -194,7 +328,8 @@ ${writingHint}`;
     const year = Number.isFinite(Number(input.year)) ? Number(input.year) : new Date().getFullYear();
     const blueprint = this.getTopikBlueprint(topikLevel);
     const batchSizeDefault = topikLevel === 'TOPIK_II' ? 10 : 10;
-    const batchSize = Math.max(1, Math.min(20, Math.floor(input.batchSize || batchSizeDefault)));
+    // Keep batchSize conservative to reduce OpenRouter token/credit usage and JSON failures.
+    const batchSize = Math.max(1, Math.min(10, Math.floor(input.batchSize || batchSizeDefault)));
 
     const totalQuestions = blueprint.sections.reduce((sum, s) => sum + s.questionCount, 0);
     const title = (input.title && String(input.title).trim()) || `${topikLevel.replace('_', ' ')} ${year}`;
@@ -344,46 +479,120 @@ ${writingHint}`;
     systemPrompt: string,
     userPrompt: string,
     modelOverride?: string,
+    maxTokens = 18000,
   ): Promise<any> {
     if (!this.apiKey) {
       throw new Error('OPENROUTER_API_KEY is not configured');
     }
 
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model:
-          (modelOverride && String(modelOverride).trim()) ||
-          process.env.OPENROUTER_MODEL ||
-          'google/gemini-2.0-flash-001',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 18000,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
-          'X-Title': 'Korean Learning App',
+    const resolvedModel =
+      (modelOverride && String(modelOverride).trim()) ||
+      process.env.OPENROUTER_MODEL ||
+      'google/gemini-2.0-flash-001';
+
+    if (this.isFreeModel(resolvedModel)) {
+      this.enforceFreeModelQuota(resolvedModel);
+    }
+
+    const postOnce = async (tokenLimit: number) => {
+      return axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model: resolvedModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: tokenLimit,
         },
-        timeout: 45000,
-      },
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
+            'X-Title': 'Korean Learning App',
+          },
+          timeout: 45000,
+        },
+      );
+    };
+
+    let response: any;
+    try {
+      response = await postOnce(maxTokens);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 402) {
+        const rawMsg =
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.message ||
+          '';
+        const m = String(rawMsg);
+
+        // Example:
+        // "You requested up to 8192 tokens, but can only afford 5828."
+        const affordMatch = m.match(/afford\s+(\d+)/i);
+        const affordable = affordMatch ? Number(affordMatch[1]) : null;
+
+        this.logger.warn(
+          {
+            status,
+            model: modelOverride || 'default',
+            requestedMaxTokens: maxTokens,
+            affordableMaxTokens: affordable,
+            message: err?.response?.data?.error || err?.response?.data || err?.message,
+          },
+          'OpenRouter quota/credits error',
+        );
+
+        // Best-effort retry once with the affordable token limit if provided.
+        if (typeof affordable === 'number' && Number.isFinite(affordable) && affordable > 1000) {
+          try {
+            response = await postOnce(Math.max(1000, affordable - 200));
+          } catch (_) {
+            throw new ServiceUnavailableException(
+              'OpenRouter hết credits hoặc token limit không đủ (HTTP 402). Vui lòng nạp credits / giảm batchSize / đổi model.',
+            );
+          }
+        } else {
+          throw new ServiceUnavailableException(
+            'OpenRouter hết credits hoặc token limit không đủ (HTTP 402). Vui lòng nạp credits / giảm batchSize / đổi model.',
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
 
     const content = response.data?.choices?.[0]?.message?.content || '';
 
-    const jsonMatch =
-      content.match(/```json\s*([\s\S]*?)```/) || content.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : content;
+    const raw = String(content);
+    const fenced = raw.match(/```json\s*([\s\S]*?)```/i) || raw.match(/```\s*([\s\S]*?)```/i);
+    let jsonStr = fenced ? String(fenced[1] || '').trim() : raw.trim();
+
+    if (!jsonStr.startsWith('{')) {
+      const first = jsonStr.indexOf('{');
+      const last = jsonStr.lastIndexOf('}');
+      if (first >= 0 && last > first) {
+        jsonStr = jsonStr.slice(first, last + 1);
+      }
+    }
 
     const trimmed = String(jsonStr).trim();
     try {
       return JSON.parse(trimmed);
     } catch (e) {
+      // Try to sanitize raw control characters inside JSON strings.
+      // This addresses errors like "Bad control character in string literal".
+      try {
+        const sanitized = this.sanitizeJsonControlChars(trimmed);
+        return JSON.parse(sanitized);
+      } catch (_) {
+        // fall through to logging below
+      }
+
       const msg = (e as any)?.message ? String((e as any).message) : String(e);
       const posMatch = msg.match(/position\s+(\d+)/i);
       const pos = posMatch ? Number(posMatch[1]) : null;
