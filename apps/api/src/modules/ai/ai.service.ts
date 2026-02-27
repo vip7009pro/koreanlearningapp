@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
+import { GoogleGenAI } from '@google/genai';
 
 export interface WritingCorrectionResult {
   correctedText: string;
@@ -104,15 +105,156 @@ type GenerateTopikExamInput = {
   batchSize?: number;
 };
 
+type AiProvider = 'openrouter' | 'google';
+
+type QuotaInfo = {
+  perMinuteLimit: number;
+  perMinuteRemaining: number;
+  minuteResetAt: string;
+  dailyLimit: number;
+  dailyRemaining: number;
+  dayResetAt: string;
+};
+
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
   constructor(private prisma: PrismaService) {}
 
+  private _googleClient: GoogleGenAI | null = null;
+
+  private get googleApiKey(): string {
+    // Support both common env var names.
+    return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  }
+
+  private async callAiJson(
+    provider: 'openrouter' | 'google',
+    systemPrompt: string,
+    userPrompt: string,
+    modelOverride?: string,
+    maxTokens?: number,
+  ): Promise<any> {
+    if (provider === 'google') {
+      return this.callGoogleGenAiJson(systemPrompt, userPrompt, modelOverride);
+    }
+    return this.callOpenRouterJson(systemPrompt, userPrompt, modelOverride, maxTokens);
+  }
+
+  private async callGoogleGenAiJson(
+    systemPrompt: string,
+    userPrompt: string,
+    modelOverride?: string,
+  ): Promise<any> {
+    this.enforceGoogleQuota();
+    const ai = this.getGoogleClient();
+    const model = (modelOverride && String(modelOverride).trim()) || 'gemini-2.0-flash';
+
+    // Keep it simple: send combined prompt as text. We still enforce JSON-only in the system prompt.
+    const response = await ai.models.generateContent({
+      model,
+      contents: `${systemPrompt}\n\n${userPrompt}`,
+    } as any);
+
+    const content = String((response as any)?.text || (response as any)?.response?.text || '').trim();
+    const raw = String(content);
+    const fenced = raw.match(/```json\s*([\s\S]*?)```/i) || raw.match(/```\s*([\s\S]*?)```/i);
+    let jsonStr = fenced ? String(fenced[1] || '').trim() : raw.trim();
+
+    if (!jsonStr.startsWith('{')) {
+      const first = jsonStr.indexOf('{');
+      const last = jsonStr.lastIndexOf('}');
+      if (first >= 0 && last > first) {
+        jsonStr = jsonStr.slice(first, last + 1);
+      }
+    }
+
+    const trimmed = String(jsonStr).trim();
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      try {
+        const sanitized = this.sanitizeJsonControlChars(trimmed);
+        return JSON.parse(sanitized);
+      } catch (_) {
+        // ignore and rethrow original error
+      }
+
+      const msg = (e as any)?.message ? String((e as any).message) : String(e);
+      this.logger.warn(
+        {
+          provider: 'google',
+          model: modelOverride || 'default',
+          contentLength: raw.length,
+          jsonLength: trimmed.length,
+          parseError: msg,
+        },
+        'Google GenAI JSON.parse failed',
+      );
+      throw e;
+    }
+  }
+
+  private getGoogleClient() {
+    if (!this._googleClient) {
+      if (!this.googleApiKey) {
+        throw new Error('GEMINI_API_KEY/GOOGLE_API_KEY is not configured');
+      }
+      this._googleClient = new GoogleGenAI({ apiKey: this.googleApiKey });
+    }
+    return this._googleClient;
+  }
+
+  private normalizeProvider(input?: string): AiProvider {
+    const v = String(input || '').trim().toLowerCase();
+    if (v === 'google' || v === 'gemini') return 'google';
+    return 'openrouter';
+  }
+
+  adminListModels(provider?: string) {
+    const p = this.normalizeProvider(provider);
+    if (p === 'google') return this.listGoogleModels();
+    return this.listOpenRouterModels();
+  }
+
+  private listOpenRouterModels() {
+    return {
+      provider: 'openrouter',
+      models: [
+        { id: 'google/gemini-2.0-flash-001', label: 'gemini-2.0-flash-001' },
+        { id: 'openai/gpt-4o-mini', label: 'gpt-4o-mini' },
+        { id: 'anthropic/claude-3.5-haiku', label: 'claude-3.5-haiku' },
+        { id: 'meta-llama/llama-3.1-70b-instruct', label: 'llama-3.1-70b' },
+        { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'llama-3.3-70b:free' },
+      ],
+    };
+  }
+
+  private async listGoogleModels() {
+    const ai = this.getGoogleClient();
+    const pager = await ai.models.list();
+    const out: Array<{ id: string; label: string }> = [];
+
+    for await (const m of pager as any) {
+      const name = String((m as any)?.name || '').trim();
+      if (!name) continue;
+      // Filter to Gemini text models to keep the list relevant.
+      if (!name.toLowerCase().includes('gemini')) continue;
+      out.push({ id: name, label: name });
+      if (out.length >= 200) break;
+    }
+
+    out.sort((a, b) => a.id.localeCompare(b.id));
+    return { provider: 'google', models: out, quota: this.getGoogleQuotaInfo() };
+  }
+
   // NOTE: In-memory quotas are best-effort (per process). If you run multiple API instances,
   // you should move this to Redis for a shared limiter.
   private static freeMinuteBucket = new Map<string, { windowKey: string; count: number }>();
   private static freeDailyBucket = new Map<string, { dayKey: string; count: number }>();
+
+  private static googleMinuteBucket = new Map<string, { windowKey: string; count: number }>();
+  private static googleDailyBucket = new Map<string, { dayKey: string; count: number }>();
 
   private isFreeModel(modelId: string) {
     // OpenRouter free variants commonly end with ':free'
@@ -154,6 +296,105 @@ export class AIService {
     if (d.count >= dailyLimit) {
       throw new HttpException(
         `Đã đạt daily limit của OpenRouter free model: ${dailyLimit} requests/ngày. Vui lòng chờ sang ngày mới hoặc nạp credits để tăng hạn mức.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    m.count += 1;
+    d.count += 1;
+  }
+
+  private getGoogleQuotaInfo(): QuotaInfo {
+    const perMinuteLimit = Math.max(
+      1,
+      Number.parseInt(process.env.GOOGLE_PER_MINUTE_LIMIT || '60', 10) || 60,
+    );
+    const dailyLimit = Math.max(
+      1,
+      Number.parseInt(process.env.GOOGLE_DAILY_LIMIT || '1000', 10) || 1000,
+    );
+
+    const now = new Date();
+    const windowKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}T${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+    const dayKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+
+    const minute = AIService.googleMinuteBucket.get('google');
+    const day = AIService.googleDailyBucket.get('google');
+    const minuteCount = minute && minute.windowKey === windowKey ? minute.count : 0;
+    const dayCount = day && day.dayKey === dayKey ? day.count : 0;
+
+    const minuteResetAt = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes() + 1,
+      0,
+      0,
+    )).toISOString();
+    const dayResetAt = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1,
+      0,
+      0,
+      0,
+      0,
+    )).toISOString();
+
+    return {
+      perMinuteLimit,
+      perMinuteRemaining: Math.max(0, perMinuteLimit - minuteCount),
+      minuteResetAt,
+      dailyLimit,
+      dailyRemaining: Math.max(0, dailyLimit - dayCount),
+      dayResetAt,
+    };
+  }
+
+  private enforceGoogleQuota() {
+    const perMinuteLimit = Math.max(
+      1,
+      Number.parseInt(process.env.GOOGLE_PER_MINUTE_LIMIT || '60', 10) || 60,
+    );
+    const dailyLimit = Math.max(
+      1,
+      Number.parseInt(process.env.GOOGLE_DAILY_LIMIT || '1000', 10) || 1000,
+    );
+
+    const now = new Date();
+    const windowKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}T${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+    const dayKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+
+    const minute = AIService.googleMinuteBucket.get('google');
+    if (!minute || minute.windowKey !== windowKey) {
+      AIService.googleMinuteBucket.set('google', { windowKey, count: 0 });
+    }
+    const day = AIService.googleDailyBucket.get('google');
+    if (!day || day.dayKey !== dayKey) {
+      AIService.googleDailyBucket.set('google', { dayKey, count: 0 });
+    }
+
+    const m = AIService.googleMinuteBucket.get('google')!;
+    const d = AIService.googleDailyBucket.get('google')!;
+
+    if (m.count >= perMinuteLimit) {
+      const quota = this.getGoogleQuotaInfo();
+      throw new HttpException(
+        {
+          message: `Đã đạt rate limit Google provider: ${perMinuteLimit} requests/phút.`,
+          quota,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (d.count >= dailyLimit) {
+      const quota = this.getGoogleQuotaInfo();
+      throw new HttpException(
+        {
+          message: `Đã đạt daily limit Google provider: ${dailyLimit} requests/ngày.`,
+          quota,
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -253,6 +494,7 @@ QUY TẮC BẮT BUỘC:
     sectionType: 'LISTENING' | 'READING' | 'WRITING';
     startIndex: number;
     endIndex: number;
+    provider: AiProvider;
     model?: string;
   }): Promise<TopikGeneratedQuestion[]> {
     const count = params.endIndex - params.startIndex + 1;
@@ -294,7 +536,13 @@ ${writingHint}`;
 
     const tryParseOnce = async () => {
       // Use a slightly lower maxTokens to reduce the chance of truncation/invalid JSON.
-      const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, params.model, 12000);
+      const parsed = await this.callAiJson(
+        params.provider,
+        systemPrompt,
+        userPrompt,
+        params.model,
+        12000,
+      );
       const items = Array.isArray(parsed?.questions) ? parsed.questions : [];
       return items as TopikGeneratedQuestion[];
     };
@@ -323,7 +571,11 @@ ${writingHint}`;
     }
   }
 
-  async generateTopikExamPayload(input: GenerateTopikExamInput, model?: string): Promise<{ payload: TopikExamImportPayload; stats: any }> {
+  async generateTopikExamPayload(
+    input: GenerateTopikExamInput,
+    provider?: string,
+    model?: string,
+  ): Promise<{ payload: TopikExamImportPayload; stats: any }> {
     const topikLevel = input.topikLevel;
     const year = Number.isFinite(Number(input.year)) ? Number(input.year) : new Date().getFullYear();
     const blueprint = this.getTopikBlueprint(topikLevel);
@@ -353,8 +605,11 @@ ${writingHint}`;
       totalQuestions,
       sections: [],
       batchSize,
+      provider: this.normalizeProvider(provider),
       model: model || 'google/gemini-2.0-flash-001',
     };
+
+    const resolvedProvider = this.normalizeProvider(provider);
 
     for (const s of blueprint.sections) {
       const section: TopikGeneratedSection = {
@@ -381,6 +636,7 @@ ${writingHint}`;
           sectionType: s.type,
           startIndex: start,
           endIndex: end,
+          provider: resolvedProvider,
           model,
         });
 

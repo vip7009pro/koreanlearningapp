@@ -325,14 +325,18 @@ class ApiClient {
           queryParameters: {'page': page, 'limit': limit});
 
   // AI (Admin)
+  Future<Response> adminListAiModels({String? provider}) =>
+      _dio.get('/ai/admin/models', queryParameters: {if (provider != null) 'provider': provider});
+
   Future<Response> adminGenerateVocabulary(
     String lessonId, {
     int count = 10,
     String? model,
+    String? provider,
   }) =>
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-vocabulary',
-        queryParameters: {'count': count, if (model != null) 'model': model},
+        queryParameters: {'count': count, if (model != null) 'model': model, if (provider != null) 'provider': provider},
       );
   Future<Response> adminGenerateGrammar(
     String lessonId, {
@@ -364,12 +368,16 @@ class ApiClient {
 
   Future<Response> adminGenerateTopikExam(
     Map<String, dynamic> data, {
+    String? provider,
     String? model,
   }) =>
       _dio.post(
         '/ai/admin/topik/generate-exam',
         data: data,
-        queryParameters: {if (model != null) 'model': model},
+        queryParameters: {
+          if (provider != null) 'provider': provider,
+          if (model != null) 'model': model,
+        },
         options: Options(
           // TOPIK generation can take a long time due to chunked AI calls.
           // Override default timeouts for this request only.

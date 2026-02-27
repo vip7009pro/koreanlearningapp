@@ -35,6 +35,10 @@ export const authApi = {
 
 // AI (Admin)
 export const aiAdminApi = {
+  listModels: (provider?: string) =>
+    api.get('/ai/admin/models', {
+      params: { provider },
+    }),
   generateVocabulary: (lessonId: string, count: number, model?: string) =>
     api.post(`/ai/admin/lessons/${lessonId}/generate-vocabulary`, {}, {
       params: { count, model },
@@ -51,9 +55,9 @@ export const aiAdminApi = {
     api.post(`/ai/admin/lessons/${lessonId}/generate-quizzes`, {}, {
       params: { count, model },
     }),
-  generateTopikExam: (data: Record<string, unknown>, model?: string) =>
+  generateTopikExam: (data: Record<string, unknown>, provider?: string, model?: string) =>
     api.post('/ai/admin/topik/generate-exam', data, {
-      params: { model },
+      params: { provider, model },
     }),
 };
 

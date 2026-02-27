@@ -46,11 +46,55 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   Map<String, dynamic>? _generated;
   bool _generating = false;
 
+  bool _modelsLoading = false;
+  String? _modelsError;
+  List<Map<String, String>> _models = const [];
+  Map<String, dynamic>? _quota;
+
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 3, vsync: this);
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadModels();
+    });
+  }
+
+  Future<void> _loadModels() async {
+    try {
+      setState(() {
+        _modelsLoading = true;
+        _modelsError = null;
+      });
+
+      final api = ref.read(apiClientProvider);
+      final provider = ref.read(appSettingsProvider).adminAiProvider;
+      final res = await api.adminListAiModels(provider: provider);
+      final data = (res.data as Map?)?.cast<String, dynamic>() ?? {};
+      final models = (data['models'] as List?) ?? [];
+      final quota = (data['quota'] as Map?)?.cast<String, dynamic>();
+      final out = models.whereType<Map>().map((raw) {
+        final m = raw.cast<String, dynamic>();
+        final id = (m['id'] ?? '').toString().trim();
+        final label = (m['label'] ?? m['id'] ?? '').toString().trim();
+        return {'id': id, 'label': label};
+      }).where((m) => (m['id'] ?? '').isNotEmpty).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _models = out;
+        _quota = quota;
+        _modelsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _modelsLoading = false;
+        _modelsError = e.toString();
+        _quota = null;
+      });
+    }
   }
 
   @override
@@ -222,6 +266,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
     try {
       setState(() => _generating = true);
       final api = ref.read(apiClientProvider);
+      final provider = ref.read(appSettingsProvider).adminAiProvider;
       final model = ref.read(appSettingsProvider).adminAiModel;
       final input = <String, dynamic>{
         'topikLevel': _genTopikLevel,
@@ -233,6 +278,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
 
       final res = await api.adminGenerateTopikExam(
         input,
+        provider: provider,
         model: model,
       );
 
@@ -406,6 +452,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
 
   Widget _buildGenerateTab(BuildContext context) {
     final payload = _generated?['payload'];
+    final currentProvider = ref.watch(appSettingsProvider).adminAiProvider;
     final currentModel = ref.watch(appSettingsProvider).adminAiModel;
 
     return ListView(
@@ -433,33 +480,40 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
         if (_generating) const SizedBox(height: 12),
         Card(
           child: ListTile(
-            title: const Text('AI model'),
-            subtitle: Text(currentModel),
+            title: const Text('AI provider'),
+            subtitle: Text(currentProvider),
             trailing: PopupMenuButton<String>(
-              tooltip: 'Chọn model',
+              tooltip: 'Chọn provider',
               onSelected: _generating
                   ? null
-                  : (v) {
-                ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã đổi AI model')),
-                );
-              },
+                  : (v) async {
+                      await ref.read(appSettingsProvider.notifier).setAdminAiProvider(v);
+                      await ref.read(appSettingsProvider.notifier).setAdminAiModel('');
+                      await _loadModels();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã đổi AI provider')),
+                      );
+                    },
               itemBuilder: (_) {
-                return _aiModels
+                const providers = [
+                  {'id': 'openrouter', 'label': 'OpenRouter'},
+                  {'id': 'google', 'label': 'Google (Gemini)'},
+                ];
+                return providers
                     .map(
-                      (m) => PopupMenuItem<String>(
-                        value: m['id']!,
+                      (p) => PopupMenuItem<String>(
+                        value: p['id']!,
                         child: Row(
                           children: [
-                            if (m['id'] == currentModel)
+                            if (p['id'] == currentProvider)
                               const Padding(
                                 padding: EdgeInsets.only(right: 8),
                                 child: Icon(Icons.check, size: 18),
                               )
                             else
                               const SizedBox(width: 26),
-                            Expanded(child: Text(m['label']!)),
+                            Expanded(child: Text(p['label']!)),
                           ],
                         ),
                       ),
@@ -469,6 +523,68 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            title: const Text('AI model'),
+            subtitle: Text(currentModel.isEmpty ? '(default)' : currentModel),
+            trailing: _modelsLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : PopupMenuButton<String>(
+                    tooltip: 'Chọn model',
+                    onSelected: _generating
+                        ? null
+                        : (v) {
+                            ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã đổi AI model')),
+                            );
+                          },
+                    itemBuilder: (_) {
+                      final list = _models.isEmpty ? _aiModels : _models;
+                      return list
+                          .map(
+                            (m) => PopupMenuItem<String>(
+                              value: m['id']!,
+                              child: Row(
+                                children: [
+                                  if (m['id'] == currentModel)
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 8),
+                                      child: Icon(Icons.check, size: 18),
+                                    )
+                                  else
+                                    const SizedBox(width: 26),
+                                  Expanded(child: Text(m['label']!)),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList();
+                    },
+                  ),
+          ),
+        ),
+        if (_quota != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Quota (server limiter): '
+            '${_quota!['perMinuteRemaining']}/${_quota!['perMinuteLimit']} req/phút (reset ${_quota!['minuteResetAt']}) • '
+            '${_quota!['dailyRemaining']}/${_quota!['dailyLimit']} req/ngày (reset ${_quota!['dayResetAt']})',
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+        if (_modelsError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Lỗi load models: $_modelsError',
+            style: const TextStyle(color: Colors.redAccent),
+          ),
+        ],
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           key: ValueKey('genTopikLevel:$_genTopikLevel'),

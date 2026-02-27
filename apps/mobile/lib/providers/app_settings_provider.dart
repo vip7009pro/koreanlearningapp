@@ -20,12 +20,14 @@ class AppSettingsState {
   final String themeId;
   final ThemeMode themeMode;
   final bool biometricLoginEnabled;
+  final String adminAiProvider;
   final String adminAiModel;
 
   const AppSettingsState({
     required this.themeId,
     required this.themeMode,
     required this.biometricLoginEnabled,
+    required this.adminAiProvider,
     required this.adminAiModel,
   });
 
@@ -33,6 +35,7 @@ class AppSettingsState {
     String? themeId,
     ThemeMode? themeMode,
     bool? biometricLoginEnabled,
+    String? adminAiProvider,
     String? adminAiModel,
   }) {
     return AppSettingsState(
@@ -40,6 +43,7 @@ class AppSettingsState {
       themeMode: themeMode ?? this.themeMode,
       biometricLoginEnabled:
           biometricLoginEnabled ?? this.biometricLoginEnabled,
+      adminAiProvider: adminAiProvider ?? this.adminAiProvider,
       adminAiModel: adminAiModel ?? this.adminAiModel,
     );
   }
@@ -49,6 +53,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   static const _kThemeId = 'app_theme_id';
   static const _kThemeMode = 'app_theme_mode';
   static const _kBiometricEnabled = 'biometric_login_enabled';
+  static const _kAdminAiProvider = 'admin_ai_provider';
   static const _kAdminAiModel = 'admin_ai_model';
 
   AppSettingsNotifier()
@@ -56,6 +61,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
           themeId: 'ocean_blue',
           themeMode: ThemeMode.system,
           biometricLoginEnabled: false,
+          adminAiProvider: 'openrouter',
           adminAiModel: 'google/gemini-2.0-flash-001',
         )) {
     _load();
@@ -148,14 +154,22 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     final themeId = prefs.getString(_kThemeId);
     final themeMode = prefs.getString(_kThemeMode);
     final bio = prefs.getBool(_kBiometricEnabled);
+    final adminAiProvider = prefs.getString(_kAdminAiProvider);
     final adminAiModel = prefs.getString(_kAdminAiModel);
 
     state = state.copyWith(
       themeId: themeId ?? state.themeId,
       themeMode: _themeModeFromString(themeMode),
       biometricLoginEnabled: bio ?? state.biometricLoginEnabled,
+      adminAiProvider: adminAiProvider ?? state.adminAiProvider,
       adminAiModel: adminAiModel ?? state.adminAiModel,
     );
+  }
+
+  Future<void> setAdminAiProvider(String provider) async {
+    state = state.copyWith(adminAiProvider: provider);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kAdminAiProvider, provider);
   }
 
   Future<void> setTheme(String themeId) async {

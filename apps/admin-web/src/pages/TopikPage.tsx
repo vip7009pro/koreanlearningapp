@@ -16,16 +16,8 @@ export default function TopikPage() {
   const navigate = useNavigate();
   const [importJson, setImportJson] = useState('');
 
+  const [provider, setProvider] = useState<'openrouter' | 'google'>('openrouter');
   const [model, setModel] = useState('');
-
-  const modelOptions = [
-    { id: '', label: '(default)' },
-    { id: 'google/gemini-2.0-flash-001', label: 'google/gemini-2.0-flash-001' },
-    { id: 'openai/gpt-4o-mini', label: 'openai/gpt-4o-mini' },
-    { id: 'anthropic/claude-3.5-haiku', label: 'anthropic/claude-3.5-haiku' },
-    { id: 'meta-llama/llama-3.1-70b-instruct', label: 'meta-llama/llama-3.1-70b-instruct' },
-    { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'meta-llama/llama-3.3-70b-instruct:free' },
-  ];
   const [topikLevel, setTopikLevel] = useState<TopikLevel>('TOPIK_II');
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [title, setTitle] = useState('');
@@ -59,13 +51,25 @@ export default function TopikPage() {
   });
 
   const genMut = useMutation({
-    mutationFn: (input: any) => aiAdminApi.generateTopikExam(input, model || undefined).then((r) => r.data),
+    mutationFn: (input: any) => aiAdminApi.generateTopikExam(input, provider, model || undefined).then((r) => r.data),
     onSuccess: (data: any) => {
       setGenerated(data);
       toast.success('Generated payload');
     },
     onError: (err: any) => toast.error('Generate failed: ' + (err.response?.data?.message || err.message)),
   });
+
+  const modelsQuery = useQuery({
+    queryKey: ['ai-models', provider],
+    queryFn: () => aiAdminApi.listModels(provider).then((r) => r.data),
+  });
+
+  const modelOptions = useMemo(() => {
+    const models = Array.isArray(modelsQuery.data?.models) ? modelsQuery.data.models : [];
+    return [{ id: '', label: '(default)' }, ...models];
+  }, [modelsQuery.data]);
+
+  const quota = modelsQuery.data?.quota;
 
   const handleUploadJsonFile = async (file: File) => {
     try {
@@ -256,15 +260,43 @@ export default function TopikPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Model (OpenRouter)</label>
-              <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
-                {modelOptions.map((m) => (
+              <label className="label">Provider</label>
+              <select className="input" value={provider} onChange={(e) => {
+                const p = e.target.value as any;
+                setProvider(p);
+                setModel('');
+              }}>
+                <option value="openrouter">OpenRouter</option>
+                <option value="google">Google (Gemini)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Model</label>
+              <select
+                className="input"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                disabled={modelsQuery.isLoading}
+              >
+                {modelOptions.map((m: any) => (
                   <option key={m.id || 'default'} value={m.id}>
                     {m.label}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">(default) = dùng OPENROUTER_MODEL mặc định.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {provider === 'openrouter'
+                  ? '(default) = dùng OPENROUTER_MODEL mặc định.'
+                  : '(default) = dùng gemini-2.0-flash (backend).'}
+              </p>
+              {quota && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Quota (server limiter): {quota.perMinuteRemaining}/{quota.perMinuteLimit} req/phút (reset {quota.minuteResetAt})
+                  {' • '}
+                  {quota.dailyRemaining}/{quota.dailyLimit} req/ngày (reset {quota.dayResetAt})
+                </p>
+              )}
             </div>
 
             <div>

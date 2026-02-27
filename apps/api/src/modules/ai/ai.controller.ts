@@ -58,6 +58,16 @@ class GenerateTopikExamDto {
 export class AIController {
   constructor(private aiService: AIService) {}
 
+  @Get('admin/models')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List AI models by provider (Admin only)' })
+  @ApiQuery({ name: 'provider', required: false, example: 'openrouter' })
+  listModels(@Query('provider') provider?: string) {
+    return this.aiService.adminListModels(provider);
+  }
+
   @Post('writing-correction')
   @ApiOperation({ summary: 'Submit writing for AI correction' })
   correctWriting(@CurrentUser('id') userId: string, @Body() dto: WritingCorrectionDto) {
@@ -142,9 +152,11 @@ export class AIController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI generate TOPIK exam payload for import (Admin only)' })
+  @ApiQuery({ name: 'provider', required: false })
   @ApiQuery({ name: 'model', required: false })
   generateTopikExam(
     @Body() dto: GenerateTopikExamDto,
+    @Query('provider') provider?: string,
     @Query('model') model?: string,
   ) {
     return this.aiService.generateTopikExamPayload(
@@ -155,6 +167,7 @@ export class AIController {
         status: dto.status,
         batchSize: dto.batchSize,
       },
+      provider,
       model,
     );
   }
