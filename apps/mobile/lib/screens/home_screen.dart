@@ -17,7 +17,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<dynamic> _topikExams = [];
   Map<String, dynamic>? _dailyGoal;
   bool _loading = true;
-  bool _isPremiumUser = false;
 
   @override
   void initState() {
@@ -31,13 +30,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final coursesRes = await api.getCourses();
       final topikRes = await api.getTopikExams();
       final goalRes = await api.getDailyGoal();
-      final premiumRes = await api.checkPremiumStatus();
       if (mounted) {
         setState(() {
           _courses = coursesRes.data?['data'] ?? [];
           _topikExams = (topikRes.data as List?) ?? [];
           _dailyGoal = goalRes.data;
-          _isPremiumUser = premiumRes.data?['isPremium'] ?? false;
           _loading = false;
         });
       }
@@ -49,47 +46,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _handleOpenCourse(dynamic course) async {
-    final isPremiumCourse = course['isPremium'] == true;
-
-    if (!isPremiumCourse || _isPremiumUser) {
-      if (mounted) context.push('/course/${course['id']}');
-      return;
-    }
-
-    final shouldUpgrade = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Khóa học Premium'),
-        content: const Text(
-          'Khóa học này chỉ dành cho tài khoản Premium. Bạn muốn nâng cấp ngay không?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Để sau'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Nâng cấp'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldUpgrade == true && mounted) {
-      final upgraded = await context.push<bool>('/subscription');
-      if (!mounted) return;
-      if (upgraded == true) {
-        setState(() {
-          _isPremiumUser = true;
-        });
-
-        // Open course immediately after successful upgrade
-        if (mounted) {
-          context.push('/course/${course['id']}');
-        }
-      }
-    }
+    if (!mounted) return;
+    context.push('/course/${course['id']}');
   }
 
   @override
@@ -448,8 +406,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             'Luyện đề TOPIK',
@@ -458,55 +416,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          InkWell(
-                            onTap: () => context.push('/topik'),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: theme.gradient),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.assignment_turned_in_outlined,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Luyện đề TOPIK',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          'Làm đề - lưu tiến độ - chấm điểm - review',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                ],
-                              ),
-                            ),
+                          TextButton(
+                            onPressed: () => context.push('/topik'),
+                            child: const Text('Xem tất cả'),
                           ),
                         ],
                       ),

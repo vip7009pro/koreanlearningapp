@@ -104,6 +104,25 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
     }
   }
 
+  Future<void> _practiceTypes(List<String> types) async {
+    final api = ref.read(apiClientProvider);
+    try {
+      final session = await api.startTopikSession(widget.examId, sectionTypes: types);
+      if (!mounted) return;
+      final id = (session.data['id'] ?? '').toString();
+      if (id.isNotEmpty) {
+        context.push('/topik/session/$id/take', extra: {
+          'exam': _exam,
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể bắt đầu luyện ca.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
@@ -202,11 +221,29 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                               subtitle: '60 phút Nghe, 50 phút Viết',
                               sections: _sectionsByTypes({'LISTENING', 'WRITING'}),
                             ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 44,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _practiceTypes(['LISTENING', 'WRITING']),
+                                icon: const Icon(Icons.fitness_center),
+                                label: const Text('Luyện ca 1'),
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             _buildSessionCard(
                               title: 'Ca 2: Đọc',
                               subtitle: '70 phút Đọc',
                               sections: _sectionsByTypes({'READING'}),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 44,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _practiceTypes(['READING']),
+                                icon: const Icon(Icons.fitness_center),
+                                label: const Text('Luyện ca 2'),
+                              ),
                             ),
                           ] else ...[
                             _buildSessionCard(

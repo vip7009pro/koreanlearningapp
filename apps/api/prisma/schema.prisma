@@ -206,6 +206,7 @@ model TopikSession {
   expiresAt            DateTime?
   remainingSeconds     Int
   currentQuestionIndex Int               @default(0)
+  sectionTypes          TopikSectionType[] @default([])
   totalScore           Int?
   bestScoreSnapshot    Int?
   createdAt            DateTime          @default(now())

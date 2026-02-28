@@ -22,7 +22,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 500),
     );
     _fadeAnimation = Tween<double>(
       begin: 0,
@@ -33,7 +33,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
     _controller.forward();
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (mounted) context.go('/login');
     });
   }

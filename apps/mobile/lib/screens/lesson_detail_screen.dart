@@ -170,13 +170,54 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   Future<void> _loadData() async {
     final api = ref.read(apiClientProvider);
     try {
+      final router = GoRouter.of(context);
+      final premiumRes = await api.checkPremiumStatus();
+      final isPremiumUser = premiumRes.data?['isPremium'] == true;
       final lessonRes = await api.getLesson(widget.lessonId);
-      _lesson = lessonRes.data;
+      final lessonData = lessonRes.data as Map<String, dynamic>;
+
+      final section = lessonData['section'] as Map?;
+      final course = section?['course'] as Map?;
+      final isPremiumCourse = course?['isPremium'] == true;
+      if (mounted && isPremiumCourse && !isPremiumUser) {
+        final shouldUpgrade = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cần Premium'),
+            content: const Text(
+              'Bài học này thuộc khóa học Premium. Bạn cần Premium để vào xem nội dung. Bạn muốn nâng cấp ngay không?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Để sau'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Nâng cấp'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (shouldUpgrade == true) {
+          await router.push('/subscription');
+          if (!mounted) return;
+        }
+        router.pop();
+        return;
+      }
+
+      _lesson = lessonData;
       _vocab = _lesson?['vocabularies'] ?? [];
       _grammar = _lesson?['grammars'] ?? [];
       _dialogues = _lesson?['dialogues'] ?? [];
       _quizzes = _lesson?['quizzes'] ?? [];
       _dialogueItemKeys = List.generate(_dialogues.length, (_) => GlobalKey());
+      _vocabListView = true;
+      _showMeaning = false;
+      _currentVocabIndex = 0;
       if (mounted) setState(() => _loading = false);
 
       // Track progress: mark lesson as visited and add XP

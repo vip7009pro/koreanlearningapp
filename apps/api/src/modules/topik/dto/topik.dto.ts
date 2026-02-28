@@ -151,6 +151,12 @@ export class UpdateTopikQuestionDto {
 
 export class StartTopikSessionDto {
   @ApiProperty() @IsUUID() examId: string;
+
+  @ApiPropertyOptional({ enum: TopikSectionType, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(TopikSectionType, { each: true })
+  sectionTypes?: TopikSectionType[];
 }
 
 export class SaveTopikAnswerDto {

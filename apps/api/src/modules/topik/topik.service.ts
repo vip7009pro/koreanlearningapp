@@ -152,19 +152,42 @@ export class TopikService {
     return { exam, mySession };
   }
 
-  async startSession(userId: string, examId: string) {
+  async startSession(userId: string, examId: string, sectionTypes?: TopikSectionType[]) {
     const exam = await this.prisma.topikExam.findFirst({
       where: { id: examId, status: TopikExamStatus.PUBLISHED },
     });
     if (!exam) throw new NotFoundException('Exam not found');
 
+    const normalizedTypes = Array.isArray(sectionTypes)
+      ? Array.from(new Set(sectionTypes)).sort()
+      : [];
+
+    // Resume must match the same practice scope (sectionTypes).
     const existing = await this.prisma.topikSession.findFirst({
-      where: { userId, examId, status: TopikSessionStatus.IN_PROGRESS },
+      where: {
+        userId,
+        examId,
+        status: TopikSessionStatus.IN_PROGRESS,
+        sectionTypes: normalizedTypes.length ? { hasEvery: normalizedTypes } : { equals: [] },
+      },
       orderBy: { updatedAt: 'desc' },
     });
     if (existing) return existing;
 
-    const remainingSeconds = Math.max(60, exam.durationMinutes * 60);
+    let durationMinutes = exam.durationMinutes;
+    if (normalizedTypes.length) {
+      const secs = await this.prisma.topikExamSection.findMany({
+        where: {
+          examId,
+          type: { in: normalizedTypes },
+        },
+        select: { durationMinutes: true },
+      });
+      const sum = secs.reduce((acc, s) => acc + (typeof s.durationMinutes === 'number' ? s.durationMinutes : 0), 0);
+      if (sum > 0) durationMinutes = sum;
+    }
+
+    const remainingSeconds = Math.max(60, durationMinutes * 60);
     const expiresAt = new Date(Date.now() + remainingSeconds * 1000);
 
     return this.prisma.topikSession.create({
@@ -175,6 +198,7 @@ export class TopikService {
         remainingSeconds,
         expiresAt,
         currentQuestionIndex: 0,
+        sectionTypes: normalizedTypes,
       },
     });
   }
@@ -273,8 +297,15 @@ export class TopikService {
         ? Math.min(dto.remainingSeconds, session.exam.durationMinutes * 60)
         : session.remainingSeconds;
 
+    const scopeTypes = (session.sectionTypes || []) as TopikSectionType[];
+
     const questions = await this.prisma.topikQuestion.findMany({
-      where: { section: { examId: session.examId } },
+      where: {
+        section: {
+          examId: session.examId,
+          ...(scopeTypes.length ? { type: { in: scopeTypes } } : {}),
+        },
+      },
       include: { choices: true, section: true },
       orderBy: [{ examSectionId: 'asc' }, { orderIndex: 'asc' }],
     });

@@ -56,36 +56,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           _loading = false;
         });
       }
-
-      final isPremiumCourse = courseRes.data?['isPremium'] == true;
-      if (mounted && isPremiumCourse && !_isPremiumUser) {
-        final shouldUpgrade = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Khóa học Premium'),
-            content: const Text(
-              'Khóa học này chỉ dành cho tài khoản Premium. Bạn muốn nâng cấp ngay không?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Để sau'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Nâng cấp'),
-              ),
-            ],
-          ),
-        );
-
-        if (!mounted) return;
-        if (shouldUpgrade == true) {
-          context.push('/subscription');
-        }
-        context.pop();
-        return;
-      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -126,6 +96,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
 
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
+    final isPremiumCourse = _course?['isPremium'] == true;
 
     return Scaffold(
       body: CustomScrollView(
@@ -217,18 +188,19 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                   vertical: 8,
                 ),
                 child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    childrenPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                    title: Text(
+                      section['title'] ?? '',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          section['title'] ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
                         const SizedBox(height: 8),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6),
@@ -252,104 +224,128 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        ...lessons.map<Widget>(
-                          (lesson) => InkWell(
-                            onTap: () async {
-                              await context.push('/lesson/${lesson['id']}');
-                              await _reloadProgress();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey.shade100,
-                                  ),
+                      ],
+                    ),
+                    children: lessons.map<Widget>((lesson) {
+                      return InkWell(
+                        onTap: () async {
+                          final router = GoRouter.of(context);
+                          if (isPremiumCourse && !_isPremiumUser) {
+                            final shouldUpgrade = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Cần Premium'),
+                                content: const Text(
+                                  'Bạn cần Premium để vào xem bài học trong khóa học này. Bạn muốn nâng cấp ngay không?',
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  if (_lessonCompleted[
-                                          (lesson['id'] ?? '').toString()] ==
-                                      true)
-                                    Container(
-                                      width: 22,
-                                      height: 22,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.12),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.check,
-                                        size: 14,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    )
-                                  else
-                                    const SizedBox(width: 22, height: 22),
-                                  const SizedBox(width: 10),
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: theme.seedColor
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${(lesson['orderIndex'] ?? 0) + 1}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.seedColor,
-                                        ),
-                                      ),
-                                    ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: const Text('Để sau'),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          lesson['title'] ?? '',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${lesson['estimatedMinutes'] ?? 10} phút',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey.shade400,
-                                    size: 20,
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.of(context).pop(true),
+                                    child: const Text('Nâng cấp'),
                                   ),
                                 ],
                               ),
+                            );
+                            if (!mounted) return;
+                            if (shouldUpgrade == true) {
+                              await router.push('/subscription');
+                              if (!mounted) return;
+                              await _loadData();
+                            }
+                            return;
+                          }
+
+                          await router.push('/lesson/${lesson['id']}');
+                          if (!mounted) return;
+                          await _reloadProgress();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade100,
+                              ),
                             ),
                           ),
+                          child: Row(
+                            children: [
+                              if (_lessonCompleted[(lesson['id'] ?? '').toString()] == true)
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.check,
+                                    size: 14,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                )
+                              else
+                                const SizedBox(width: 22, height: 22),
+                              const SizedBox(width: 10),
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: theme.seedColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${(lesson['orderIndex'] ?? 0) + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.seedColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lesson['title'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${lesson['estimatedMinutes'] ?? 10} phút',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: Colors.grey.shade400,
+                                size: 20,
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      );
+                    }).toList(),
                   ),
                 ),
               );

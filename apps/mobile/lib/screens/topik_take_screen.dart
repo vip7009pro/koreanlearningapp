@@ -27,6 +27,10 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
   int _remainingSeconds = 0;
 
   final Map<String, dynamic> _draft = {};
+  final Set<String> _dirtyQuestionIds = {};
+  final Map<String, TextEditingController> _textControllers = {};
+  final ScrollController _scroll = ScrollController();
+  List<GlobalKey> _questionKeys = [];
   Timer? _timer;
   Timer? _autosave;
 
@@ -76,6 +80,10 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     _audioPositionSub?.cancel();
     _audio.dispose();
     _tts.stop();
+    _scroll.dispose();
+    for (final c in _textControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -308,6 +316,15 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
             .toList();
       }
 
+      final scopedTypes = (session['sectionTypes'] as List?)?.map((e) => e.toString()).toSet() ?? <String>{};
+      if (scopedTypes.isNotEmpty) {
+        qs = qs.where((q) {
+          final section = (q['section'] as Map?)?.cast<String, dynamic>();
+          final type = (section?['type'] ?? '').toString();
+          return scopedTypes.contains(type);
+        }).toList();
+      }
+
       qs.sort((a, b) {
         final sa = ((a['section'] as Map?)?['orderIndex'] ?? 0) as num;
         final sb = ((b['section'] as Map?)?['orderIndex'] ?? 0) as num;
@@ -339,6 +356,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
         _questions = qs;
         _currentIndex = currentIdx.clamp(0, qs.isNotEmpty ? qs.length - 1 : 0);
         _remainingSeconds = remaining;
+        _questionKeys = List.generate(qs.length, (_) => GlobalKey());
         _loading = false;
       });
 
@@ -374,6 +392,22 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
         }
       }
 
+      // Initialize controllers for text questions.
+      for (final q in qs) {
+        final qId = (q['id'] ?? '').toString();
+        if (qId.isEmpty) continue;
+        final qType = (q['questionType'] ?? '').toString();
+        if (qType == 'MCQ') continue;
+        final d = _currentDraft(qId);
+        final text = (d['textAnswer'] ?? '').toString();
+        final ctrl = _textControllers[qId];
+        if (ctrl == null) {
+          _textControllers[qId] = TextEditingController(text: text);
+        } else {
+          if (ctrl.text != text) ctrl.text = text;
+        }
+      }
+
       _startTimers();
     } catch (e) {
       if (!mounted) return;
@@ -399,16 +433,12 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     });
 
     _autosave = Timer.periodic(const Duration(seconds: 10), (_) {
-      _saveCurrent(bestEffort: true);
+      _autosaveDirty();
     });
   }
 
   String _stripHtml(String html) {
     return html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
-  Map<String, dynamic> _currentQuestion() {
-    return (_questions[_currentIndex] as Map).cast<String, dynamic>();
   }
 
   Map<String, dynamic> _currentDraft(String qId) {
@@ -419,14 +449,14 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     };
   }
 
-  Future<void> _saveCurrent({required bool bestEffort}) async {
-    if (_questions.isEmpty) return;
-    final q = _currentQuestion();
-    final qId = (q['id'] ?? '').toString();
+  Future<void> _saveQuestion(
+    String qId,
+    int questionIndex, {
+    required bool bestEffort,
+  }) async {
     if (qId.isEmpty) return;
-
+    if (questionIndex < 0 || questionIndex >= _questions.length) return;
     final d = _currentDraft(qId);
-
     final api = ref.read(apiClientProvider);
     try {
       await api.saveTopikAnswer(
@@ -434,10 +464,11 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
         questionId: qId,
         selectedChoiceId: d['selectedChoiceId'] as String?,
         textAnswer: d['textAnswer'] as String?,
-        currentQuestionIndex: _currentIndex,
+        currentQuestionIndex: questionIndex,
         remainingSeconds: _remainingSeconds,
         flagged: d['flagged'] == true,
       );
+      _dirtyQuestionIds.remove(qId);
     } catch (_) {
       if (!bestEffort && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -447,30 +478,22 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     }
   }
 
-  Future<void> _onNext() async {
-    await _saveCurrent(bestEffort: true);
-    if (!mounted) return;
-    if (_currentIndex < _questions.length - 1) {
-      await _stopAudio();
-      await _stopTts();
-      if (!mounted) return;
-      setState(() => _currentIndex++);
-    }
-  }
-
-  Future<void> _onPrev() async {
-    await _saveCurrent(bestEffort: true);
-    if (!mounted) return;
-    if (_currentIndex > 0) {
-      await _stopAudio();
-      await _stopTts();
-      if (!mounted) return;
-      setState(() => _currentIndex--);
+  Future<void> _autosaveDirty() async {
+    if (_dirtyQuestionIds.isEmpty) return;
+    // Copy to avoid concurrent modification.
+    final ids = _dirtyQuestionIds.toList(growable: false);
+    for (final qId in ids) {
+      final idx = _questions.indexWhere((q) => (q as Map)['id']?.toString() == qId);
+      if (idx < 0) {
+        _dirtyQuestionIds.remove(qId);
+        continue;
+      }
+      await _saveQuestion(qId, idx, bestEffort: true);
     }
   }
 
   Future<void> _onSubmit({bool auto = false}) async {
-    await _saveCurrent(bestEffort: true);
+    await _autosaveDirty();
     await _stopAudio();
     await _stopTts();
 
@@ -547,10 +570,22 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
   Future<void> _jumpTo(int index) async {
     if (index < 0 || index >= _questions.length) return;
     if (index == _currentIndex) return;
-    await _saveCurrent(bestEffort: true);
-    await _stopAudio();
+
+    final targetContext = _questionKeys[index].currentContext;
+
+    _stopAudio();
+    _stopTts();
     if (!mounted) return;
     setState(() => _currentIndex = index);
+
+    if (targetContext != null) {
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignment: 0.1,
+      );
+    }
   }
 
   void _openNavigator() {
@@ -748,7 +783,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
               padding: const EdgeInsets.only(right: 10),
               child: Center(
                 child: Text(
-                  '${_currentIndex + 1}/${_questions.length} · ${_formatTime(_remainingSeconds)}',
+                  _formatTime(_remainingSeconds),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -775,7 +810,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                 )
               : _questions.isEmpty
                   ? const Center(child: Text('Chưa có câu hỏi'))
-                  : _buildQuestion(),
+                  : _buildAllQuestions(),
       bottomNavigationBar: _loading || _questions.isEmpty
           ? null
           : SafeArea(
@@ -784,16 +819,27 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: _currentIndex > 0 ? _onPrev : null,
-                        child: const Text('Trước'),
+                      child: OutlinedButton.icon(
+                        onPressed: _dirtyQuestionIds.isNotEmpty
+                            ? () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                await _autosaveDirty();
+                                if (!mounted) return;
+                                messenger.showSnackBar(
+                                  const SnackBar(content: Text('Đã lưu tiến độ.')),
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Lưu'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: _currentIndex < _questions.length - 1 ? _onNext : () => _onSubmit(),
-                        child: Text(_currentIndex < _questions.length - 1 ? 'Tiếp' : 'Nộp bài'),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _onSubmit(),
+                        icon: const Icon(Icons.done_all),
+                        label: const Text('Nộp bài'),
                       ),
                     ),
                   ],
@@ -803,9 +849,23 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     );
   }
 
-  Widget _buildQuestion() {
-    final q = _currentQuestion();
-    _ensureAudioForQuestion(q);
+  Widget _buildAllQuestions() {
+    return ListView.builder(
+      controller: _scroll,
+      padding: const EdgeInsets.all(16),
+      itemCount: _questions.length,
+      itemBuilder: (context, index) {
+        final q = (_questions[index] as Map).cast<String, dynamic>();
+        return Container(
+          key: _questionKeys[index],
+          margin: const EdgeInsets.only(bottom: 14),
+          child: _buildQuestionItem(q, index),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuestionItem(Map<String, dynamic> q, int index) {
     final qId = (q['id'] ?? '').toString();
     final qType = (q['questionType'] ?? '').toString();
     final section = (q['section'] as Map?)?.cast<String, dynamic>();
@@ -821,258 +881,275 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     final listeningScript = (q['listeningScript'] ?? '').toString().trim();
     final showTts = audioUrl.isEmpty && listeningScript.isNotEmpty;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(999),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${index + 1}.',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
-                child: Text(
-                  sectionType,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                qType,
-                style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Đánh dấu',
-                onPressed: () {
-                  setState(() {
-                    final cur = _currentDraft(qId);
-                    _draft[qId] = {
-                      ...cur,
-                      'flagged': !(cur['flagged'] == true),
-                    };
-                  });
-                  _saveCurrent(bestEffort: true);
-                },
-                icon: Icon(d['flagged'] == true ? Icons.flag : Icons.outlined_flag),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            questionText,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          if (audioUrl.isNotEmpty || showTts) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-                color: Colors.grey.shade50,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () async {
-                          if (showTts) {
-                            if (_ttsSpeaking) {
-                              await _stopTts();
-                            } else {
-                              await _stopAudio();
-                              await _speakTts(listeningScript);
-                            }
-                            return;
-                          }
-
-                          try {
-                            await _stopTts();
-                            if (_audioState == PlayerState.playing) {
-                              await _audio.pause();
-                            } else {
-                              await _audio.resume();
-                            }
-                          } catch (_) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Không thể phát audio.')),
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          showTts
-                              ? (_ttsSpeaking ? Icons.stop_circle : Icons.record_voice_over)
-                              : (_audioState == PlayerState.playing
-                                  ? Icons.pause_circle_filled
-                                  : Icons.play_circle_fill),
-                          size: 34,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Audio',
-                          style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Dừng',
-                        onPressed: () async {
-                          await _stopAudio();
-                          await _stopTts();
-                        },
-                        icon: const Icon(Icons.stop_circle_outlined),
-                      ),
-                    ],
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  if (!showTts) ...[
-                    Slider(
-                      value: _audioPosition.inMilliseconds
-                          .clamp(0, _audioDuration.inMilliseconds == 0 ? 0 : _audioDuration.inMilliseconds)
-                          .toDouble(),
-                      max: (_audioDuration.inMilliseconds == 0 ? 1 : _audioDuration.inMilliseconds).toDouble(),
-                      onChanged: (v) async {
-                        try {
-                          await _audio.seek(Duration(milliseconds: v.toInt()));
-                        } catch (_) {
-                          // ignore
-                        }
-                      },
+                  child: Text(
+                    sectionType,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade800,
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  qType,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Đánh dấu',
+                  onPressed: () async {
+                    setState(() {
+                      final cur = _currentDraft(qId);
+                      _draft[qId] = {
+                        ...cur,
+                        'flagged': !(cur['flagged'] == true),
+                      };
+                      _dirtyQuestionIds.add(qId);
+                      _currentIndex = index;
+                    });
+                    await _saveQuestion(qId, index, bestEffort: true);
+                  },
+                  icon: Icon(
+                    d['flagged'] == true ? Icons.flag : Icons.outlined_flag,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              questionText,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            if (audioUrl.isNotEmpty || showTts) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                  color: Colors.grey.shade50,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        Text(
-                          _formatTime((_audioPosition.inSeconds).clamp(0, 999999)),
-                          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                        IconButton(
+                          onPressed: () async {
+                            _currentIndex = index;
+                            if (showTts) {
+                              if (_ttsSpeaking) {
+                                await _stopTts();
+                              } else {
+                                await _stopAudio();
+                                await _speakTts(listeningScript);
+                              }
+                              return;
+                            }
+
+                            await _ensureAudioForQuestion(q);
+
+                            try {
+                              await _stopTts();
+                              if (_audioState == PlayerState.playing) {
+                                await _audio.pause();
+                              } else {
+                                await _audio.resume();
+                              }
+                            } catch (_) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Không thể phát audio.')),
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            showTts
+                                ? (_ttsSpeaking
+                                    ? Icons.stop_circle
+                                    : Icons.record_voice_over)
+                                : (_audioState == PlayerState.playing
+                                    ? Icons.pause_circle_filled
+                                    : Icons.play_circle_fill),
+                            size: 34,
+                          ),
                         ),
-                        const Spacer(),
-                        Text(
-                          _formatTime((_audioDuration.inSeconds).clamp(0, 999999)),
-                          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Audio',
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Dừng',
+                          onPressed: () async {
+                            await _stopAudio();
+                            await _stopTts();
+                          },
+                          icon: const Icon(Icons.stop_circle_outlined),
                         ),
                       ],
                     ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          if (qType == 'MCQ')
-            ...choices.map((c) {
-              final m = (c as Map).cast<String, dynamic>();
-              final id = (m['id'] ?? '').toString();
-              final content = _stripHtml((m['content'] ?? '').toString());
-              final selected = d['selectedChoiceId'] == id;
-              final primary = Theme.of(context).colorScheme.primary;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _draft[qId] = {
-                        ...d,
-                        'selectedChoiceId': id,
-                        'textAnswer': null,
-                      };
-                    });
-                    _saveCurrent(bestEffort: true);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? primary : Colors.grey.shade300,
-                        width: selected ? 2 : 1,
+                    if (!showTts) ...[
+                      Slider(
+                        value: _audioPosition.inMilliseconds
+                            .clamp(
+                              0,
+                              _audioDuration.inMilliseconds == 0
+                                  ? 0
+                                  : _audioDuration.inMilliseconds,
+                            )
+                            .toDouble(),
+                        max: (_audioDuration.inMilliseconds == 0
+                                ? 1
+                                : _audioDuration.inMilliseconds)
+                            .toDouble(),
+                        onChanged: (v) async {
+                          try {
+                            await _audio.seek(Duration(milliseconds: v.toInt()));
+                          } catch (_) {
+                            // ignore
+                          }
+                        },
                       ),
-                      color: selected ? primary.withValues(alpha: 0.06) : null,
-                    ),
-                    child: Text(
-                      content,
-                      style: TextStyle(
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected ? primary : null,
+                      Row(
+                        children: [
+                          Text(
+                            _formatTime(
+                              (_audioPosition.inSeconds).clamp(0, 999999),
+                            ),
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            _formatTime(
+                              (_audioDuration.inSeconds).clamp(0, 999999),
+                            ),
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            if (qType == 'MCQ')
+              ...choices.map((c) {
+                final m = (c as Map).cast<String, dynamic>();
+                final id = (m['id'] ?? '').toString();
+                final content = _stripHtml((m['content'] ?? '').toString());
+                final selected = d['selectedChoiceId'] == id;
+                final primary = Theme.of(context).colorScheme.primary;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _currentIndex = index;
+                        _draft[qId] = {
+                          ...d,
+                          'selectedChoiceId': id,
+                          'textAnswer': null,
+                        };
+                        _dirtyQuestionIds.add(qId);
+                      });
+                      _saveQuestion(qId, index, bestEffort: true);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selected ? primary : Colors.grey.shade300,
+                          width: selected ? 2 : 1,
+                        ),
+                        color: selected ? primary.withValues(alpha: 0.06) : null,
+                      ),
+                      child: Text(
+                        content,
+                        style: TextStyle(
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected ? primary : null,
+                        ),
                       ),
                     ),
                   ),
+                );
+              })
+            else
+              TextField(
+                minLines: qType == 'ESSAY' ? 8 : 2,
+                maxLines: qType == 'ESSAY' ? 16 : 4,
+                decoration: InputDecoration(
+                  hintText:
+                      qType == 'ESSAY' ? 'Nhập bài viết...' : 'Nhập câu trả lời...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              );
-            })
-          else
-            TextField(
-              minLines: qType == 'ESSAY' ? 8 : 2,
-              maxLines: qType == 'ESSAY' ? 16 : 4,
-              decoration: InputDecoration(
-                hintText: qType == 'ESSAY' ? 'Nhập bài viết...' : 'Nhập câu trả lời...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              controller: TextEditingController(text: (d['textAnswer'] ?? '').toString())
-                ..selection = TextSelection.fromPosition(
-                  TextPosition(offset: (d['textAnswer'] ?? '').toString().length),
+                controller: _textControllers.putIfAbsent(
+                  qId,
+                  () => TextEditingController(
+                    text: (d['textAnswer'] ?? '').toString(),
+                  ),
                 ),
-              onChanged: (v) {
-                setState(() {
-                  _draft[qId] = {
-                    ...d,
-                    'selectedChoiceId': null,
-                    'textAnswer': v,
-                  };
-                });
-              },
-              onEditingComplete: () {
-                FocusScope.of(context).unfocus();
-                _saveCurrent(bestEffort: true);
-              },
-            ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _saveCurrent(bestEffort: false),
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Lưu'),
-              ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Nộp bài'),
-                      content: const Text('Bạn chắc chắn muốn nộp bài?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Hủy'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _onSubmit();
-                          },
-                          child: const Text('Nộp'),
-                        ),
-                      ],
-                    ),
-                  );
+                onChanged: (v) {
+                  setState(() {
+                    _currentIndex = index;
+                    _draft[qId] = {
+                      ...d,
+                      'selectedChoiceId': null,
+                      'textAnswer': v,
+                    };
+                    _dirtyQuestionIds.add(qId);
+                  });
                 },
-                icon: const Icon(Icons.done_all),
-                label: const Text('Nộp'),
+                onEditingComplete: () async {
+                  FocusScope.of(context).unfocus();
+                  await _saveQuestion(qId, index, bestEffort: true);
+                },
               ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

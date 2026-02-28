@@ -39,7 +39,7 @@ export class TopikController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Start or resume an in-progress session' })
   start(@CurrentUser('id') userId: string, @Body() dto: StartTopikSessionDto) {
-    return this.topikService.startSession(userId, dto.examId);
+    return this.topikService.startSession(userId, dto.examId, dto.sectionTypes);
   }
 
   @Post('sessions/:id/answer')

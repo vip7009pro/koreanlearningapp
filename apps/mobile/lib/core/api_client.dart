@@ -101,8 +101,17 @@ class ApiClient {
   Future<Response> getTopikExamDetail(String examId) =>
       _dio.get('/topik/exams/$examId');
 
-  Future<Response> startTopikSession(String examId) =>
-      _dio.post('/topik/sessions/start', data: {'examId': examId});
+  Future<Response> startTopikSession(
+    String examId, {
+    List<String>? sectionTypes,
+  }) =>
+      _dio.post(
+        '/topik/sessions/start',
+        data: {
+          'examId': examId,
+          if (sectionTypes != null) 'sectionTypes': sectionTypes,
+        },
+      );
 
   Future<Response> saveTopikAnswer(
     String sessionId, {
