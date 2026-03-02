@@ -351,28 +351,43 @@ class ApiClient {
     String lessonId, {
     int count = 5,
     String? model,
+    String? provider,
   }) =>
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-grammar',
-        queryParameters: {'count': count, if (model != null) 'model': model},
+        queryParameters: {
+          'count': count,
+          if (model != null) 'model': model,
+          if (provider != null) 'provider': provider,
+        },
       );
   Future<Response> adminGenerateDialogues(
     String lessonId, {
     int count = 10,
     String? model,
+    String? provider,
   }) =>
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-dialogues',
-        queryParameters: {'count': count, if (model != null) 'model': model},
+        queryParameters: {
+          'count': count,
+          if (model != null) 'model': model,
+          if (provider != null) 'provider': provider,
+        },
       );
   Future<Response> adminGenerateQuizzes(
     String lessonId, {
     int count = 1,
     String? model,
+    String? provider,
   }) =>
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-quizzes',
-        queryParameters: {'count': count, if (model != null) 'model': model},
+        queryParameters: {
+          'count': count,
+          if (model != null) 'model': model,
+          if (provider != null) 'provider': provider,
+        },
       );
 
   Future<Response> adminGenerateTopikExam(

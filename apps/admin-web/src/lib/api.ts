@@ -39,21 +39,21 @@ export const aiAdminApi = {
     api.get('/ai/admin/models', {
       params: { provider },
     }),
-  generateVocabulary: (lessonId: string, count: number, model?: string) =>
+  generateVocabulary: (lessonId: string, count: number, provider?: string, model?: string) =>
     api.post(`/ai/admin/lessons/${lessonId}/generate-vocabulary`, {}, {
-      params: { count, model },
+      params: { count, provider, model },
     }),
-  generateGrammar: (lessonId: string, count: number, model?: string) =>
+  generateGrammar: (lessonId: string, count: number, provider?: string, model?: string) =>
     api.post(`/ai/admin/lessons/${lessonId}/generate-grammar`, {}, {
-      params: { count, model },
+      params: { count, provider, model },
     }),
-  generateDialogues: (lessonId: string, count: number, model?: string) =>
+  generateDialogues: (lessonId: string, count: number, provider?: string, model?: string) =>
     api.post(`/ai/admin/lessons/${lessonId}/generate-dialogues`, {}, {
-      params: { count, model },
+      params: { count, provider, model },
     }),
-  generateQuizzes: (lessonId: string, count: number, model?: string) =>
+  generateQuizzes: (lessonId: string, count: number, provider?: string, model?: string) =>
     api.post(`/ai/admin/lessons/${lessonId}/generate-quizzes`, {}, {
-      params: { count, model },
+      params: { count, provider, model },
     }),
   generateTopikExam: (data: Record<string, unknown>, provider?: string, model?: string) =>
     api.post('/ai/admin/topik/generate-exam', data, {

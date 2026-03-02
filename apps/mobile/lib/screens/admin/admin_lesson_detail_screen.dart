@@ -30,16 +30,10 @@ class _AdminLessonDetailScreenState
   final Set<String> _selectedDialogueIds = <String>{};
   final Set<String> _selectedQuizIds = <String>{};
 
-  static const List<Map<String, String>> _aiModels = [
-    {'id': 'google/gemini-2.0-flash-001', 'label': 'gemini-2.0-flash-001'},
-    {'id': 'openai/gpt-4o-mini', 'label': 'gpt-4o-mini'},
-    {'id': 'anthropic/claude-3.5-haiku', 'label': 'claude-3.5-haiku'},
-    {'id': 'meta-llama/llama-3.1-70b-instruct', 'label': 'llama-3.1-70b'},
-    {
-      'id': 'meta-llama/llama-3.3-70b-instruct:free',
-      'label': 'llama-3.3-70b-instruct:free'
-    },
-  ];
+  List<Map<String, String>> _models = [];
+  bool _modelsLoading = false;
+  String? _modelsError;
+  Map<String, dynamic>? _quota;
 
   Map<String, dynamic>? _lesson;
   List<dynamic> _vocab = [];
@@ -61,6 +55,45 @@ class _AdminLessonDetailScreenState
       });
     });
     _load();
+    _loadModels();
+  }
+
+  Future<void> _loadModels() async {
+    setState(() {
+      _modelsLoading = true;
+      _modelsError = null;
+      _quota = null;
+    });
+
+    try {
+      final api = ref.read(apiClientProvider);
+      final provider = ref.read(appSettingsProvider).adminAiProvider;
+      final res = await api.adminListAiModels(provider: provider);
+      final data = res.data;
+      if (!mounted) return;
+      final modelsRaw = (data is Map) ? data['models'] : null;
+      final list = <Map<String, String>>[];
+      if (modelsRaw is List) {
+        for (final m in modelsRaw) {
+          if (m is Map) {
+            final id = (m['id'] ?? '').toString();
+            final label = (m['label'] ?? id).toString();
+            if (id.isNotEmpty) list.add({'id': id, 'label': label});
+          }
+        }
+      }
+      setState(() {
+        _models = list;
+        _quota = (data is Map && data['quota'] is Map)
+            ? (data['quota'] as Map).cast<String, dynamic>()
+            : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _modelsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _modelsLoading = false);
+    }
   }
 
   Future<int?> _askCount({
@@ -149,30 +182,36 @@ class _AdminLessonDetailScreenState
     }
     try {
       final api = ref.read(apiClientProvider);
-      final model = ref.read(appSettingsProvider).adminAiModel;
+      final settings = ref.read(appSettingsProvider);
+      final provider = settings.adminAiProvider;
+      final model = settings.adminAiModel;
       dynamic res;
       if (kind == 'vocab') {
         res = await api.adminGenerateVocabulary(
           widget.lessonId,
           count: count,
+          provider: provider,
           model: model,
         );
       } else if (kind == 'grammar') {
         res = await api.adminGenerateGrammar(
           widget.lessonId,
           count: count,
+          provider: provider,
           model: model,
         );
       } else if (kind == 'dialogues') {
         res = await api.adminGenerateDialogues(
           widget.lessonId,
           count: count,
+          provider: provider,
           model: model,
         );
       } else {
         res = await api.adminGenerateQuizzes(
           widget.lessonId,
           count: count,
+          provider: provider,
           model: model,
         );
       }
@@ -904,8 +943,48 @@ class _AdminLessonDetailScreenState
         ),
         actions: [
           PopupMenuButton<String>(
-            tooltip: 'AI model',
+            tooltip: 'AI provider',
             enabled: !_aiLoading,
+            icon: const Icon(Icons.hub_outlined),
+            onSelected: (v) async {
+              await ref.read(appSettingsProvider.notifier).setAdminAiProvider(v);
+              await ref.read(appSettingsProvider.notifier).setAdminAiModel('');
+              await _loadModels();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đã đổi AI provider')),
+              );
+            },
+            itemBuilder: (_) {
+              final current = ref.read(appSettingsProvider).adminAiProvider;
+              const providers = [
+                {'id': 'openrouter', 'label': 'OpenRouter'},
+                {'id': 'google', 'label': 'Google (Gemini)'},
+              ];
+              return providers
+                  .map(
+                    (p) => PopupMenuItem<String>(
+                      value: p['id']!,
+                      child: Row(
+                        children: [
+                          if (p['id'] == current)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8),
+                              child: Icon(Icons.check, size: 18),
+                            )
+                          else
+                            const SizedBox(width: 26),
+                          Expanded(child: Text(p['label']!)),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList();
+            },
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'AI model',
+            enabled: !_aiLoading && !_modelsLoading,
             icon: const Icon(Icons.tune),
             onSelected: (v) {
               ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
@@ -915,7 +994,12 @@ class _AdminLessonDetailScreenState
             },
             itemBuilder: (_) {
               final current = ref.read(appSettingsProvider).adminAiModel;
-              return _aiModels
+              final list = _models;
+              final withDefault = <Map<String, String>>[
+                {'id': '', 'label': '(default)'},
+                ...list,
+              ];
+              return withDefault
                   .map(
                     (m) => PopupMenuItem<String>(
                       value: m['id']!,
@@ -946,13 +1030,37 @@ class _AdminLessonDetailScreenState
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))
-              : TabBarView(
-                  controller: _tab,
+              : Column(
                   children: [
-                    _buildVocabTab(),
-                    _buildGrammarTab(),
-                    _buildDialoguesTab(),
-                    _buildQuizzesTab(),
+                    if (_quota != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                        child: Text(
+                          'Quota (server limiter): '
+                          '${_quota!['perMinuteRemaining']}/${_quota!['perMinuteLimit']} req/phút (reset ${_quota!['minuteResetAt']}) • '
+                          '${_quota!['dailyRemaining']}/${_quota!['dailyLimit']} req/ngày (reset ${_quota!['dayResetAt']})',
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ),
+                    if (_modelsError != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                        child: Text(
+                          'Lỗi load models: $_modelsError',
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tab,
+                        children: [
+                          _buildVocabTab(),
+                          _buildGrammarTab(),
+                          _buildDialoguesTab(),
+                          _buildQuizzesTab(),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
     );

@@ -93,13 +93,15 @@ export class AIController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI generate + insert vocabulary by lesson (Admin only)' })
   @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'provider', required: false })
   @ApiQuery({ name: 'model', required: false })
   generateVocabulary(
     @Param('lessonId') lessonId: string,
     @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
+    @Query('provider') provider?: string,
     @Query('model') model?: string,
   ) {
-    return this.aiService.generateAndInsertVocabulary(lessonId, count, model);
+    return this.aiService.generateAndInsertVocabulary(lessonId, count, provider, model);
   }
 
   @Post('admin/lessons/:lessonId/generate-grammar')
@@ -108,13 +110,15 @@ export class AIController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI generate + insert grammar by lesson (Admin only)' })
   @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'provider', required: false })
   @ApiQuery({ name: 'model', required: false })
   generateGrammar(
     @Param('lessonId') lessonId: string,
     @Query('count', new DefaultValuePipe(5), ParseIntPipe) count: number,
+    @Query('provider') provider?: string,
     @Query('model') model?: string,
   ) {
-    return this.aiService.generateAndInsertGrammar(lessonId, count, model);
+    return this.aiService.generateAndInsertGrammar(lessonId, count, provider, model);
   }
 
   @Post('admin/lessons/:lessonId/generate-dialogues')
@@ -123,13 +127,15 @@ export class AIController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI generate + insert dialogues by lesson (Admin only)' })
   @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'provider', required: false })
   @ApiQuery({ name: 'model', required: false })
   generateDialogues(
     @Param('lessonId') lessonId: string,
     @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
+    @Query('provider') provider?: string,
     @Query('model') model?: string,
   ) {
-    return this.aiService.generateAndInsertDialogues(lessonId, count, model);
+    return this.aiService.generateAndInsertDialogues(lessonId, count, provider, model);
   }
 
   @Post('admin/lessons/:lessonId/generate-quizzes')
@@ -138,13 +144,15 @@ export class AIController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'AI generate + insert quizzes by lesson (Admin only)' })
   @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'provider', required: false })
   @ApiQuery({ name: 'model', required: false })
   generateQuizzes(
     @Param('lessonId') lessonId: string,
     @Query('count', new DefaultValuePipe(1), ParseIntPipe) count: number,
+    @Query('provider') provider?: string,
     @Query('model') model?: string,
   ) {
-    return this.aiService.generateAndInsertQuizzes(lessonId, count, model);
+    return this.aiService.generateAndInsertQuizzes(lessonId, count, provider, model);
   }
 
   @Post('admin/topik/generate-exam')

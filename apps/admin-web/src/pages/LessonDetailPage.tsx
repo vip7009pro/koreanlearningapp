@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { lessonsApi, vocabularyApi, grammarApi, dialoguesApi, quizzesApi, aiAdminApi } from '../lib/api';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FiPlus, FiTrash2, FiArrowLeft, FiUpload, FiEdit2 } from 'react-icons/fi';
 import { useAuthStore } from '../stores/authStore';
@@ -33,17 +33,42 @@ export default function LessonDetailPage() {
   const [importJson, setImportJson] = useState('');
   const [importing, setImporting] = useState(false);
   const [aiGenLoading, setAiGenLoading] = useState(false);
-  const [aiModel, setAiModel] = useState<string>(() => localStorage.getItem('admin_ai_model') || 'google/gemini-2.0-flash-001');
+
+  const [aiProvider, setAiProvider] = useState<'openrouter' | 'google'>(
+    () => (localStorage.getItem('admin_ai_provider') as any) || 'openrouter',
+  );
+  const [aiModel, setAiModel] = useState<string>(() => localStorage.getItem('admin_ai_model') || '');
 
   const [selectedVocabIds, setSelectedVocabIds] = useState<string[]>([]);
   const [selectedGrammarIds, setSelectedGrammarIds] = useState<string[]>([]);
   const [selectedDialogueIds, setSelectedDialogueIds] = useState<string[]>([]);
   const [selectedQuizIds, setSelectedQuizIds] = useState<string[]>([]);
 
+  const updateAiProvider = (provider: 'openrouter' | 'google') => {
+    setAiProvider(provider);
+    localStorage.setItem('admin_ai_provider', provider);
+    // Reset model when provider changes.
+    setAiModel('');
+    localStorage.setItem('admin_ai_model', '');
+  };
+
   const updateAiModel = (model: string) => {
     setAiModel(model);
     localStorage.setItem('admin_ai_model', model);
   };
+
+  const modelsQuery = useQuery({
+    queryKey: ['ai-models', aiProvider],
+    queryFn: () => aiAdminApi.listModels(aiProvider).then((r) => r.data),
+    enabled: role === 'ADMIN',
+  });
+
+  const modelOptions = useMemo(() => {
+    const models = Array.isArray(modelsQuery.data?.models) ? modelsQuery.data.models : [];
+    return [{ id: '', label: '(default)' }, ...models];
+  }, [modelsQuery.data]);
+
+  const quota = modelsQuery.data?.quota;
 
   const clearSelectionForTab = (tab: typeof activeTab) => {
     if (tab === 'vocab') setSelectedVocabIds([]);
@@ -69,19 +94,39 @@ export default function LessonDetailPage() {
       if (activeTab === 'vocab') {
         const count = await askCount('Vocabulary', 10);
         if (!count) return;
-        await aiAdminApi.generateVocabulary(lessonId, count, role === 'ADMIN' ? aiModel : undefined);
+        await aiAdminApi.generateVocabulary(
+          lessonId,
+          count,
+          role === 'ADMIN' ? aiProvider : undefined,
+          role === 'ADMIN' ? (aiModel || undefined) : undefined,
+        );
       } else if (activeTab === 'grammar') {
         const count = await askCount('Grammar', 5);
         if (!count) return;
-        await aiAdminApi.generateGrammar(lessonId, count, role === 'ADMIN' ? aiModel : undefined);
+        await aiAdminApi.generateGrammar(
+          lessonId,
+          count,
+          role === 'ADMIN' ? aiProvider : undefined,
+          role === 'ADMIN' ? (aiModel || undefined) : undefined,
+        );
       } else if (activeTab === 'dialogue') {
         const count = await askCount('Dialogues', 10);
         if (!count) return;
-        await aiAdminApi.generateDialogues(lessonId, count, role === 'ADMIN' ? aiModel : undefined);
+        await aiAdminApi.generateDialogues(
+          lessonId,
+          count,
+          role === 'ADMIN' ? aiProvider : undefined,
+          role === 'ADMIN' ? (aiModel || undefined) : undefined,
+        );
       } else {
         const count = await askCount('Quizzes', 1);
         if (!count) return;
-        await aiAdminApi.generateQuizzes(lessonId, count, role === 'ADMIN' ? aiModel : undefined);
+        await aiAdminApi.generateQuizzes(
+          lessonId,
+          count,
+          role === 'ADMIN' ? aiProvider : undefined,
+          role === 'ADMIN' ? (aiModel || undefined) : undefined,
+        );
       }
 
       toast.success('AI generated & inserted!', { id: toastId });
@@ -318,22 +363,45 @@ export default function LessonDetailPage() {
           <h1 className="text-2xl font-bold text-gray-800">{lesson?.title}</h1>
           <p className="text-gray-500 mt-1">{lesson?.description}</p>
         </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         {role === 'ADMIN' && (
-          <select
-            className="input"
-            value={aiModel}
-            onChange={(e) => updateAiModel(e.target.value)}
-            disabled={aiGenLoading}
-            title="AI model"
-          >
-            <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
-            <option value="meta-llama/llama-3.3-70b-instruct:free">llama-3.3-70b-instruct:free</option>
-            <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
-            <option value="anthropic/claude-3.5-haiku">claude-3.5-haiku</option>
-            <option value="meta-llama/llama-3.1-70b-instruct">llama-3.1-70b</option>
-          </select>
+          <div className="flex gap-2 justify-end">
+            <select
+              className="input"
+              value={aiProvider}
+              onChange={(e) => updateAiProvider(e.target.value as any)}
+              disabled={aiGenLoading}
+              title="AI provider"
+            >
+              <option value="openrouter">OpenRouter</option>
+              <option value="google">Google (Gemini)</option>
+            </select>
+            <select
+              className="input"
+              value={aiModel}
+              onChange={(e) => updateAiModel(e.target.value)}
+              disabled={aiGenLoading || modelsQuery.isLoading}
+              title="AI model"
+            >
+              {modelOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
+
+        {role === 'ADMIN' && quota && (
+          <div className="text-xs text-gray-500 text-right">
+            Quota (server limiter):
+            {' '}
+            {quota.perMinuteRemaining}/{quota.perMinuteLimit} req/phút (reset {quota.minuteResetAt}) ·{' '}
+            {quota.dailyRemaining}/{quota.dailyLimit} req/ngày (reset {quota.dayResetAt})
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
         <button onClick={() => { setShowImport(!showImport); setShowForm(false); }} className="btn-secondary flex items-center gap-2">
           <FiUpload /> Import JSON
         </button>
@@ -343,6 +411,7 @@ export default function LessonDetailPage() {
         <button onClick={() => { setShowForm(!showForm); setShowImport(false); }} className="btn-primary flex items-center gap-2">
           <FiPlus /> Add {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogue' : 'Quiz'}
         </button>
+        </div>
       </div>
       </div>
 

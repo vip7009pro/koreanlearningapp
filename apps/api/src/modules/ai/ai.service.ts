@@ -911,7 +911,12 @@ ${writingHint}`;
     }
   }
 
-  async generateAndInsertVocabulary(lessonId: string, count: number, model?: string) {
+  async generateAndInsertVocabulary(
+    lessonId: string,
+    count: number,
+    provider?: string,
+    model?: string,
+  ) {
     const ctx = await this.getLessonContext(lessonId);
     if (!ctx) throw new Error('Lesson not found');
 
@@ -958,10 +963,11 @@ YÊU CẦU JSON:
 
 Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề.`;
 
+    const resolvedProvider = this.normalizeProvider(provider);
     let items: GeneratedVocabularyItem[] = [];
-    if (this.apiKey) {
+    if ((resolvedProvider === 'google' && this.googleApiKey) || (resolvedProvider === 'openrouter' && this.apiKey)) {
       try {
-        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        const parsed = await this.callAiJson(resolvedProvider, systemPrompt, userPrompt, model);
         items = Array.isArray(parsed?.items) ? parsed.items : [];
       } catch (e) {
         this.logger.warn('AI vocab generation failed, falling back to mock', e as any);
@@ -1024,7 +1030,12 @@ Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề.`;
     };
   }
 
-  async generateAndInsertGrammar(lessonId: string, count: number, model?: string) {
+  async generateAndInsertGrammar(
+    lessonId: string,
+    count: number,
+    provider?: string,
+    model?: string,
+  ) {
     const ctx = await this.getLessonContext(lessonId);
     if (!ctx) throw new Error('Lesson not found');
 
@@ -1052,10 +1063,11 @@ YÊU CẦU JSON:
   ]
 }`;
 
+    const resolvedProvider = this.normalizeProvider(provider);
     let items: GeneratedGrammarItem[] = [];
-    if (this.apiKey) {
+    if ((resolvedProvider === 'google' && this.googleApiKey) || (resolvedProvider === 'openrouter' && this.apiKey)) {
       try {
-        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        const parsed = await this.callAiJson(resolvedProvider, systemPrompt, userPrompt, model);
         items = Array.isArray(parsed?.items) ? parsed.items : [];
       } catch (e) {
         this.logger.warn('AI grammar generation failed, falling back to mock', e as any);
@@ -1081,7 +1093,12 @@ YÊU CẦU JSON:
     return { inserted: created.count, requested: safeCount, lessonId };
   }
 
-  async generateAndInsertDialogues(lessonId: string, count: number, model?: string) {
+  async generateAndInsertDialogues(
+    lessonId: string,
+    count: number,
+    provider?: string,
+    model?: string,
+  ) {
     const ctx = await this.getLessonContext(lessonId);
     if (!ctx) throw new Error('Lesson not found');
 
@@ -1112,10 +1129,11 @@ YÊU CẦU JSON:
 
 Lưu ý: orderIndex tăng dần từ 0.`;
 
+    const resolvedProvider = this.normalizeProvider(provider);
     let items: GeneratedDialogueItem[] = [];
-    if (this.apiKey) {
+    if ((resolvedProvider === 'google' && this.googleApiKey) || (resolvedProvider === 'openrouter' && this.apiKey)) {
       try {
-        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        const parsed = await this.callAiJson(resolvedProvider, systemPrompt, userPrompt, model);
         items = Array.isArray(parsed?.items) ? parsed.items : [];
       } catch (e) {
         this.logger.warn('AI dialogues generation failed, falling back to mock', e as any);
@@ -1143,7 +1161,12 @@ Lưu ý: orderIndex tăng dần từ 0.`;
     return { inserted: created.count, requested: safeCount, lessonId };
   }
 
-  async generateAndInsertQuizzes(lessonId: string, count: number, model?: string) {
+  async generateAndInsertQuizzes(
+    lessonId: string,
+    count: number,
+    provider?: string,
+    model?: string,
+  ) {
     const ctx = await this.getLessonContext(lessonId);
     if (!ctx) throw new Error('Lesson not found');
 
@@ -1183,10 +1206,11 @@ YÊU CẦU JSON:
 
 Lưu ý: mỗi quiz nên có 3-10 câu hỏi, options tối thiểu 4 lựa chọn.`;
 
+    const resolvedProvider = this.normalizeProvider(provider);
     let items: GeneratedQuizItem[] = [];
-    if (this.apiKey) {
+    if ((resolvedProvider === 'google' && this.googleApiKey) || (resolvedProvider === 'openrouter' && this.apiKey)) {
       try {
-        const parsed = await this.callOpenRouterJson(systemPrompt, userPrompt, model);
+        const parsed = await this.callAiJson(resolvedProvider, systemPrompt, userPrompt, model);
         items = Array.isArray(parsed?.items) ? parsed.items : [];
       } catch (e) {
         this.logger.warn('AI quiz generation failed, falling back to mock', e as any);
