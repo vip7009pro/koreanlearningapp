@@ -71,6 +71,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     floating: false,
                     pinned: true,
                     flexibleSpace: FlexibleSpaceBar(
+                      title: const Text(
+                        'Tiếng Hàn FDI',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: Color(0xF2FFFFFF),
+                          shadows: [
+                            Shadow(
+                              blurRadius: 10,
+                              offset: Offset(0, 2),
+                              color: Color(0x33000000),
+                            ),
+                          ],
+                        ),
+                      ),
+                      titlePadding: const EdgeInsetsDirectional.only(
+                        start: 16,
+                        bottom: 16,
+                      ),
                       background: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: theme.gradient),

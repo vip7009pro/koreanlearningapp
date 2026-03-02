@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
 import '../core/tts_service.dart';
+import '../providers/auth_provider.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key});
@@ -59,6 +60,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       await api.submitReview(vocabId, correct);
       // Award XP: 5 for correct, 2 for attempted
       await api.addXP(correct ? 5 : 2);
+      await api.updateStreak();
+      await ref.read(authProvider.notifier).refreshProfile();
     } catch (_) {}
 
     // Auto advance to next unanswered or finish

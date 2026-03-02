@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../core/api_client.dart';
 import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
+import '../providers/auth_provider.dart';
 
 class LessonDetailScreen extends ConsumerStatefulWidget {
   final String lessonId;
@@ -236,6 +237,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       await api.addXP(10);
       // Update streak
       await api.updateStreak();
+      await ref.read(authProvider.notifier).refreshProfile();
     } catch (_) {
       // Silently fail - progress tracking should not block UX
     }
