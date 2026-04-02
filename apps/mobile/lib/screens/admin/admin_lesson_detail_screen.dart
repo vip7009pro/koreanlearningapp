@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/prompt_generator.dart';
 import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -249,6 +251,106 @@ class _AdminLessonDetailScreenState
   void dispose() {
     _tab.dispose();
     super.dispose();
+  }
+
+  String _getContextCourse() =>
+      (_lesson?['section']?['course']?['title'] ?? '').toString();
+  String _getContextSection() =>
+      (_lesson?['section']?['title'] ?? '').toString();
+  String _getContextLesson() => (_lesson?['title'] ?? '').toString();
+
+  void _copyPrompt(String kind) {
+    String prompt;
+    final course = _getContextCourse();
+    final section = _getContextSection();
+    final lesson = _getContextLesson();
+
+    if (kind == 'vocab') {
+      final existing = _vocab
+          .map((v) => ((v as Map)['korean'] ?? '').toString().trim())
+          .where((k) => k.isNotEmpty)
+          .toList();
+      prompt = PromptGenerator.vocabulary(
+        courseTitle: course,
+        sectionTitle: section,
+        lessonTitle: lesson,
+        existingKorean: existing,
+      );
+    } else if (kind == 'grammar') {
+      prompt = PromptGenerator.grammar(
+        courseTitle: course,
+        sectionTitle: section,
+        lessonTitle: lesson,
+      );
+    } else if (kind == 'dialogues') {
+      prompt = PromptGenerator.dialogues(
+        courseTitle: course,
+        sectionTitle: section,
+        lessonTitle: lesson,
+      );
+    } else {
+      prompt = PromptGenerator.quiz(
+        courseTitle: course,
+        sectionTitle: section,
+        lessonTitle: lesson,
+      );
+    }
+
+    _showPromptDialog(prompt, kind);
+  }
+
+  void _showPromptDialog(String prompt, String kind) {
+    final labels = {
+      'vocab': 'Vocabulary',
+      'grammar': 'Grammar',
+      'dialogues': 'Dialogues',
+      'quizzes': 'Quizzes',
+    };
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('📋 Prompt: ${labels[kind] ?? kind}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Copy prompt → chạy trên ChatGPT/Gemini/Claude → copy kết quả JSON → bấm Import.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    prompt,
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Đóng'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: prompt));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đã copy prompt!')),
+              );
+              Navigator.of(ctx).pop();
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Copy'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -533,6 +635,180 @@ class _AdminLessonDetailScreenState
         SnackBar(content: Text('Lỗi import: $e')),
       );
     }
+  }
+
+  Future<void> _bulkImportGrammar() async {
+    final result = await _showImportDialog(
+      'Import Grammar JSON',
+      '[{ "pattern": "...", "explanationVN": "...", "example": "..." }, ...]',
+    );
+    if (result == null) return;
+
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded is! List) return;
+
+      final api = ref.read(apiClientProvider);
+      int count = 0;
+      for (final e in decoded) {
+        final m = (e as Map).cast<String, dynamic>();
+        await api.createGrammar({
+          'lessonId': widget.lessonId,
+          'pattern': m['pattern'] ?? '',
+          'explanationVN': m['explanationVN'] ?? '',
+          'example': m['example'] ?? '',
+        });
+        count++;
+      }
+      if (!mounted) return;
+      await _load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imported $count grammar items')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi import: $e')),
+      );
+    }
+  }
+
+  Future<void> _bulkImportDialogues() async {
+    final result = await _showImportDialog(
+      'Import Dialogues JSON',
+      '[{ "speaker": "A", "koreanText": "...", "vietnameseText": "...", "orderIndex": 0 }, ...]',
+    );
+    if (result == null) return;
+
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded is! List) return;
+
+      final api = ref.read(apiClientProvider);
+      int count = 0;
+      for (final e in decoded) {
+        final m = (e as Map).cast<String, dynamic>();
+        await api.createDialogue({
+          'lessonId': widget.lessonId,
+          'speaker': m['speaker'] ?? '',
+          'koreanText': m['koreanText'] ?? '',
+          'vietnameseText': m['vietnameseText'] ?? '',
+          'audioUrl': m['audioUrl'],
+          'orderIndex': m['orderIndex'] ?? count,
+        });
+        count++;
+      }
+      if (!mounted) return;
+      await _load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imported $count dialogue lines')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi import: $e')),
+      );
+    }
+  }
+
+  Future<void> _bulkImportQuizzes() async {
+    final result = await _showImportDialog(
+      'Import Quizzes JSON',
+      '[{ "title": "...", "quizType": "MULTIPLE_CHOICE", "questions": [...] }]',
+    );
+    if (result == null) return;
+
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded is! List) return;
+
+      final api = ref.read(apiClientProvider);
+      int count = 0;
+      for (final e in decoded) {
+        final m = (e as Map).cast<String, dynamic>();
+        // Create quiz first
+        final quizRes = await api.createQuiz({
+          'lessonId': widget.lessonId,
+          'title': m['title'] ?? 'Quiz',
+          'quizType': m['quizType'] ?? 'MULTIPLE_CHOICE',
+        });
+
+        // Then create questions
+        final quizId = (quizRes.data is Map)
+            ? (quizRes.data as Map)['id']?.toString()
+            : null;
+        if (quizId != null && m['questions'] is List) {
+          for (final q in (m['questions'] as List)) {
+            final qm = (q as Map).cast<String, dynamic>();
+            final options = <Map<String, dynamic>>[];
+            if (qm['options'] is List) {
+              for (final op in (qm['options'] as List)) {
+                final om = (op as Map).cast<String, dynamic>();
+                options.add({
+                  'text': om['text'] ?? '',
+                  'isCorrect': om['isCorrect'] == true,
+                });
+              }
+            }
+            await api.createQuizQuestion({
+              'quizId': quizId,
+              'questionType': qm['questionType'] ?? 'MULTIPLE_CHOICE',
+              'questionText': qm['questionText'] ?? '',
+              'correctAnswer': qm['correctAnswer'] ?? '',
+              'audioUrl': qm['audioUrl'],
+              'options': options.isEmpty ? null : options,
+            });
+          }
+        }
+        count++;
+      }
+      if (!mounted) return;
+      await _load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imported $count quizzes')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi import: $e')),
+      );
+    }
+  }
+
+  Future<String?> _showImportDialog(String title, String hint) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: ctrl,
+            minLines: 10,
+            maxLines: 18,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              hintText: hint,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return null;
+    final raw = ctrl.text.trim();
+    return raw.isEmpty ? null : raw;
   }
 
   // Grammar
@@ -1072,24 +1348,25 @@ class _AdminLessonDetailScreenState
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _upsertVocab(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
+              FilledButton.icon(
+                onPressed: () => _upsertVocab(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _bulkImportVocab,
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Bulk import'),
-                ),
+              OutlinedButton.icon(
+                onPressed: _bulkImportVocab,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('Import'),
               ),
-              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => _copyPrompt('vocab'),
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy Prompt'),
+              ),
               OutlinedButton.icon(
                 onPressed: _aiLoading ? null : () => _aiGenerate('vocab'),
                 icon: _aiLoading
@@ -1173,16 +1450,25 @@ class _AdminLessonDetailScreenState
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _upsertGrammar(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
+              FilledButton.icon(
+                onPressed: () => _upsertGrammar(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
               ),
-              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _bulkImportGrammar,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('Import'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _copyPrompt('grammar'),
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy Prompt'),
+              ),
               OutlinedButton.icon(
                 onPressed: _aiLoading ? null : () => _aiGenerate('grammar'),
                 icon: _aiLoading
@@ -1261,16 +1547,25 @@ class _AdminLessonDetailScreenState
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _upsertDialogue(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
+              FilledButton.icon(
+                onPressed: () => _upsertDialogue(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
               ),
-              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _bulkImportDialogues,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('Import'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _copyPrompt('dialogues'),
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy Prompt'),
+              ),
               OutlinedButton.icon(
                 onPressed: _aiLoading ? null : () => _aiGenerate('dialogues'),
                 icon: _aiLoading
@@ -1351,16 +1646,25 @@ class _AdminLessonDetailScreenState
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _upsertQuiz(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add quiz'),
-                ),
+              FilledButton.icon(
+                onPressed: () => _upsertQuiz(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add quiz'),
               ),
-              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _bulkImportQuizzes,
+                icon: const Icon(Icons.file_upload),
+                label: const Text('Import'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _copyPrompt('quizzes'),
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy Prompt'),
+              ),
               OutlinedButton.icon(
                 onPressed: _aiLoading ? null : () => _aiGenerate('quizzes'),
                 icon: _aiLoading

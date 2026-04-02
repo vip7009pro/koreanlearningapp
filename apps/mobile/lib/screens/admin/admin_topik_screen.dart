@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/prompt_generator.dart';
 import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -322,6 +323,65 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Không có payload để import')),
+    );
+  }
+
+  void _copyTopikPrompt() {
+    final examTitle = _genTitleCtrl.text.trim().isNotEmpty
+        ? _genTitleCtrl.text.trim()
+        : '${_genTopikLevel.replaceAll('_', ' ')} $_genYear';
+
+    final prompt = PromptGenerator.topikExam(
+      topikLevel: _genTopikLevel,
+      year: _genYear,
+      examTitle: examTitle,
+      status: _genStatus,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('📋 Prompt: TOPIK Exam'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Copy prompt → chạy trên ChatGPT/Gemini/Claude → copy JSON → dán vào Import JSON.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    prompt,
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Đóng'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: prompt));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đã copy prompt TOPIK!')),
+              );
+              Navigator.of(ctx).pop();
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Copy'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -684,6 +744,12 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _copyTopikPrompt,
+          icon: const Icon(Icons.copy_all),
+          label: const Text('Copy Prompt (for external LLM)'),
         ),
         const SizedBox(height: 12),
         if (_generated != null) ...[
