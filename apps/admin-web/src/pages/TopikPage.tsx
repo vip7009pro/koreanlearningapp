@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiUpload, FiZap, FiDownload, FiClipboard } from 'react-icons/fi';
+import { FiUpload, FiZap, FiDownload, FiClipboard, FiCopy } from 'react-icons/fi';
 import { aiAdminApi, topikAdminApi } from '../lib/api';
 
 type TopikLevel = 'TOPIK_I' | 'TOPIK_II';
@@ -25,6 +25,8 @@ export default function TopikPage() {
   const [status, setStatus] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
 
   const [generated, setGenerated] = useState<GenerateResult | null>(null);
+  const [showTopikPrompt, setShowTopikPrompt] = useState(false);
+  const [topikPromptText, setTopikPromptText] = useState('');
 
   const { data: exams } = useQuery({
     queryKey: ['topik-exams'],
@@ -155,6 +157,109 @@ export default function TopikPage() {
       return null;
     }
   }, [parsedImport]);
+
+  const generateTopikPrompt = () => {
+    const lvl = topikLevel === 'TOPIK_I' ? 'TOPIK I (sơ cấp, 1-2급)' : 'TOPIK II (trung-cao cấp, 3-6급)';
+    const examTitle = title.trim() || `${topikLevel.replace('_', ' ')} ${year}`;
+
+    const bp = topikLevel === 'TOPIK_I'
+      ? { totalQ: 70, dur: 100, sections: 'LISTENING (30 câu, 40 phút), READING (40 câu, 60 phút)' }
+      : { totalQ: 104, dur: 180, sections: 'LISTENING (50 câu, 60 phút), WRITING (4 câu, 50 phút), READING (50 câu, 70 phút)' };
+
+    const prompt = `Bạn là chuyên gia ra đề thi TOPIK (Kỳ thi năng lực tiếng Hàn). Bạn phải tạo nội dung giống đề TOPIK thật: tự nhiên, chuẩn phong cách thi, có bẫy hợp lý nhưng không mơ hồ.
+
+QUY TẮC BẮT BUỘC:
+1) Chỉ trả về JSON hợp lệ, KHÔNG markdown, KHÔNG giải thích.
+2) contentHtml có thể là text thuần, nhưng phải là chuỗi (không được null).
+3) Với câu MCQ: phải có đúng 4 lựa chọn, orderIndex tăng dần từ 1..4, đúng 1 lựa chọn isCorrect=true.
+4) Với LISTENING: luôn tạo listeningScript bằng tiếng Hàn (có thể 1-3 câu) phù hợp với câu hỏi. audioUrl = null.
+5) Với WRITING:
+   - SHORT_TEXT: có correctTextAnswer (một đáp án mẫu ngắn).
+   - ESSAY: không cần correctTextAnswer.
+6) Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn.
+
+Hãy tạo đề thi ${lvl} năm ${year}.
+Cấu trúc: ${bp.sections}
+Tổng: ${bp.totalQ} câu, ${bp.dur} phút.
+
+Trả về JSON theo format sau:
+
+{
+  "exam": {
+    "title": "${examTitle}",
+    "topikLevel": "${topikLevel}",
+    "year": ${year},
+    "totalQuestions": ${bp.totalQ},
+    "durationMinutes": ${bp.dur},
+    "status": "${status}"
+  },
+  "sections": [
+    {
+      "type": "LISTENING",
+      "orderIndex": 1,
+      "durationMinutes": ${topikLevel === 'TOPIK_I' ? 40 : 60},
+      "maxScore": 100,
+      "questions": [
+        {
+          "questionType": "MCQ",
+          "orderIndex": 1,
+          "contentHtml": "Nội dung câu hỏi",
+          "audioUrl": null,
+          "listeningScript": "대화/음성 내용 (tiếng Hàn)",
+          "correctTextAnswer": null,
+          "scoreWeight": 1,
+          "explanation": "Giải thích đáp án",
+          "choices": [
+            {"orderIndex": 1, "content": "Đáp án 1", "isCorrect": false},
+            {"orderIndex": 2, "content": "Đáp án 2", "isCorrect": true},
+            {"orderIndex": 3, "content": "Đáp án 3", "isCorrect": false},
+            {"orderIndex": 4, "content": "Đáp án 4", "isCorrect": false}
+          ]
+        }
+      ]
+    },
+    {
+      "type": "READING",
+      "orderIndex": ${topikLevel === 'TOPIK_I' ? 2 : 3},
+      "durationMinutes": ${topikLevel === 'TOPIK_I' ? 60 : 70},
+      "maxScore": 100,
+      "questions": [ ... tương tự MCQ ... ]
+    }${topikLevel === 'TOPIK_II' ? `,
+    {
+      "type": "WRITING",
+      "orderIndex": 2,
+      "durationMinutes": 50,
+      "maxScore": 100,
+      "questions": [
+        {
+          "questionType": "SHORT_TEXT",
+          "orderIndex": 1,
+          "contentHtml": "Đề viết ngắn",
+          "correctTextAnswer": "Đáp án mẫu",
+          "scoreWeight": 1
+        },
+        {
+          "questionType": "ESSAY",
+          "orderIndex": 4,
+          "contentHtml": "Hãy viết bài luận 200-300 chữ về chủ đề...",
+          "scoreWeight": 4
+        }
+      ]
+    }` : ''}
+  ]
+}
+
+Hãy tạo đầy đủ số lượng câu hỏi theo quy định mỗi section. Chỉ trả về JSON, không có text nào khác.`;
+
+    setTopikPromptText(prompt);
+    setShowTopikPrompt(true);
+  };
+
+  const copyTopikPrompt = () => {
+    navigator.clipboard.writeText(topikPromptText).then(() => {
+      toast.success('Đã copy prompt TOPIK!');
+    });
+  };
 
   return (
     <div>
@@ -376,7 +481,37 @@ export default function TopikPage() {
               <FiDownload />
               <span>Download</span>
             </button>
+
+            <button
+              className="btn-secondary flex items-center gap-2"
+              onClick={generateTopikPrompt}
+              title="Generate a prompt to run in external LLM"
+            >
+              <FiCopy />
+              <span>Copy Prompt</span>
+            </button>
           </div>
+
+          {showTopikPrompt && (
+            <div className="mt-4 p-4 rounded-lg border-2 border-indigo-200 bg-indigo-50">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-indigo-800">📋 Prompt sinh đề TOPIK</h3>
+                <div className="flex gap-2">
+                  <button onClick={copyTopikPrompt} className="btn-primary flex items-center gap-2 text-sm">
+                    <FiCopy /> Copy
+                  </button>
+                  <button onClick={() => setShowTopikPrompt(false)} className="btn-secondary text-sm">Đóng</button>
+                </div>
+              </div>
+              <p className="text-xs text-indigo-600 mb-3">Copy prompt → chạy trên ChatGPT/Gemini/Claude → copy JSON kết quả → dán vào ô "Import JSON" bên trái để nhập.</p>
+              <textarea
+                className="input w-full font-mono text-xs bg-white"
+                rows={12}
+                value={topikPromptText}
+                readOnly
+              />
+            </div>
+          )}
 
           {generated?.stats && (
             <div className="mt-4 text-sm text-gray-700">

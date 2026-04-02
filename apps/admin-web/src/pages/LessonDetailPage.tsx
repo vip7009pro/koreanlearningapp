@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { lessonsApi, vocabularyApi, grammarApi, dialoguesApi, quizzesApi, aiAdminApi } from '../lib/api';
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { FiPlus, FiTrash2, FiArrowLeft, FiUpload, FiEdit2 } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiArrowLeft, FiUpload, FiEdit2, FiCopy } from 'react-icons/fi';
 import { useAuthStore } from '../stores/authStore';
 
 export default function LessonDetailPage() {
@@ -33,6 +33,8 @@ export default function LessonDetailPage() {
   const [importJson, setImportJson] = useState('');
   const [importing, setImporting] = useState(false);
   const [aiGenLoading, setAiGenLoading] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [promptText, setPromptText] = useState('');
 
   const [aiProvider, setAiProvider] = useState<'openrouter' | 'google'>(
     () => (localStorage.getItem('admin_ai_provider') as any) || 'openrouter',
@@ -345,6 +347,124 @@ export default function LessonDetailPage() {
     }
   };
 
+  // --- Generate Prompt for external LLM ---
+  const generatePrompt = () => {
+    const courseTitle = (lesson as any)?.section?.course?.title || '';
+    const sectionTitle = (lesson as any)?.section?.title || '';
+    const lessonTitle = lesson?.title || 'Bài học tiếng Hàn';
+
+    const contextBlock = `Ngữ cảnh:
+- Course: "${courseTitle}"
+- Section: "${sectionTitle}"
+- Lesson: "${lessonTitle}"`;
+
+    let prompt = '';
+
+    if (activeTab === 'vocab') {
+      // Build existing vocab list for dedup
+      const existingKorean = ((vocab as any[]) || []).map((v: any) => String(v.korean || '').trim()).filter(Boolean);
+      const existingBlock = existingKorean.length
+        ? `\nKHÔNG ĐƯỢC tạo trùng (korean) với các từ đã tồn tại sau:\n${existingKorean.map((x) => `- ${x}`).join('\n')}\n`
+        : '';
+
+      prompt = `Bạn là trợ lý tạo nội dung học tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.
+
+Hãy tạo danh sách 10-20 từ vựng MỚI cho bài học tiếng Hàn.
+
+${contextBlock}
+${existingBlock}
+YÊU CẦU JSON:
+[
+  {
+    "korean": "안녕하세요",
+    "vietnamese": "Xin chào",
+    "pronunciation": "an-nyeong-ha-se-yo",
+    "exampleSentence": "안녕하세요! 만나서 반갑습니다.",
+    "exampleMeaning": "Xin chào! Rất vui được gặp bạn.",
+    "difficulty": "EASY"
+  }
+]
+
+Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề. difficulty: EASY/MEDIUM/HARD.
+Chỉ trả về JSON array, không có text nào khác.`;
+    } else if (activeTab === 'grammar') {
+      prompt = `Bạn là trợ lý tạo ngữ pháp tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.
+
+Hãy tạo 3-8 mục ngữ pháp cho bài học.
+
+${contextBlock}
+
+YÊU CẦU JSON:
+[
+  {
+    "pattern": "N + 입니다",
+    "explanationVN": "Là N (dùng để giới thiệu danh từ, thể lịch sự)",
+    "example": "저는 학생입니다. (Tôi là học sinh.)"
+  }
+]
+
+Chỉ trả về JSON array, không có text nào khác.`;
+    } else if (activeTab === 'dialogue') {
+      prompt = `Bạn là trợ lý tạo hội thoại tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.
+
+Hãy tạo hội thoại gồm 6-10 câu (lines) cho bài học.
+
+${contextBlock}
+
+YÊU CẦU JSON:
+[
+  {
+    "speaker": "A",
+    "koreanText": "안녕하세요!",
+    "vietnameseText": "Xin chào!",
+    "orderIndex": 0
+  }
+]
+
+Lưu ý: orderIndex tăng dần từ 0. Hội thoại phải tự nhiên, phù hợp ngữ cảnh.
+Chỉ trả về JSON array, không có text nào khác.`;
+    } else if (activeTab === 'quiz') {
+      prompt = `Bạn là trợ lý tạo quiz tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.
+
+Hãy tạo 1 quiz cho bài học.
+
+${contextBlock}
+
+YÊU CẦU JSON:
+[
+  {
+    "title": "Quiz: ${lessonTitle}",
+    "quizType": "MULTIPLE_CHOICE",
+    "questions": [
+      {
+        "questionType": "MULTIPLE_CHOICE",
+        "questionText": "Câu hỏi?",
+        "correctAnswer": "Đáp án đúng",
+        "options": [
+          {"text": "Đáp án đúng", "isCorrect": true},
+          {"text": "Sai 1", "isCorrect": false},
+          {"text": "Sai 2", "isCorrect": false},
+          {"text": "Sai 3", "isCorrect": false}
+        ]
+      }
+    ]
+  }
+]
+
+Lưu ý: mỗi quiz nên có 5-10 câu hỏi, options tối thiểu 4 lựa chọn.
+Chỉ trả về JSON array, không có text nào khác.`;
+    }
+
+    setPromptText(prompt);
+    setShowPrompt(true);
+  };
+
+  const copyPromptToClipboard = () => {
+    navigator.clipboard.writeText(promptText).then(() => {
+      toast.success('Đã copy prompt!');
+    });
+  };
+
   const tabs = [
     { id: 'vocab' as const, label: 'Vocabulary', count: (vocab as unknown[])?.length || 0 },
     { id: 'grammar' as const, label: 'Grammar', count: (grammars as unknown[])?.length || 0 },
@@ -363,56 +483,59 @@ export default function LessonDetailPage() {
           <h1 className="text-2xl font-bold text-gray-800">{lesson?.title}</h1>
           <p className="text-gray-500 mt-1">{lesson?.description}</p>
         </div>
-      <div className="flex flex-col gap-2">
-        {role === 'ADMIN' && (
-          <div className="flex gap-2 justify-end">
-            <select
-              className="input"
-              value={aiProvider}
-              onChange={(e) => updateAiProvider(e.target.value as any)}
-              disabled={aiGenLoading}
-              title="AI provider"
-            >
-              <option value="openrouter">OpenRouter</option>
-              <option value="google">Google (Gemini)</option>
-            </select>
-            <select
-              className="input"
-              value={aiModel}
-              onChange={(e) => updateAiModel(e.target.value)}
-              disabled={aiGenLoading || modelsQuery.isLoading}
-              title="AI model"
-            >
-              {modelOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex flex-col gap-2">
+          {role === 'ADMIN' && (
+            <div className="flex gap-2 justify-end">
+              <select
+                className="input"
+                value={aiProvider}
+                onChange={(e) => updateAiProvider(e.target.value as any)}
+                disabled={aiGenLoading}
+                title="AI provider"
+              >
+                <option value="openrouter">OpenRouter</option>
+                <option value="google">Google (Gemini)</option>
+              </select>
+              <select
+                className="input"
+                value={aiModel}
+                onChange={(e) => updateAiModel(e.target.value)}
+                disabled={aiGenLoading || modelsQuery.isLoading}
+                title="AI model"
+              >
+                {modelOptions.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-        {role === 'ADMIN' && quota && (
-          <div className="text-xs text-gray-500 text-right">
-            Quota (server limiter):
-            {' '}
-            {quota.perMinuteRemaining}/{quota.perMinuteLimit} req/phút (reset {quota.minuteResetAt}) ·{' '}
-            {quota.dailyRemaining}/{quota.dailyLimit} req/ngày (reset {quota.dayResetAt})
-          </div>
-        )}
+          {role === 'ADMIN' && quota && (
+            <div className="text-xs text-gray-500 text-right">
+              Quota (server limiter):
+              {' '}
+              {quota.perMinuteRemaining}/{quota.perMinuteLimit} req/phút (reset {quota.minuteResetAt}) ·{' '}
+              {quota.dailyRemaining}/{quota.dailyLimit} req/ngày (reset {quota.dayResetAt})
+            </div>
+          )}
 
-        <div className="flex gap-2 justify-end">
-        <button onClick={() => { setShowImport(!showImport); setShowForm(false); }} className="btn-secondary flex items-center gap-2">
-          <FiUpload /> Import JSON
-        </button>
-        <button onClick={handleAiGen} disabled={aiGenLoading} className="btn-secondary flex items-center gap-2">
-          {aiGenLoading ? '✨ AI gen...' : '✨ AI gen'}
-        </button>
-        <button onClick={() => { setShowForm(!showForm); setShowImport(false); }} className="btn-primary flex items-center gap-2">
-          <FiPlus /> Add {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogue' : 'Quiz'}
-        </button>
+          <div className="flex gap-2 justify-end flex-wrap">
+            <button onClick={generatePrompt} className="btn-secondary flex items-center gap-2" title="Generate a prompt to run in external LLM, then import the result">
+              <FiCopy /> Copy Prompt
+            </button>
+            <button onClick={() => { setShowImport(!showImport); setShowForm(false); setShowPrompt(false); }} className="btn-secondary flex items-center gap-2">
+              <FiUpload /> Import JSON
+            </button>
+            <button onClick={handleAiGen} disabled={aiGenLoading} className="btn-secondary flex items-center gap-2">
+              {aiGenLoading ? '✨ AI gen...' : '✨ AI gen'}
+            </button>
+            <button onClick={() => { setShowForm(!showForm); setShowImport(false); setShowPrompt(false); }} className="btn-primary flex items-center gap-2">
+              <FiPlus /> Add {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogue' : 'Quiz'}
+            </button>
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Tabs */}
@@ -427,6 +550,28 @@ export default function LessonDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* Prompt Modal */}
+      {showPrompt && (
+        <div className="card mb-6 border-2 border-indigo-200 bg-indigo-50">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold text-indigo-800">📋 Prompt cho {activeTab === 'vocab' ? 'Vocabulary' : activeTab === 'grammar' ? 'Grammar' : activeTab === 'dialogue' ? 'Dialogues' : 'Quizzes'}</h3>
+            <div className="flex gap-2">
+              <button onClick={copyPromptToClipboard} className="btn-primary flex items-center gap-2 text-sm">
+                <FiCopy /> Copy prompt
+              </button>
+              <button onClick={() => setShowPrompt(false)} className="btn-secondary text-sm">Đóng</button>
+            </div>
+          </div>
+          <p className="text-xs text-indigo-600 mb-3">Copy prompt này → chạy trên ChatGPT/Gemini/Claude → copy kết quả JSON → bấm "Import JSON" để nhập vào hệ thống.</p>
+          <textarea
+            className="input w-full font-mono text-xs bg-white"
+            rows={14}
+            value={promptText}
+            readOnly
+          />
+        </div>
+      )}
 
       {/* Import JSON Modal */}
       {showImport && (
@@ -618,10 +763,10 @@ export default function LessonDetailPage() {
                   }}
                 />
                 <div>
-                <h3 className="font-semibold text-primary-600 text-lg">{g.pattern as string}</h3>
-                <p className="text-sm text-gray-700 mt-1">{g.explanationVN as string}</p>
-                {(g.example as string) && <p className="text-sm text-gray-500 mt-1 italic">{g.example as string}</p>}
-              </div>
+                  <h3 className="font-semibold text-primary-600 text-lg">{g.pattern as string}</h3>
+                  <p className="text-sm text-gray-700 mt-1">{g.explanationVN as string}</p>
+                  {(g.example as string) && <p className="text-sm text-gray-500 mt-1 italic">{g.example as string}</p>}
+                </div>
               </div>
               <button onClick={() => { if (confirm('Delete?')) deleteGrammar.mutate(g.id as string); }} className="text-gray-400 hover:text-red-500"><FiTrash2 size={14} /></button>
             </div>
@@ -694,236 +839,236 @@ export default function LessonDetailPage() {
           {(quizzes as Record<string, unknown>[])?.map((q) => (
             <div key={q.id as string} className="card">
               <div className="flex justify-between items-start">
-              <div className="flex items-start gap-3">
-                <input
-                  className="mt-1"
-                  type="checkbox"
-                  checked={selectedQuizIds.includes(q.id as string)}
-                  onChange={(e) => {
-                    const id = q.id as string;
-                    if (e.target.checked) setSelectedQuizIds((prev) => Array.from(new Set([...prev, id])));
-                    else setSelectedQuizIds((prev) => prev.filter((x) => x !== id));
-                  }}
-                />
-                <div>
-                  <button
-                    className="text-left"
-                    onClick={() => {
+                <div className="flex items-start gap-3">
+                  <input
+                    className="mt-1"
+                    type="checkbox"
+                    checked={selectedQuizIds.includes(q.id as string)}
+                    onChange={(e) => {
                       const id = q.id as string;
-                      setExpandedQuizId((prev) => (prev === id ? null : id));
-                      setQuestionForm((prev) => ({ ...prev, quizId: id }));
+                      if (e.target.checked) setSelectedQuizIds((prev) => Array.from(new Set([...prev, id])));
+                      else setSelectedQuizIds((prev) => prev.filter((x) => x !== id));
                     }}
-                    title="Click to manage questions"
-                  >
-                    <h3 className="font-semibold">{q.title as string}</h3>
-                  </button>
-                  <p className="text-sm text-gray-500">{q.quizType as string} · {((q as Record<string, unknown>).questions as unknown[])?.length || 0} questions</p>
+                  />
+                  <div>
+                    <button
+                      className="text-left"
+                      onClick={() => {
+                        const id = q.id as string;
+                        setExpandedQuizId((prev) => (prev === id ? null : id));
+                        setQuestionForm((prev) => ({ ...prev, quizId: id }));
+                      }}
+                      title="Click to manage questions"
+                    >
+                      <h3 className="font-semibold">{q.title as string}</h3>
+                    </button>
+                    <p className="text-sm text-gray-500">{q.quizType as string} · {((q as Record<string, unknown>).questions as unknown[])?.length || 0} questions</p>
+                  </div>
                 </div>
+                {role === 'ADMIN' && (
+                  <div className="flex gap-2">
+                    <button
+                      className="text-gray-400 hover:text-gray-700"
+                      title="Edit"
+                      onClick={() => {
+                        const id = q.id as string;
+                        const currentTitle = (q.title as string) || '';
+                        const currentType = (q.quizType as string) || 'MULTIPLE_CHOICE';
+                        const nextTitle = window.prompt('Quiz title', currentTitle);
+                        if (nextTitle == null) return;
+                        const nextType = window.prompt('Quiz type (MULTIPLE_CHOICE | FILL_IN_BLANK | LISTENING)', currentType);
+                        if (nextType == null) return;
+                        updateQuiz.mutate({ id, data: { title: nextTitle, quizType: nextType } });
+                      }}
+                      disabled={updateQuiz.isPending}
+                    >
+                      <FiEdit2 size={14} />
+                    </button>
+                    <button
+                      className="text-gray-400 hover:text-red-500"
+                      title="Delete"
+                      onClick={() => {
+                        const id = q.id as string;
+                        if (!confirm('Delete quiz?')) return;
+                        deleteQuiz.mutate(id);
+                      }}
+                      disabled={deleteQuiz.isPending}
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
-              {role === 'ADMIN' && (
-                <div className="flex gap-2">
-                  <button
-                    className="text-gray-400 hover:text-gray-700"
-                    title="Edit"
-                    onClick={() => {
-                      const id = q.id as string;
-                      const currentTitle = (q.title as string) || '';
-                      const currentType = (q.quizType as string) || 'MULTIPLE_CHOICE';
-                      const nextTitle = window.prompt('Quiz title', currentTitle);
-                      if (nextTitle == null) return;
-                      const nextType = window.prompt('Quiz type (MULTIPLE_CHOICE | FILL_IN_BLANK | LISTENING)', currentType);
-                      if (nextType == null) return;
-                      updateQuiz.mutate({ id, data: { title: nextTitle, quizType: nextType } });
-                    }}
-                    disabled={updateQuiz.isPending}
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                  <button
-                    className="text-gray-400 hover:text-red-500"
-                    title="Delete"
-                    onClick={() => {
-                      const id = q.id as string;
-                      if (!confirm('Delete quiz?')) return;
-                      deleteQuiz.mutate(id);
-                    }}
-                    disabled={deleteQuiz.isPending}
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
 
-            {expandedQuizId === (q.id as string) && (
-              <div className="mt-4 border-t pt-4 space-y-4">
-                <div>
-                  <h4 className="font-semibold text-sm mb-2">Questions</h4>
-                  <div className="space-y-2">
-                    {(((q as any).questions as any[]) || []).map((qu) => (
-                      <div key={qu.id} className="p-3 rounded-lg bg-gray-50 flex justify-between items-start gap-3">
-                        <div className="flex-1">
-                          <div className="text-xs text-gray-500">{qu.questionType}</div>
-                          <div className="font-medium">{qu.questionText}</div>
-                          <div className="text-xs text-gray-500 mt-1">Correct: {qu.correctAnswer}</div>
-                          {Array.isArray(qu.options) && qu.options.length > 0 && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2">
-                              {qu.options.map((op: any) => (
-                                <div key={op.id} className={`text-xs px-2 py-1 rounded border ${op.isCorrect ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
-                                  {op.text}
-                                </div>
-                              ))}
+              {expandedQuizId === (q.id as string) && (
+                <div className="mt-4 border-t pt-4 space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Questions</h4>
+                    <div className="space-y-2">
+                      {(((q as any).questions as any[]) || []).map((qu) => (
+                        <div key={qu.id} className="p-3 rounded-lg bg-gray-50 flex justify-between items-start gap-3">
+                          <div className="flex-1">
+                            <div className="text-xs text-gray-500">{qu.questionType}</div>
+                            <div className="font-medium">{qu.questionText}</div>
+                            <div className="text-xs text-gray-500 mt-1">Correct: {qu.correctAnswer}</div>
+                            {Array.isArray(qu.options) && qu.options.length > 0 && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-1 mt-2">
+                                {qu.options.map((op: any) => (
+                                  <div key={op.id} className={`text-xs px-2 py-1 rounded border ${op.isCorrect ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
+                                    {op.text}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {role === 'ADMIN' && (
+                            <div className="flex gap-2">
+                              <button
+                                className="text-gray-400 hover:text-gray-700"
+                                title="Edit question"
+                                onClick={() => {
+                                  const nextText = window.prompt('Question text', qu.questionText || '');
+                                  if (nextText == null) return;
+                                  const nextCorrect = window.prompt('Correct answer', qu.correctAnswer || '');
+                                  if (nextCorrect == null) return;
+                                  updateQuizQuestion.mutate({
+                                    id: qu.id,
+                                    data: {
+                                      questionText: nextText,
+                                      correctAnswer: nextCorrect,
+                                      questionType: qu.questionType || 'MULTIPLE_CHOICE',
+                                    },
+                                  });
+                                }}
+                                disabled={updateQuizQuestion.isPending}
+                              >
+                                <FiEdit2 size={14} />
+                              </button>
+                              <button
+                                className="text-gray-400 hover:text-red-500"
+                                title="Delete question"
+                                onClick={() => {
+                                  if (!confirm('Delete question?')) return;
+                                  deleteQuizQuestion.mutate(qu.id);
+                                }}
+                                disabled={deleteQuizQuestion.isPending}
+                              >
+                                <FiTrash2 size={14} />
+                              </button>
                             </div>
                           )}
                         </div>
-
-                        {role === 'ADMIN' && (
-                          <div className="flex gap-2">
-                            <button
-                              className="text-gray-400 hover:text-gray-700"
-                              title="Edit question"
-                              onClick={() => {
-                                const nextText = window.prompt('Question text', qu.questionText || '');
-                                if (nextText == null) return;
-                                const nextCorrect = window.prompt('Correct answer', qu.correctAnswer || '');
-                                if (nextCorrect == null) return;
-                                updateQuizQuestion.mutate({
-                                  id: qu.id,
-                                  data: {
-                                    questionText: nextText,
-                                    correctAnswer: nextCorrect,
-                                    questionType: qu.questionType || 'MULTIPLE_CHOICE',
-                                  },
-                                });
-                              }}
-                              disabled={updateQuizQuestion.isPending}
-                            >
-                              <FiEdit2 size={14} />
-                            </button>
-                            <button
-                              className="text-gray-400 hover:text-red-500"
-                              title="Delete question"
-                              onClick={() => {
-                                if (!confirm('Delete question?')) return;
-                                deleteQuizQuestion.mutate(qu.id);
-                              }}
-                              disabled={deleteQuizQuestion.isPending}
-                            >
-                              <FiTrash2 size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {((((q as any).questions as any[]) || []).length === 0) && (
-                      <div className="text-sm text-gray-400">No questions yet</div>
-                    )}
+                      ))}
+                      {((((q as any).questions as any[]) || []).length === 0) && (
+                        <div className="text-sm text-gray-400">No questions yet</div>
+                      )}
+                    </div>
                   </div>
+
+                  {role === 'ADMIN' && (
+                    <form
+                      className="p-4 rounded-lg border bg-white"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const quizId = (q.id as string) || '';
+                        if (!quizId) return;
+
+                        const optionTexts = [
+                          questionForm.optionA,
+                          questionForm.optionB,
+                          questionForm.optionC,
+                          questionForm.optionD,
+                        ].map((x) => String(x || '').trim()).filter(Boolean);
+
+                        const correctIndex = Math.max(0, Math.min(3, Number(questionForm.correctOptionIndex) || 0));
+                        const correctAnswer =
+                          optionTexts[correctIndex] || String(questionForm.correctAnswer || '').trim();
+
+                        createQuizQuestion.mutate({
+                          quizId,
+                          questionType: questionForm.questionType,
+                          questionText: questionForm.questionText,
+                          correctAnswer,
+                          options: optionTexts.length
+                            ? optionTexts.map((text, idx) => ({ text, isCorrect: idx === correctIndex }))
+                            : undefined,
+                        });
+                      }}
+                    >
+                      <div className="font-semibold text-sm mb-3">Add question</div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="label">Question</label>
+                          <input
+                            className="input"
+                            value={questionForm.questionText}
+                            onChange={(e) => setQuestionForm((p) => ({ ...p, questionText: e.target.value }))}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="label">Type</label>
+                          <select
+                            className="input"
+                            value={questionForm.questionType}
+                            onChange={(e) => setQuestionForm((p) => ({ ...p, questionType: e.target.value }))}
+                          >
+                            <option value="MULTIPLE_CHOICE">MULTIPLE_CHOICE</option>
+                            <option value="FILL_IN_BLANK">FILL_IN_BLANK</option>
+                            <option value="LISTENING">LISTENING</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label">Option A</label>
+                          <input className="input" value={questionForm.optionA} onChange={(e) => setQuestionForm((p) => ({ ...p, optionA: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="label">Option B</label>
+                          <input className="input" value={questionForm.optionB} onChange={(e) => setQuestionForm((p) => ({ ...p, optionB: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="label">Option C</label>
+                          <input className="input" value={questionForm.optionC} onChange={(e) => setQuestionForm((p) => ({ ...p, optionC: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="label">Option D</label>
+                          <input className="input" value={questionForm.optionD} onChange={(e) => setQuestionForm((p) => ({ ...p, optionD: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="label">Correct option</label>
+                          <select
+                            className="input"
+                            value={String(questionForm.correctOptionIndex)}
+                            onChange={(e) => setQuestionForm((p) => ({ ...p, correctOptionIndex: Number(e.target.value) }))}
+                          >
+                            <option value="0">A</option>
+                            <option value="1">B</option>
+                            <option value="2">C</option>
+                            <option value="3">D</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="label">Correct answer (optional override)</label>
+                          <input className="input" value={questionForm.correctAnswer} onChange={(e) => setQuestionForm((p) => ({ ...p, correctAnswer: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button className="btn-primary" type="submit" disabled={createQuizQuestion.isPending}>
+                          {createQuizQuestion.isPending ? 'Adding...' : 'Add question'}
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          type="button"
+                          onClick={() => setExpandedQuizId(null)}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
-
-                {role === 'ADMIN' && (
-                  <form
-                    className="p-4 rounded-lg border bg-white"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const quizId = (q.id as string) || '';
-                      if (!quizId) return;
-
-                      const optionTexts = [
-                        questionForm.optionA,
-                        questionForm.optionB,
-                        questionForm.optionC,
-                        questionForm.optionD,
-                      ].map((x) => String(x || '').trim()).filter(Boolean);
-
-                      const correctIndex = Math.max(0, Math.min(3, Number(questionForm.correctOptionIndex) || 0));
-                      const correctAnswer =
-                        optionTexts[correctIndex] || String(questionForm.correctAnswer || '').trim();
-
-                      createQuizQuestion.mutate({
-                        quizId,
-                        questionType: questionForm.questionType,
-                        questionText: questionForm.questionText,
-                        correctAnswer,
-                        options: optionTexts.length
-                          ? optionTexts.map((text, idx) => ({ text, isCorrect: idx === correctIndex }))
-                          : undefined,
-                      });
-                    }}
-                  >
-                    <div className="font-semibold text-sm mb-3">Add question</div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="md:col-span-2">
-                        <label className="label">Question</label>
-                        <input
-                          className="input"
-                          value={questionForm.questionText}
-                          onChange={(e) => setQuestionForm((p) => ({ ...p, questionText: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Type</label>
-                        <select
-                          className="input"
-                          value={questionForm.questionType}
-                          onChange={(e) => setQuestionForm((p) => ({ ...p, questionType: e.target.value }))}
-                        >
-                          <option value="MULTIPLE_CHOICE">MULTIPLE_CHOICE</option>
-                          <option value="FILL_IN_BLANK">FILL_IN_BLANK</option>
-                          <option value="LISTENING">LISTENING</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Option A</label>
-                        <input className="input" value={questionForm.optionA} onChange={(e) => setQuestionForm((p) => ({ ...p, optionA: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Option B</label>
-                        <input className="input" value={questionForm.optionB} onChange={(e) => setQuestionForm((p) => ({ ...p, optionB: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Option C</label>
-                        <input className="input" value={questionForm.optionC} onChange={(e) => setQuestionForm((p) => ({ ...p, optionC: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Option D</label>
-                        <input className="input" value={questionForm.optionD} onChange={(e) => setQuestionForm((p) => ({ ...p, optionD: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="label">Correct option</label>
-                        <select
-                          className="input"
-                          value={String(questionForm.correctOptionIndex)}
-                          onChange={(e) => setQuestionForm((p) => ({ ...p, correctOptionIndex: Number(e.target.value) }))}
-                        >
-                          <option value="0">A</option>
-                          <option value="1">B</option>
-                          <option value="2">C</option>
-                          <option value="3">D</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="label">Correct answer (optional override)</label>
-                        <input className="input" value={questionForm.correctAnswer} onChange={(e) => setQuestionForm((p) => ({ ...p, correctAnswer: e.target.value }))} />
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button className="btn-primary" type="submit" disabled={createQuizQuestion.isPending}>
-                        {createQuizQuestion.isPending ? 'Adding...' : 'Add question'}
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        type="button"
-                        onClick={() => setExpandedQuizId(null)}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
+              )}
             </div>
           ))}
           {(!quizzes || (quizzes as unknown[]).length === 0) && <p className="text-center text-gray-400 py-8">No quizzes yet</p>}

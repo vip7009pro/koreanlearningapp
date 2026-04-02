@@ -21,6 +21,7 @@ export class LessonsService {
     const lesson = await this.prisma.lesson.findUnique({
       where: { id },
       include: {
+        section: { include: { course: true } },
         vocabularies: true,
         grammars: true,
         dialogues: { orderBy: { orderIndex: 'asc' } },
