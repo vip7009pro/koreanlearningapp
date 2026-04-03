@@ -69,7 +69,8 @@ class ApiClient {
   Future<Response> loginWithGoogle(String idToken) =>
       _dio.post('/auth/google', data: {'idToken': idToken});
 
-  Future<Response> loginWithPhone(String firebaseIdToken, {String? displayName}) =>
+  Future<Response> loginWithPhone(String firebaseIdToken,
+          {String? displayName}) =>
       _dio.post(
         '/auth/phone',
         data: {
@@ -158,7 +159,8 @@ class ApiClient {
   Future<Response> adminCreateTopikExam(Map<String, dynamic> data) =>
       _dio.post('/topik/admin/exams', data: data);
 
-  Future<Response> adminUpdateTopikExam(String examId, Map<String, dynamic> data) =>
+  Future<Response> adminUpdateTopikExam(
+          String examId, Map<String, dynamic> data) =>
       _dio.patch('/topik/admin/exams/$examId', data: data);
 
   Future<Response> adminPublishTopikExam(String examId) =>
@@ -173,13 +175,15 @@ class ApiClient {
   Future<Response> adminCreateTopikSection(Map<String, dynamic> data) =>
       _dio.post('/topik/admin/sections', data: data);
 
-  Future<Response> adminUpdateTopikSection(String sectionId, Map<String, dynamic> data) =>
+  Future<Response> adminUpdateTopikSection(
+          String sectionId, Map<String, dynamic> data) =>
       _dio.patch('/topik/admin/sections/$sectionId', data: data);
 
   Future<Response> adminCreateTopikQuestion(Map<String, dynamic> data) =>
       _dio.post('/topik/admin/questions', data: data);
 
-  Future<Response> adminUpdateTopikQuestion(String questionId, Map<String, dynamic> data) =>
+  Future<Response> adminUpdateTopikQuestion(
+          String questionId, Map<String, dynamic> data) =>
       _dio.patch('/topik/admin/questions/$questionId', data: data);
 
   Future<Response> adminImportTopikExam(Map<String, dynamic> payload) =>
@@ -322,20 +326,33 @@ class ApiClient {
   Future<Response> getPlans() => _dio.get('/subscriptions/plans');
   Future<Response> subscribe(String planType) =>
       _dio.post('/subscriptions', data: {'planType': planType});
+  Future<Response> verifyGooglePlaySubscription(Map<String, dynamic> data) =>
+      _dio.post('/subscriptions/google/verify', data: data);
   Future<Response> checkPremiumStatus() =>
       _dio.get('/subscriptions/check-premium');
 
   // AI
-  Future<Response> correctWriting(String prompt, String userAnswer) =>
-      _dio.post('/ai/writing-correction',
-          data: {'prompt': prompt, 'userAnswer': userAnswer});
+  Future<Response> correctWriting(
+    String prompt,
+    String userAnswer, {
+    String? provider,
+  }) =>
+      _dio.post(
+        '/ai/writing-correction',
+        data: {
+          'prompt': prompt,
+          'userAnswer': userAnswer,
+          if (provider != null) 'provider': provider,
+        },
+      );
   Future<Response> getWritingHistory({int page = 1, int limit = 20}) =>
       _dio.get('/ai/writing-history',
           queryParameters: {'page': page, 'limit': limit});
 
   // AI (Admin)
   Future<Response> adminListAiModels({String? provider}) =>
-      _dio.get('/ai/admin/models', queryParameters: {if (provider != null) 'provider': provider});
+      _dio.get('/ai/admin/models',
+          queryParameters: {if (provider != null) 'provider': provider});
 
   Future<Response> adminGenerateVocabulary(
     String lessonId, {
@@ -345,7 +362,11 @@ class ApiClient {
   }) =>
       _dio.post(
         '/ai/admin/lessons/$lessonId/generate-vocabulary',
-        queryParameters: {'count': count, if (model != null) 'model': model, if (provider != null) 'provider': provider},
+        queryParameters: {
+          'count': count,
+          if (model != null) 'model': model,
+          if (provider != null) 'provider': provider
+        },
       );
   Future<Response> adminGenerateGrammar(
     String lessonId, {

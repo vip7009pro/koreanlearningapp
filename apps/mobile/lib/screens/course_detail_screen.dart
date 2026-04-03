@@ -189,14 +189,28 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                 ),
                 child: Card(
                   child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    childrenPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    title: Text(
-                      section['title'] ?? '',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+                    tilePadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    childrenPadding:
+                        const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                    title: Row(
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            section['title'] ?? '',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,11 +254,13 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
                                     child: const Text('Để sau'),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
                                     child: const Text('Nâng cấp'),
                                   ),
                                 ],
@@ -277,7 +293,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              if (_lessonCompleted[(lesson['id'] ?? '').toString()] == true)
+                              if (_lessonCompleted[
+                                      (lesson['id'] ?? '').toString()] ==
+                                  true)
                                 Container(
                                   width: 22,
                                   height: 22,
@@ -291,7 +309,8 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                                   child: Icon(
                                     Icons.check,
                                     size: 14,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                 )
                               else
@@ -301,7 +320,8 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: theme.seedColor.withValues(alpha: 0.12),
+                                  color:
+                                      theme.seedColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Center(

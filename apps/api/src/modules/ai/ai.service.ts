@@ -1314,18 +1314,37 @@ QUY TẮC BẮT BUỘC:
    * Call OpenRouter API for AI writing correction.
    * Falls back to mock if no API key is configured.
    */
-  async correctWriting(userId: string, prompt: string, userAnswer: string): Promise<WritingCorrectionResult> {
-    let result: WritingCorrectionResult;
+  async correctWriting(
+    userId: string,
+    prompt: string,
+    userAnswer: string,
+    preferredProvider?: string,
+  ): Promise<WritingCorrectionResult> {
+    const normalizedProvider = String(preferredProvider || '').trim().toLowerCase();
+    const providerOrder = normalizedProvider === 'openrouter'
+      ? ['openrouter', 'google']
+      : ['google', 'openrouter'];
 
-    if (this.apiKey) {
+    let result: WritingCorrectionResult | null = null;
+    const failures: Array<{ provider: string; error: string }> = [];
+
+    for (const provider of providerOrder) {
       try {
-        result = await this.callOpenRouter(prompt, userAnswer);
-      } catch (e) {
-        this.logger.warn('OpenRouter call failed, falling back to mock', e);
-        result = this.mockCorrection(userAnswer);
+        if (provider === 'google') {
+          result = await this.callGoogleWriting(prompt, userAnswer);
+        } else {
+          result = await this.callOpenRouter(prompt, userAnswer);
+        }
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push({ provider, error: message });
+        this.logger.warn({ provider, error: message }, 'Writing correction provider failed');
       }
-    } else {
-      this.logger.warn('No OPENROUTER_API_KEY set, using mock correction');
+    }
+
+    if (!result) {
+      this.logger.warn({ failures }, 'All AI writing providers failed, using mock correction');
       result = this.mockCorrection(userAnswer);
     }
 
@@ -1393,6 +1412,27 @@ QUY TẮC BẮT BUỘC:
         errors: [],
       };
     }
+  }
+
+  private normalizeWritingCorrectionResult(raw: any, userAnswer: string): WritingCorrectionResult {
+    return {
+      correctedText: raw?.correctedText || userAnswer,
+      feedback: raw?.feedback || 'Không có nhận xét',
+      score: typeof raw?.score === 'number' ? raw.score : 70,
+      errors: Array.isArray(raw?.errors) ? raw.errors : [],
+    };
+  }
+
+  private async callGoogleWriting(prompt: string, userAnswer: string): Promise<WritingCorrectionResult> {
+    const raw = await this.callAiJson(
+      'google',
+      this.SYSTEM_PROMPT,
+      `Chủ đề viết: "${prompt}"\n\nBài viết của học viên:\n"${userAnswer}"\n\nHãy chấm điểm và sửa bài. Trả lời bằng JSON theo đúng cấu trúc đã quy định.`,
+      undefined,
+      2000,
+    );
+
+    return this.normalizeWritingCorrectionResult(raw, userAnswer);
   }
 
   private mockCorrection(userAnswer: string): WritingCorrectionResult {

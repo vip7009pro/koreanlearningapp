@@ -17,6 +17,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   List<dynamic> _badges = [];
   Map<String, dynamic>? _reviewStats;
   bool _uploadingAvatar = false;
+  bool _isPremiumUser = false;
 
   @override
   void initState() {
@@ -29,10 +30,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final badgesRes = await api.getUserBadges();
       final statsRes = await api.getReviewStats();
+      final premiumRes = await api.checkPremiumStatus();
       if (mounted) {
         setState(() {
           _badges = badgesRes.data ?? [];
           _reviewStats = statsRes.data;
+          _isPremiumUser = premiumRes.data?['isPremium'] ?? false;
         });
       }
     } catch (_) {}
@@ -171,6 +174,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         : Colors.grey.shade700,
                                   ),
                           ),
+                          if (_isPremiumUser)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade600,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.12),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.verified,
+                                        size: 12, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Premium',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

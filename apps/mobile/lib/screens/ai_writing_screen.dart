@@ -66,6 +66,7 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   Map<String, dynamic>? _result;
   int _selectedTopicIndex = 0;
   bool _isCustomTopic = false;
+  String _selectedProvider = 'google';
 
   String get _activePrompt {
     if (_isCustomTopic) return _customTopicCtrl.text.trim();
@@ -89,7 +90,11 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
 
     try {
       final api = ref.read(apiClientProvider);
-      final res = await api.correctWriting(_activePrompt, text);
+      final res = await api.correctWriting(
+        _activePrompt,
+        text,
+        provider: _selectedProvider,
+      );
       if (mounted) {
         setState(() {
           _result = res.data;
@@ -175,6 +180,38 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
               ),
             ),
             const SizedBox(height: 12),
+
+            const Text(
+              'Chọn provider AI',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Google ưu tiên'),
+                  selected: _selectedProvider == 'google',
+                  onSelected: (_) =>
+                      setState(() => _selectedProvider = 'google'),
+                ),
+                ChoiceChip(
+                  label: const Text('OpenRouter ưu tiên'),
+                  selected: _selectedProvider == 'openrouter',
+                  onSelected: (_) =>
+                      setState(() => _selectedProvider = 'openrouter'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _selectedProvider == 'google'
+                  ? 'Google sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang OpenRouter.'
+                  : 'OpenRouter sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang Google.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
 
             // Display selected topic or custom input
             if (_isCustomTopic)

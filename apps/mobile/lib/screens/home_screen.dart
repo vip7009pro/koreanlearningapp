@@ -71,25 +71,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     floating: false,
                     pinned: true,
                     flexibleSpace: FlexibleSpaceBar(
-                      title: const Text(
-                        'Tiếng Hàn FDI',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: Color(0xF2FFFFFF),
-                          shadows: [
-                            Shadow(
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
-                              color: Color(0x33000000),
-                            ),
-                          ],
-                        ),
-                      ),
                       titlePadding: const EdgeInsetsDirectional.only(
-                        start: 16,
-                        bottom: 16,
+                        start: 12,
+                        bottom: 14,
+                      ),
+                      title: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: const Text(
+                          'Tiếng Hàn FDI',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 10,
+                                offset: Offset(0, 2),
+                                color: Color(0x55000000),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       background: Container(
                         decoration: BoxDecoration(
@@ -453,13 +466,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final exam = exams[index] as Map;
                         final id = (exam['id'] ?? '').toString();
                         final title = (exam['title'] ?? 'TOPIK').toString();
-                        final topikLevel = (exam['topikLevel'] ?? '').toString();
+                        final topikLevel =
+                            (exam['topikLevel'] ?? '').toString();
                         final year = exam['year'];
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           child: Card(
                             child: InkWell(
-                              onTap: id.isEmpty ? null : () => context.push('/topik/exam/$id'),
+                              onTap: id.isEmpty
+                                  ? null
+                                  : () => context.push('/topik/exam/$id'),
                               borderRadius: BorderRadius.circular(16),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
@@ -469,44 +486,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       width: 56,
                                       height: 56,
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                       child: const Center(
-                                        child: Text('📝', style: TextStyle(fontSize: 26)),
+                                        child: Text('📝',
+                                            style: TextStyle(fontSize: 26)),
                                       ),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             title,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 15),
                                           ),
                                           const SizedBox(height: 6),
                                           Row(
                                             children: [
                                               if (topikLevel.isNotEmpty)
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.blue.withValues(alpha: 0.1),
-                                                    borderRadius: BorderRadius.circular(6),
+                                                    color: Colors.blue
+                                                        .withValues(alpha: 0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
                                                   ),
                                                   child: Text(
-                                                    topikLevel.replaceAll('_', ' '),
-                                                    style: TextStyle(fontSize: 11, color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                                                    topikLevel.replaceAll(
+                                                        '_', ' '),
+                                                    style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors
+                                                            .blue.shade900,
+                                                        fontWeight:
+                                                            FontWeight.w600),
                                                   ),
                                                 ),
                                               if (year != null) ...[
                                                 const SizedBox(width: 8),
                                                 Text(
                                                   'Năm $year',
-                                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          Colors.grey.shade700),
                                                 ),
                                               ],
                                             ],
@@ -514,7 +553,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ],
                                       ),
                                     ),
-                                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                                    Icon(Icons.chevron_right,
+                                        color: Colors.grey.shade400),
                                   ],
                                 ),
                               ),
@@ -522,7 +562,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      childCount: _topikExams.length > 3 ? 3 : _topikExams.length,
+                      childCount:
+                          _topikExams.length > 3 ? 3 : _topikExams.length,
                     ),
                   ),
 

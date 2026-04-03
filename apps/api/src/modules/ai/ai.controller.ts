@@ -12,6 +12,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 class WritingCorrectionDto {
   @ApiProperty({ example: 'Viết một đoạn tự giới thiệu bằng tiếng Hàn' }) @IsString() @IsNotEmpty() prompt: string;
   @ApiProperty({ example: '안녕하세요. 저는 베트남 사람입니다.' }) @IsString() @IsNotEmpty() userAnswer: string;
+  @ApiPropertyOptional({ enum: ['google', 'openrouter'], example: 'google' })
+  @IsOptional()
+  @IsString()
+  provider?: string;
 }
 
 class GenerateQuizDto {
@@ -71,7 +75,7 @@ export class AIController {
   @Post('writing-correction')
   @ApiOperation({ summary: 'Submit writing for AI correction' })
   correctWriting(@CurrentUser('id') userId: string, @Body() dto: WritingCorrectionDto) {
-    return this.aiService.correctWriting(userId, dto.prompt, dto.userAnswer);
+    return this.aiService.correctWriting(userId, dto.prompt, dto.userAnswer, dto.provider);
   }
 
   @Post('generate-quiz')

@@ -29,10 +29,8 @@ export class PremiumGuard implements CanActivate {
       throw new ForbiddenException('Premium subscription required');
     }
 
-    if (subscription.planType === 'PREMIUM' && subscription.endDate) {
-      if (new Date(subscription.endDate) < new Date()) {
-        throw new ForbiddenException('Subscription expired');
-      }
+    if (subscription.endDate && new Date(subscription.endDate) < new Date()) {
+      throw new ForbiddenException('Subscription expired');
     }
 
     return true;
