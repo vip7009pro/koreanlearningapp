@@ -325,7 +325,8 @@ class _AdminLessonDetailScreenState
                 child: SingleChildScrollView(
                   child: SelectableText(
                     prompt,
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                    style:
+                        const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                   ),
                 ),
               ),
@@ -1223,8 +1224,12 @@ class _AdminLessonDetailScreenState
             enabled: !_aiLoading,
             icon: const Icon(Icons.hub_outlined),
             onSelected: (v) async {
-              await ref.read(appSettingsProvider.notifier).setAdminAiProvider(v);
-              await ref.read(appSettingsProvider.notifier).setAdminAiModel('');
+              await ref
+                  .read(appSettingsProvider.notifier)
+                  .setAdminAiProvider(v);
+              await ref.read(appSettingsProvider.notifier).setAdminAiModel(
+                    v == 'google' ? 'models/gemma-4-31b-it' : '',
+                  );
               await _loadModels();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1235,7 +1240,7 @@ class _AdminLessonDetailScreenState
               final current = ref.read(appSettingsProvider).adminAiProvider;
               const providers = [
                 {'id': 'openrouter', 'label': 'OpenRouter'},
-                {'id': 'google', 'label': 'Google (Gemini)'},
+                {'id': 'google', 'label': 'Google (Gemma)'},
               ];
               return providers
                   .map(
@@ -1269,10 +1274,17 @@ class _AdminLessonDetailScreenState
               );
             },
             itemBuilder: (_) {
+              final currentProvider =
+                  ref.read(appSettingsProvider).adminAiProvider;
               final current = ref.read(appSettingsProvider).adminAiModel;
               final list = _models;
               final withDefault = <Map<String, String>>[
-                {'id': '', 'label': '(default)'},
+                {
+                  'id': '',
+                  'label': currentProvider == 'google'
+                      ? 'models/gemma-4-31b-it (default)'
+                      : '(default)'
+                },
                 ...list,
               ];
               return withDefault
@@ -1315,7 +1327,8 @@ class _AdminLessonDetailScreenState
                           'Quota (server limiter): '
                           '${_quota!['perMinuteRemaining']}/${_quota!['perMinuteLimit']} req/phút (reset ${_quota!['minuteResetAt']}) • '
                           '${_quota!['dailyRemaining']}/${_quota!['dailyLimit']} req/ngày (reset ${_quota!['dayResetAt']})',
-                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black54),
                         ),
                       ),
                     if (_modelsError != null)

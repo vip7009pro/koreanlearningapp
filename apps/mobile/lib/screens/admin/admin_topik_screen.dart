@@ -22,7 +22,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
   late final TabController _tab;
 
   static const List<Map<String, String>> _aiModels = [
-    {'id': 'google/gemini-2.0-flash-001', 'label': 'gemini-2.0-flash-001'},
+    {'id': 'models/gemma-4-31b-it', 'label': 'gemma-4-31b (default)'},
     {'id': 'openai/gpt-4o-mini', 'label': 'gpt-4o-mini'},
     {'id': 'anthropic/claude-3.5-haiku', 'label': 'claude-3.5-haiku'},
     {'id': 'meta-llama/llama-3.1-70b-instruct', 'label': 'llama-3.1-70b'},
@@ -75,12 +75,16 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
       final data = (res.data as Map?)?.cast<String, dynamic>() ?? {};
       final models = (data['models'] as List?) ?? [];
       final quota = (data['quota'] as Map?)?.cast<String, dynamic>();
-      final out = models.whereType<Map>().map((raw) {
-        final m = raw.cast<String, dynamic>();
-        final id = (m['id'] ?? '').toString().trim();
-        final label = (m['label'] ?? m['id'] ?? '').toString().trim();
-        return {'id': id, 'label': label};
-      }).where((m) => (m['id'] ?? '').isNotEmpty).toList();
+      final out = models
+          .whereType<Map>()
+          .map((raw) {
+            final m = raw.cast<String, dynamic>();
+            final id = (m['id'] ?? '').toString().trim();
+            final label = (m['label'] ?? m['id'] ?? '').toString().trim();
+            return {'id': id, 'label': label};
+          })
+          .where((m) => (m['id'] ?? '').isNotEmpty)
+          .toList();
 
       if (!mounted) return;
       setState(() {
@@ -162,7 +166,8 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
 
   Future<void> _createExam() async {
     final titleCtrl = TextEditingController();
-    final yearCtrl = TextEditingController(text: DateTime.now().year.toString());
+    final yearCtrl =
+        TextEditingController(text: DateTime.now().year.toString());
 
     String topikLevel = 'TOPIK_II';
     String status = 'DRAFT';
@@ -202,9 +207,11 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
                   ),
                   items: const [
                     DropdownMenuItem(value: 'TOPIK_I', child: Text('TOPIK_I')),
-                    DropdownMenuItem(value: 'TOPIK_II', child: Text('TOPIK_II')),
+                    DropdownMenuItem(
+                        value: 'TOPIK_II', child: Text('TOPIK_II')),
                   ],
-                  onChanged: (v) => setLocal(() => topikLevel = v ?? 'TOPIK_II'),
+                  onChanged: (v) =>
+                      setLocal(() => topikLevel = v ?? 'TOPIK_II'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -272,7 +279,8 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
       final input = <String, dynamic>{
         'topikLevel': _genTopikLevel,
         'year': _genYear,
-        if (_genTitleCtrl.text.trim().isNotEmpty) 'title': _genTitleCtrl.text.trim(),
+        if (_genTitleCtrl.text.trim().isNotEmpty)
+          'title': _genTitleCtrl.text.trim(),
         'batchSize': _genBatchSize,
         'status': _genStatus,
       };
@@ -357,7 +365,8 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
                 child: SingleChildScrollView(
                   child: SelectableText(
                     prompt,
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                    style:
+                        const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                   ),
                 ),
               ),
@@ -547,8 +556,14 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
               onSelected: _generating
                   ? null
                   : (v) async {
-                      await ref.read(appSettingsProvider.notifier).setAdminAiProvider(v);
-                      await ref.read(appSettingsProvider.notifier).setAdminAiModel('');
+                      await ref
+                          .read(appSettingsProvider.notifier)
+                          .setAdminAiProvider(v);
+                      await ref
+                          .read(appSettingsProvider.notifier)
+                          .setAdminAiModel(
+                            v == 'google' ? 'models/gemma-4-31b-it' : '',
+                          );
                       await _loadModels();
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -558,7 +573,7 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
               itemBuilder: (_) {
                 const providers = [
                   {'id': 'openrouter', 'label': 'OpenRouter'},
-                  {'id': 'google', 'label': 'Google (Gemini)'},
+                  {'id': 'google', 'label': 'Google (Gemma)'},
                 ];
                 return providers
                     .map(
@@ -587,7 +602,13 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
         Card(
           child: ListTile(
             title: const Text('AI model'),
-            subtitle: Text(currentModel.isEmpty ? '(default)' : currentModel),
+            subtitle: Text(
+              currentProvider == 'google'
+                  ? (currentModel.isEmpty
+                      ? 'models/gemma-4-31b-it (default)'
+                      : currentModel)
+                  : (currentModel.isEmpty ? '(default)' : currentModel),
+            ),
             trailing: _modelsLoading
                 ? const SizedBox(
                     width: 18,
@@ -599,7 +620,9 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
                     onSelected: _generating
                         ? null
                         : (v) {
-                            ref.read(appSettingsProvider.notifier).setAdminAiModel(v);
+                            ref
+                                .read(appSettingsProvider.notifier)
+                                .setAdminAiModel(v);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Đã đổi AI model')),
                             );
@@ -730,7 +753,9 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _generating || payload == null ? null : _copyGeneratedToClipboard,
+                onPressed: _generating || payload == null
+                    ? null
+                    : _copyGeneratedToClipboard,
                 icon: const Icon(Icons.copy),
                 label: const Text('Copy JSON'),
               ),
@@ -738,7 +763,8 @@ class _AdminTopikScreenState extends ConsumerState<AdminTopikScreen>
             const SizedBox(width: 10),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _generating || payload == null ? null : _importGenerated,
+                onPressed:
+                    _generating || payload == null ? null : _importGenerated,
                 icon: const Icon(Icons.file_upload),
                 label: const Text('Import'),
               ),

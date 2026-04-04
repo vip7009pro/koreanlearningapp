@@ -119,6 +119,7 @@ type QuotaInfo = {
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
+  private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it';
   constructor(private prisma: PrismaService) {}
 
   private _googleClient: GoogleGenAI | null = null;
@@ -148,7 +149,7 @@ export class AIService {
   ): Promise<any> {
     this.enforceGoogleQuota();
     const ai = this.getGoogleClient();
-    const model = (modelOverride && String(modelOverride).trim()) || 'gemini-2.0-flash';
+    const model = (modelOverride && String(modelOverride).trim()) || AIService.DEFAULT_GOOGLE_MODEL;
 
     // Keep it simple: send combined prompt as text. We still enforce JSON-only in the system prompt.
     const response = await ai.models.generateContent({
@@ -235,11 +236,14 @@ export class AIService {
     const pager = await ai.models.list();
     const out: Array<{ id: string; label: string }> = [];
 
+    out.push({ id: AIService.DEFAULT_GOOGLE_MODEL, label: 'gemma-4-31b' });
+
     for await (const m of pager as any) {
       const name = String((m as any)?.name || '').trim();
       if (!name) continue;
-      // Filter to Gemini text models to keep the list relevant.
-      if (!name.toLowerCase().includes('gemini')) continue;
+      // Filter to Google text models to keep the list relevant.
+      if (!/(gemini|gemma)/i.test(name)) continue;
+      if (name === AIService.DEFAULT_GOOGLE_MODEL) continue;
       out.push({ id: name, label: name });
       if (out.length >= 200) break;
     }
@@ -606,7 +610,11 @@ ${writingHint}`;
       sections: [],
       batchSize,
       provider: this.normalizeProvider(provider),
-      model: model || 'google/gemini-2.0-flash-001',
+      model:
+        model ||
+        (this.normalizeProvider(provider) === 'google'
+          ? AIService.DEFAULT_GOOGLE_MODEL
+          : process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001'),
     };
 
     const resolvedProvider = this.normalizeProvider(provider);

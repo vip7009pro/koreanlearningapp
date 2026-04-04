@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { FiPlus, FiTrash2, FiArrowLeft, FiUpload, FiEdit2, FiCopy } from 'react-icons/fi';
 import { useAuthStore } from '../stores/authStore';
 
+const DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it';
+
 export default function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
@@ -39,7 +41,13 @@ export default function LessonDetailPage() {
   const [aiProvider, setAiProvider] = useState<'openrouter' | 'google'>(
     () => (localStorage.getItem('admin_ai_provider') as any) || 'openrouter',
   );
-  const [aiModel, setAiModel] = useState<string>(() => localStorage.getItem('admin_ai_model') || '');
+  const [aiModel, setAiModel] = useState<string>(() => {
+    const savedModel = localStorage.getItem('admin_ai_model') || '';
+    if (!savedModel && (localStorage.getItem('admin_ai_provider') || 'openrouter') === 'google') {
+      return DEFAULT_GOOGLE_MODEL;
+    }
+    return savedModel === 'google/gemini-2.0-flash-001' ? DEFAULT_GOOGLE_MODEL : savedModel;
+  });
 
   const [selectedVocabIds, setSelectedVocabIds] = useState<string[]>([]);
   const [selectedGrammarIds, setSelectedGrammarIds] = useState<string[]>([]);
@@ -49,9 +57,9 @@ export default function LessonDetailPage() {
   const updateAiProvider = (provider: 'openrouter' | 'google') => {
     setAiProvider(provider);
     localStorage.setItem('admin_ai_provider', provider);
-    // Reset model when provider changes.
-    setAiModel('');
-    localStorage.setItem('admin_ai_model', '');
+    const nextModel = provider === 'google' ? DEFAULT_GOOGLE_MODEL : '';
+    setAiModel(nextModel);
+    localStorage.setItem('admin_ai_model', nextModel);
   };
 
   const updateAiModel = (model: string) => {
@@ -67,8 +75,8 @@ export default function LessonDetailPage() {
 
   const modelOptions = useMemo(() => {
     const models = Array.isArray(modelsQuery.data?.models) ? modelsQuery.data.models : [];
-    return [{ id: '', label: '(default)' }, ...models];
-  }, [modelsQuery.data]);
+    return [{ id: '', label: aiProvider === 'google' ? `${DEFAULT_GOOGLE_MODEL} (default)` : '(default)' }, ...models];
+  }, [modelsQuery.data, aiProvider]);
 
   const quota = modelsQuery.data?.quota;
 
@@ -494,7 +502,7 @@ Chỉ trả về JSON array, không có text nào khác.`;
                 title="AI provider"
               >
                 <option value="openrouter">OpenRouter</option>
-                <option value="google">Google (Gemini)</option>
+                <option value="google">Google (Gemma)</option>
               </select>
               <select
                 className="input"

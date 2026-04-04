@@ -10,8 +10,10 @@
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate deploy",
-        "prisma:seed": "ts-node prisma/seed.ts",
-        "clean": "rimraf dist"
+        "prisma:seed": "node dist/prisma/seed.js",
+        "clean": "rimraf dist",
+        "docker_start": "docker-compose -f docker/docker-compose.yml up -d",
+        "docker_stop": "docker-compose -f docker/docker-compose.yml down"
     },
     "dependencies": {
         "@nestjs/bull": "^10.1.0",
@@ -65,6 +67,6 @@
         "typescript": "^5.3.0"
     },
     "prisma": {
-        "seed": "ts-node prisma/seed.ts"
+        "seed": "node dist/prisma/seed.js"
     }
 }

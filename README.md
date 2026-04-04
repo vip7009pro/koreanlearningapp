@@ -79,10 +79,58 @@ This project is built using a modern decoupled architecture inside a Turborepo m
 - API Keys: To employ AI features, an [OpenRouter](https://openrouter.ai/) or Gemini API Key is required.
 
 ### 1. Running the Backend Ecosystem (Dev Mode)
-First, spin up PostgreSQL and Redis using Docker:
+First, spin up the full stack using Docker:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d db redis pgadmin
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+### 1.1 PostgreSQL 18 backup and restore
+If you already have a local PostgreSQL 18 database and want to move it into Docker, use a logical backup and restore flow.
+
+Backup your local database from PostgreSQL 18:
+
+```bash
+pg_dump -h localhost -p 5432 -U <local_user> -d <local_database> -F c --no-owner --no-privileges -f backup_pg18.dump
+```
+
+If you prefer a plain SQL file instead:
+
+```bash
+pg_dump -h localhost -p 5432 -U <local_user> -d <local_database> --no-owner --no-privileges > backup_pg18.sql
+```
+
+Restore into PostgreSQL inside Docker:
+
+```bash
+# Start only the database first
+docker compose -f docker/docker-compose.yml up -d postgres
+
+# Copy the backup into the container
+docker cp backup_pg18.dump korean-app-postgres:/tmp/backup_pg18.dump
+
+# Restore the database
+docker exec -it korean-app-postgres pg_restore -U korean_user -d korean_learning --clean --if-exists --no-owner --no-privileges /tmp/backup_pg18.dump
+```
+
+If you used a `.sql` file, restore with `psql` instead:
+
+```bash
+docker cp backup_pg18.sql korean-app-postgres:/tmp/backup_pg18.sql
+docker exec -it korean-app-postgres psql -U korean_user -d korean_learning -f /tmp/backup_pg18.sql
+```
+
+If you previously started a PostgreSQL 16 container/volume in Docker, remove the old data volume before starting the new 18 cluster:
+
+```bash
+docker compose -f docker/docker-compose.yml down
+docker volume rm docker_postgres_data
+```
+
+After the restore finishes, start the rest of the stack:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d redis api admin-web pgadmin
 ```
 
 Install dependencies, run Prisma migrations, and start the development servers:

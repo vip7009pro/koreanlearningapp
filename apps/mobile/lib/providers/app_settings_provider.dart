@@ -50,6 +50,7 @@ class AppSettingsState {
 }
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
+  static const String defaultGoogleModel = 'models/gemma-4-31b-it';
   static const _kThemeId = 'app_theme_id';
   static const _kThemeMode = 'app_theme_mode';
   static const _kBiometricEnabled = 'biometric_login_enabled';
@@ -62,7 +63,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
           themeMode: ThemeMode.system,
           biometricLoginEnabled: false,
           adminAiProvider: 'openrouter',
-          adminAiModel: 'google/gemini-2.0-flash-001',
+          adminAiModel: '',
         )) {
     _load();
   }
@@ -156,20 +157,39 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     final bio = prefs.getBool(_kBiometricEnabled);
     final adminAiProvider = prefs.getString(_kAdminAiProvider);
     final adminAiModel = prefs.getString(_kAdminAiModel);
+    final resolvedProvider = adminAiProvider ?? state.adminAiProvider;
+    final resolvedModel = (resolvedProvider == 'google' &&
+            (adminAiModel == null ||
+                adminAiModel.isEmpty ||
+                adminAiModel == 'google/gemini-2.0-flash-001'))
+        ? defaultGoogleModel
+        : (adminAiModel ?? state.adminAiModel);
 
     state = state.copyWith(
       themeId: themeId ?? state.themeId,
       themeMode: _themeModeFromString(themeMode),
       biometricLoginEnabled: bio ?? state.biometricLoginEnabled,
-      adminAiProvider: adminAiProvider ?? state.adminAiProvider,
-      adminAiModel: adminAiModel ?? state.adminAiModel,
+      adminAiProvider: resolvedProvider,
+      adminAiModel: resolvedModel,
     );
   }
 
   Future<void> setAdminAiProvider(String provider) async {
-    state = state.copyWith(adminAiProvider: provider);
+    final normalizedProvider = provider.trim();
+    final nextModel = normalizedProvider == 'google'
+        ? (state.adminAiModel.isEmpty ||
+                state.adminAiModel == 'google/gemini-2.0-flash-001'
+            ? defaultGoogleModel
+            : state.adminAiModel)
+        : state.adminAiModel;
+
+    state = state.copyWith(
+      adminAiProvider: normalizedProvider,
+      adminAiModel: nextModel,
+    );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kAdminAiProvider, provider);
+    await prefs.setString(_kAdminAiProvider, normalizedProvider);
+    await prefs.setString(_kAdminAiModel, nextModel);
   }
 
   Future<void> setTheme(String themeId) async {

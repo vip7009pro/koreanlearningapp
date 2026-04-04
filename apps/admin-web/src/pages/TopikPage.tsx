@@ -12,6 +12,8 @@ type GenerateResult = {
   stats?: any;
 };
 
+const DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it';
+
 export default function TopikPage() {
   const navigate = useNavigate();
   const [importJson, setImportJson] = useState('');
@@ -68,8 +70,8 @@ export default function TopikPage() {
 
   const modelOptions = useMemo(() => {
     const models = Array.isArray(modelsQuery.data?.models) ? modelsQuery.data.models : [];
-    return [{ id: '', label: '(default)' }, ...models];
-  }, [modelsQuery.data]);
+    return [{ id: '', label: provider === 'google' ? `${DEFAULT_GOOGLE_MODEL} (default)` : '(default)' }, ...models];
+  }, [modelsQuery.data, provider]);
 
   const quota = modelsQuery.data?.quota;
 
@@ -369,10 +371,10 @@ Hãy tạo đầy đủ số lượng câu hỏi theo quy định mỗi section.
               <select className="input" value={provider} onChange={(e) => {
                 const p = e.target.value as any;
                 setProvider(p);
-                setModel('');
+                setModel(p === 'google' ? DEFAULT_GOOGLE_MODEL : '');
               }}>
                 <option value="openrouter">OpenRouter</option>
-                <option value="google">Google (Gemini)</option>
+                <option value="google">Google (Gemma)</option>
               </select>
             </div>
 
@@ -393,7 +395,7 @@ Hãy tạo đầy đủ số lượng câu hỏi theo quy định mỗi section.
               <p className="text-xs text-gray-400 mt-1">
                 {provider === 'openrouter'
                   ? '(default) = dùng OPENROUTER_MODEL mặc định.'
-                  : '(default) = dùng gemini-2.0-flash (backend).'}
+                  : `(default) = dùng ${DEFAULT_GOOGLE_MODEL} (backend).`}
               </p>
               {quota && (
                 <p className="text-xs text-gray-500 mt-1">
