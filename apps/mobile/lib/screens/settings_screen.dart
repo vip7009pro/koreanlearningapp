@@ -63,6 +63,17 @@ class SettingsScreen extends ConsumerWidget {
               ref.read(appSettingsProvider.notifier).setTtsMode(value);
             },
           ),
+          RadioListTile<String>(
+            secondary: const Icon(Icons.offline_bolt_outlined),
+            title: const Text('Piper offline (ONNX Runtime)'),
+            subtitle: const Text('Dùng model Piper cài sẵn trong app, không cần mạng'),
+            value: AppSettingsNotifier.ttsModePiper,
+            groupValue: settings.ttsMode,
+            onChanged: (value) {
+              if (value == null) return;
+              ref.read(appSettingsProvider.notifier).setTtsMode(value);
+            },
+          ),
           SwitchListTile(
             secondary: const Icon(Icons.fingerprint),
             title: const Text('Đăng nhập sinh trắc học'),
