@@ -22,6 +22,7 @@ class AppSettingsState {
   final bool biometricLoginEnabled;
   final String adminAiProvider;
   final String adminAiModel;
+  final String ttsMode;
 
   const AppSettingsState({
     required this.themeId,
@@ -29,6 +30,7 @@ class AppSettingsState {
     required this.biometricLoginEnabled,
     required this.adminAiProvider,
     required this.adminAiModel,
+    required this.ttsMode,
   });
 
   AppSettingsState copyWith({
@@ -37,6 +39,7 @@ class AppSettingsState {
     bool? biometricLoginEnabled,
     String? adminAiProvider,
     String? adminAiModel,
+    String? ttsMode,
   }) {
     return AppSettingsState(
       themeId: themeId ?? this.themeId,
@@ -45,17 +48,21 @@ class AppSettingsState {
           biometricLoginEnabled ?? this.biometricLoginEnabled,
       adminAiProvider: adminAiProvider ?? this.adminAiProvider,
       adminAiModel: adminAiModel ?? this.adminAiModel,
+      ttsMode: ttsMode ?? this.ttsMode,
     );
   }
 }
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   static const String defaultGoogleModel = 'models/gemma-4-31b-it';
+  static const String ttsModeDevice = 'device';
+  static const String ttsModeNatural = 'google_neural';
   static const _kThemeId = 'app_theme_id';
   static const _kThemeMode = 'app_theme_mode';
   static const _kBiometricEnabled = 'biometric_login_enabled';
   static const _kAdminAiProvider = 'admin_ai_provider';
   static const _kAdminAiModel = 'admin_ai_model';
+  static const _kTtsMode = 'tts_mode';
 
   AppSettingsNotifier()
       : super(const AppSettingsState(
@@ -64,6 +71,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
           biometricLoginEnabled: false,
           adminAiProvider: 'openrouter',
           adminAiModel: '',
+          ttsMode: ttsModeDevice,
         )) {
     _load();
   }
@@ -157,6 +165,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     final bio = prefs.getBool(_kBiometricEnabled);
     final adminAiProvider = prefs.getString(_kAdminAiProvider);
     final adminAiModel = prefs.getString(_kAdminAiModel);
+    final ttsMode = prefs.getString(_kTtsMode);
     final resolvedProvider = adminAiProvider ?? state.adminAiProvider;
     final resolvedModel = (resolvedProvider == 'google' &&
             (adminAiModel == null ||
@@ -164,6 +173,9 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
                 adminAiModel == 'google/gemini-2.0-flash-001'))
         ? defaultGoogleModel
         : (adminAiModel ?? state.adminAiModel);
+    final resolvedTtsMode = ttsMode == ttsModeNatural
+        ? ttsModeNatural
+        : ttsModeDevice;
 
     state = state.copyWith(
       themeId: themeId ?? state.themeId,
@@ -171,6 +183,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       biometricLoginEnabled: bio ?? state.biometricLoginEnabled,
       adminAiProvider: resolvedProvider,
       adminAiModel: resolvedModel,
+      ttsMode: resolvedTtsMode,
     );
   }
 
@@ -214,6 +227,13 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     state = state.copyWith(adminAiModel: model);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kAdminAiModel, model);
+  }
+
+  Future<void> setTtsMode(String mode) async {
+    final normalizedMode = mode == ttsModeNatural ? ttsModeNatural : ttsModeDevice;
+    state = state.copyWith(ttsMode: normalizedMode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kTtsMode, normalizedMode);
   }
 }
 

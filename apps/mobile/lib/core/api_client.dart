@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -149,6 +151,15 @@ class ApiClient {
 
   Future<Response> getTopikSessionReview(String sessionId) =>
       _dio.get('/topik/sessions/$sessionId/review');
+
+  Future<Uint8List> synthesizeKoreanSpeech(String text) async {
+    final response = await _dio.post<List<int>>(
+      '/tts/korean',
+      data: {'text': text},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? const <int>[]);
+  }
 
   // TOPIK (Admin)
   Future<Response> adminListTopikExams() => _dio.get('/topik/admin/exams');

@@ -22,6 +22,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { HealthModule } from './modules/health/health.module';
 import { TopikModule } from './modules/topik/topik.module';
+import { TtsModule } from './modules/tts/tts.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { TopikModule } from './modules/topik/topik.module';
     WebsocketModule,
     HealthModule,
     TopikModule,
+    TtsModule,
   ],
 })
 export class AppModule {}

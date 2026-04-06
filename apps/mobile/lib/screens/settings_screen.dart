@@ -34,6 +34,35 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/theme'),
           ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Text(
+              'TTS',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+          RadioListTile<String>(
+            secondary: const Icon(Icons.phone_android_outlined),
+            title: const Text('Giọng mặc định của máy'),
+            subtitle: const Text('Dùng TTS có sẵn trên thiết bị'),
+            value: AppSettingsNotifier.ttsModeDevice,
+            groupValue: settings.ttsMode,
+            onChanged: (value) {
+              if (value == null) return;
+              ref.read(appSettingsProvider.notifier).setTtsMode(value);
+            },
+          ),
+          RadioListTile<String>(
+            secondary: const Icon(Icons.graphic_eq_outlined),
+            title: const Text('Giọng Hàn tự nhiên'),
+            subtitle: const Text('Dùng Google Cloud TTS neural voice'),
+            value: AppSettingsNotifier.ttsModeNatural,
+            groupValue: settings.ttsMode,
+            onChanged: (value) {
+              if (value == null) return;
+              ref.read(appSettingsProvider.notifier).setTtsMode(value);
+            },
+          ),
           SwitchListTile(
             secondary: const Icon(Icons.fingerprint),
             title: const Text('Đăng nhập sinh trắc học'),

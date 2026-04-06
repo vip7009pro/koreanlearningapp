@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
 import '../core/api_client.dart';
+import '../core/tts_service.dart';
 
 class TopikTakeScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -46,12 +46,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
   bool _navFlaggedOnly = false;
 
-  final FlutterTts _tts = FlutterTts();
   bool _ttsSpeaking = false;
-
-  List<dynamic>? _ttsVoices;
-  Map<String, dynamic>? _ttsMaleVoice;
-  Map<String, dynamic>? _ttsFemaleVoice;
 
   @override
   void initState() {
@@ -79,7 +74,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     _audioDurationSub?.cancel();
     _audioPositionSub?.cancel();
     _audio.dispose();
-    _tts.stop();
+    unawaited(ref.read(ttsProvider).stop());
     _scroll.dispose();
     for (final c in _textControllers.values) {
       c.dispose();
@@ -89,7 +84,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
   Future<void> _stopTts() async {
     try {
-      await _tts.stop();
+      await ref.read(ttsProvider).stop();
     } catch (_) {
       // ignore
     }
@@ -101,13 +96,9 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     final text = script.trim();
     if (text.isEmpty) return;
     try {
-      await _tts.setLanguage('ko-KR');
-      await _tts.setSpeechRate(0.45);
-      await _tts.setPitch(1.0);
-      await _tts.awaitSpeakCompletion(true);
       if (!mounted) return;
       setState(() => _ttsSpeaking = true);
-      await _speakWithGenderIfPossible(text);
+      await ref.read(ttsProvider).speakAndWait(text);
       if (!mounted) return;
       setState(() => _ttsSpeaking = false);
     } catch (_) {
@@ -116,105 +107,6 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể đọc TTS.')),
       );
-    }
-  }
-
-  Future<void> _ensureTtsVoicesLoaded() async {
-    if (_ttsVoices != null) return;
-    try {
-      final voices = await _tts.getVoices;
-      if (voices is List) {
-        _ttsVoices = voices;
-      } else {
-        _ttsVoices = const [];
-      }
-
-      Map<String, dynamic>? pickVoice(bool female) {
-        for (final v in _ttsVoices ?? const []) {
-          if (v is! Map) continue;
-          final m = v.cast<String, dynamic>();
-          final name = (m['name'] ?? '').toString().toLowerCase();
-          final locale = (m['locale'] ?? '').toString().toLowerCase();
-          if (!locale.contains('ko')) continue;
-
-          final isFemale =
-              name.contains('female') || name.contains('woman') || name.contains('여성');
-          final isMale =
-              name.contains('male') || name.contains('man') || name.contains('남성');
-          if (female && isFemale) return m;
-          if (!female && isMale) return m;
-        }
-        for (final v in _ttsVoices ?? const []) {
-          if (v is! Map) continue;
-          final m = v.cast<String, dynamic>();
-          final locale = (m['locale'] ?? '').toString().toLowerCase();
-          if (locale.contains('ko')) return m;
-        }
-        return null;
-      }
-
-      _ttsMaleVoice = pickVoice(false);
-      _ttsFemaleVoice = pickVoice(true);
-    } catch (_) {
-      _ttsVoices = const [];
-      _ttsMaleVoice = null;
-      _ttsFemaleVoice = null;
-    }
-  }
-
-  bool _looksLikeDialogueLine(String line) {
-    final t = line.trimLeft();
-    return t.startsWith('남자') ||
-        t.startsWith('여자') ||
-        t.startsWith('남:') ||
-        t.startsWith('여:') ||
-        t.startsWith('남자:') ||
-        t.startsWith('여자:');
-  }
-
-  ({String role, String text}) _parseDialogueLine(String line) {
-    var t = line.trim();
-    String role = '';
-    if (t.startsWith('남자')) role = 'male';
-    if (t.startsWith('여자')) role = 'female';
-    if (t.startsWith('남:') || t.startsWith('남자:')) role = 'male';
-    if (t.startsWith('여:') || t.startsWith('여자:')) role = 'female';
-
-    t = t
-        .replaceFirst(RegExp(r'^(남자|여자)\s*[:：\-]?\s*'), '')
-        .replaceFirst(RegExp(r'^(남|여)\s*[:：\-]\s*'), '')
-        .trim();
-    return (role: role, text: t);
-  }
-
-  Future<void> _speakWithGenderIfPossible(String script) async {
-    await _ensureTtsVoicesLoaded();
-
-    final lines = script
-        .split(RegExp(r'\r?\n'))
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    final hasDialogue = lines.any(_looksLikeDialogueLine);
-    if (!hasDialogue) {
-      await _tts.speak(script);
-      return;
-    }
-
-    for (final line in lines) {
-      if (!mounted) return;
-      final parsed = _parseDialogueLine(line);
-      if (parsed.text.isEmpty) continue;
-
-      if (parsed.role == 'male' && _ttsMaleVoice != null) {
-        await _tts.setVoice(_ttsMaleVoice!.map((k, v) => MapEntry(k, v.toString())));
-      } else if (parsed.role == 'female' && _ttsFemaleVoice != null) {
-        await _tts.setVoice(_ttsFemaleVoice!.map((k, v) => MapEntry(k, v.toString())));
-      }
-
-      await _tts.speak(parsed.text);
-      // awaitSpeakCompletion(true) is enabled, so speak() blocks until completion.
     }
   }
 
