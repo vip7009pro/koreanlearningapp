@@ -5,10 +5,10 @@
         "quality": "train"
     },
     "espeak": {
-        "voice": "Korean"
+      "voice": "Korean"
     },
     "language": {
-        "code": "Korean"
+      "code": "Korean"
     },
     "inference": {
         "noise_scale": 0.667,

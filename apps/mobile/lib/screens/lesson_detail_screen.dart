@@ -57,6 +57,19 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     } catch (_) {}
   }
 
+  void _showEngineToast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
   void _speakKorean(String text) {
     ref.read(ttsProvider).speak(text);
   }
@@ -106,6 +119,10 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     final session = ++_dialoguePlaySession;
     if (mounted) setState(() => _isDialoguePlaying = true);
 
+    final tts = ref.read(ttsProvider);
+    final selectedEngineLabel = tts.selectedEngineLabel;
+    var announcedPlaybackMode = false;
+
     try {
       for (var i = 0; i < _dialogues.length; i++) {
         final item = _dialogues[i];
@@ -117,6 +134,13 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
         final d = item as dynamic;
         final koreanText = (d['koreanText'] ?? '').toString();
         final audioUrl = (d['audioUrl'] ?? '').toString();
+
+        if (!announcedPlaybackMode) {
+          _showEngineToast(audioUrl.isNotEmpty
+              ? 'Dialogue source: remote audio'
+              : 'Dialogue engine: $selectedEngineLabel');
+          announcedPlaybackMode = true;
+        }
 
         if (audioUrl.isNotEmpty) {
           try {
@@ -140,18 +164,28 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             }
           } catch (_) {
             if (koreanText.isNotEmpty) {
-              await ref.read(ttsProvider).speakAndWait(
-                    koreanText,
-                    timeout: const Duration(seconds: 12),
-                  );
+              final result = await tts.speakAndWaitWithEngine(
+                koreanText,
+                timeout: const Duration(seconds: 12),
+              );
+              if (result.engineLabel != selectedEngineLabel) {
+                final detail =
+                    result.detail == null ? '' : '\n${result.detail}';
+                _showEngineToast(
+                    'Dialogue engine: ${result.engineLabel}$detail');
+              }
             }
           }
         } else {
           if (koreanText.isNotEmpty) {
-            await ref.read(ttsProvider).speakAndWait(
-                  koreanText,
-                  timeout: const Duration(seconds: 12),
-                );
+            final result = await tts.speakAndWaitWithEngine(
+              koreanText,
+              timeout: const Duration(seconds: 12),
+            );
+            if (result.engineLabel != selectedEngineLabel) {
+              final detail = result.detail == null ? '' : '\n${result.detail}';
+              _showEngineToast('Dialogue engine: ${result.engineLabel}$detail');
+            }
           }
         }
 
@@ -531,14 +565,16 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
                                   if (!mounted) return;
                                   messenger.showSnackBar(
                                     const SnackBar(
-                                      content: Text('Đã thêm vào danh sách ôn tập!'),
+                                      content:
+                                          Text('Đã thêm vào danh sách ôn tập!'),
                                     ),
                                   );
                                 } catch (_) {
                                   if (!mounted) return;
                                   messenger.showSnackBar(
                                     const SnackBar(
-                                      content: Text('Có lỗi xảy ra, vui lòng thử lại'),
+                                      content: Text(
+                                          'Có lỗi xảy ra, vui lòng thử lại'),
                                     ),
                                   );
                                 }
@@ -740,7 +776,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             itemBuilder: (_, i) {
               final d = _dialogues[i];
               final isLeft = i % 2 == 0;
-              final isPlaying = _isDialoguePlaying && _playingDialogueIndex == i;
+              final isPlaying =
+                  _isDialoguePlaying && _playingDialogueIndex == i;
               return Padding(
                 key: _dialogueItemKeys.length > i ? _dialogueItemKeys[i] : null,
                 padding: const EdgeInsets.only(bottom: 12),

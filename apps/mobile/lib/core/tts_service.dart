@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +44,14 @@ class TtsService {
   bool get _usePiperTts =>
       ref.read(appSettingsProvider).ttsMode == AppSettingsNotifier.ttsModePiper;
 
+  String get selectedEngineLabel {
+    if (_usePiperTts) return 'Piper offline (ONNX Runtime)';
+    if (_useCloudTts) return 'Google Cloud TTS';
+    return 'Device TTS';
+  }
+
+  bool get isPiperReady => _piperInitialized;
+
   String _assetBasename(String assetPath) {
     return assetPath.split('/').last;
   }
@@ -53,10 +62,8 @@ class TtsService {
     final file = File('${directory.path}/tts_models/$fileName');
     await file.parent.create(recursive: true);
 
-    if (!await file.exists()) {
-      final data = await rootBundle.load(assetPath);
-      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
-    }
+    final data = await rootBundle.load(assetPath);
+    await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
 
     return file.path;
   }
@@ -73,7 +80,11 @@ class TtsService {
       ..sort();
 
     if (assetPaths.isEmpty) {
-      throw StateError('No assets found under $assetDirectoryPath');
+      throw StateError(
+        'No assets found under $assetDirectoryPath in the Flutter asset bundle. '
+        'Run a full rebuild after updating pubspec.yaml so the espeak-ng-data '
+        'directory is packaged.',
+      );
     }
 
     final directory = await getApplicationDocumentsDirectory();
@@ -87,10 +98,9 @@ class TtsService {
 
       final targetFile = File('${targetRoot.path}/$relativePath');
       await targetFile.parent.create(recursive: true);
-      if (!await targetFile.exists()) {
-        final data = await rootBundle.load(assetPath);
-        await targetFile.writeAsBytes(data.buffer.asUint8List(), flush: true);
-      }
+
+      final data = await rootBundle.load(assetPath);
+      await targetFile.writeAsBytes(data.buffer.asUint8List(), flush: true);
     }
 
     return targetRoot.path;
@@ -164,11 +174,13 @@ class TtsService {
 
       _piperTts = sherpa_onnx.OfflineTts(config);
       _piperInitialized = true;
-    } catch (_) {
+    } catch (error, stackTrace) {
       _piperTts = null;
       _piperInitialized = false;
+      debugPrint('Piper init failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       throw StateError(
-        'Piper offline TTS is not ready. Add Piper model files and espeak-ng-data to assets/models/ and try again.',
+        'Piper offline TTS is not ready: $error',
       );
     }
   }
@@ -559,6 +571,49 @@ class TtsService {
     }
 
     await _speakLocalScript(normalized, timeout: timeout);
+  }
+
+  Future<({String engineLabel, String? detail})> speakAndWaitWithEngine(
+    String text, {
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final normalized = text.trim();
+    if (normalized.isEmpty) {
+      return (engineLabel: 'No text', detail: null);
+    }
+
+    if (_usePiperTts) {
+      try {
+        await _speakPiper(normalized, wait: true, timeout: timeout);
+        return (engineLabel: 'Piper offline (ONNX Runtime)', detail: null);
+      } catch (error, stackTrace) {
+        debugPrint('Piper speak failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        await _speakLocalScript(normalized, timeout: timeout);
+        return (
+          engineLabel: 'Device TTS (fallback from Piper)',
+          detail: error.toString(),
+        );
+      }
+    }
+
+    if (_useCloudTts) {
+      try {
+        await _speakCloud(normalized, wait: true, timeout: timeout);
+        return (engineLabel: 'Google Cloud TTS', detail: null);
+      } catch (error, stackTrace) {
+        debugPrint('Google Cloud TTS speak failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        await _speakLocalScript(normalized, timeout: timeout);
+        return (
+          engineLabel: 'Device TTS (fallback from Google Cloud TTS)',
+          detail: error.toString(),
+        );
+      }
+    }
+
+    await _speakLocalScript(normalized, timeout: timeout);
+    return (engineLabel: 'Device TTS', detail: null);
   }
 
   Future<void> stop() async {
