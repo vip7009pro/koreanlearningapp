@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -14,6 +15,14 @@ final ttsProvider = Provider<TtsService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+final deviceKoreanVoiceAvailableProvider = FutureProvider<bool>((ref) {
+  return ref.read(ttsProvider).hasKoreanDeviceVoice();
+});
+
+const MethodChannel _ttsSettingsChannel = MethodChannel(
+  'korean_learning_app/tts_settings',
+);
 
 class TtsService {
   final Ref ref;
@@ -35,6 +44,12 @@ class TtsService {
   String get selectedEngineLabel {
     if (_useCloudTts) return 'Google Cloud TTS';
     return 'Device TTS';
+  }
+
+  bool _isKoreanVoice(Map<String, dynamic> voice) {
+    final name = (voice['name'] ?? '').toString().toLowerCase();
+    final locale = (voice['locale'] ?? '').toString().toLowerCase();
+    return locale.contains('ko') || name.contains('korean');
   }
 
   Future<void> _initLocal() async {
@@ -100,9 +115,9 @@ class TtsService {
         for (final v in _voices ?? const []) {
           if (v is! Map) continue;
           final map = v.cast<String, dynamic>();
+          if (!_isKoreanVoice(map)) continue;
+
           final name = (map['name'] ?? '').toString().toLowerCase();
-          final locale = (map['locale'] ?? '').toString().toLowerCase();
-          if (!locale.contains('ko')) continue;
 
           final isFemale = name.contains('female') ||
               name.contains('woman') ||
@@ -117,8 +132,7 @@ class TtsService {
         for (final v in _voices ?? const []) {
           if (v is! Map) continue;
           final map = v.cast<String, dynamic>();
-          final locale = (map['locale'] ?? '').toString().toLowerCase();
-          if (locale.contains('ko')) return map;
+          if (_isKoreanVoice(map)) return map;
         }
         return null;
       }
@@ -129,6 +143,27 @@ class TtsService {
       _voices = const [];
       _maleVoice = null;
       _femaleVoice = null;
+    }
+  }
+
+  Future<bool> hasKoreanDeviceVoice() async {
+    await _ensureVoicesLoaded();
+    return (_voices ?? const [])
+        .whereType<Map>()
+        .map((voice) => voice.cast<String, dynamic>())
+        .any(_isKoreanVoice);
+  }
+
+  Future<bool> openDeviceTtsSettings() async {
+    if (!Platform.isAndroid) return false;
+
+    try {
+      final result = await _ttsSettingsChannel.invokeMethod<bool>(
+        'openTtsSettings',
+      );
+      return result ?? true;
+    } catch (_) {
+      return false;
     }
   }
 

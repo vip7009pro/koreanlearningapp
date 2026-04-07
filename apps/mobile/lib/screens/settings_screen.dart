@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/biometric_auth.dart';
+import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -12,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
     final theme = AppSettingsNotifier.themeById(settings.themeId);
+    final deviceVoiceStatus = ref.watch(deviceKoreanVoiceAvailableProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -63,6 +65,46 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          deviceVoiceStatus.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (hasKoreanVoice) {
+              if (hasKoreanVoice) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.download_outlined),
+                    title: const Text('Tải giọng tiếng Hàn cho máy'),
+                    subtitle: const Text(
+                      'Mở cài đặt TTS của thiết bị để tải hoặc chọn voice tiếng Hàn.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      final opened = await ref
+                          .read(ttsProvider)
+                          .openDeviceTtsSettings();
+                      if (!context.mounted) return;
+                      ref.invalidate(deviceKoreanVoiceAvailableProvider);
+                      if (!opened) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Không thể mở cài đặt TTS trên thiết bị này.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           ),
           SwitchListTile(
             secondary: const Icon(Icons.fingerprint),
