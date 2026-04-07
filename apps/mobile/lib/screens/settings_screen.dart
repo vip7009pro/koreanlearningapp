@@ -41,38 +41,28 @@ class SettingsScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ),
-          RadioListTile<String>(
-            secondary: const Icon(Icons.phone_android_outlined),
-            title: const Text('Giọng mặc định của máy'),
-            subtitle: const Text('Dùng TTS có sẵn trên thiết bị'),
-            value: AppSettingsNotifier.ttsModeDevice,
+          RadioGroup<String>(
             groupValue: settings.ttsMode,
             onChanged: (value) {
               if (value == null) return;
               ref.read(appSettingsProvider.notifier).setTtsMode(value);
             },
-          ),
-          RadioListTile<String>(
-            secondary: const Icon(Icons.graphic_eq_outlined),
-            title: const Text('Giọng Hàn tự nhiên'),
-            subtitle: const Text('Dùng Google Cloud TTS neural voice'),
-            value: AppSettingsNotifier.ttsModeNatural,
-            groupValue: settings.ttsMode,
-            onChanged: (value) {
-              if (value == null) return;
-              ref.read(appSettingsProvider.notifier).setTtsMode(value);
-            },
-          ),
-          RadioListTile<String>(
-            secondary: const Icon(Icons.offline_bolt_outlined),
-            title: const Text('Piper offline (ONNX Runtime)'),
-            subtitle: const Text('Dùng model Piper cài sẵn trong app, không cần mạng'),
-            value: AppSettingsNotifier.ttsModePiper,
-            groupValue: settings.ttsMode,
-            onChanged: (value) {
-              if (value == null) return;
-              ref.read(appSettingsProvider.notifier).setTtsMode(value);
-            },
+            child: Column(
+              children: [
+                RadioListTile<String>(
+                  secondary: const Icon(Icons.phone_android_outlined),
+                  title: const Text('Giọng mặc định của máy'),
+                  subtitle: const Text('Dùng TTS có sẵn trên thiết bị'),
+                  value: AppSettingsNotifier.ttsModeDevice,
+                ),
+                RadioListTile<String>(
+                  secondary: const Icon(Icons.graphic_eq_outlined),
+                  title: const Text('Giọng Hàn tự nhiên'),
+                  subtitle: const Text('Dùng Google Cloud TTS neural voice'),
+                  value: AppSettingsNotifier.ttsModeNatural,
+                ),
+              ],
+            ),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.fingerprint),

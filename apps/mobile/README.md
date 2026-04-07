@@ -2,20 +2,9 @@
 
 A new Flutter project.
 
-## Offline Piper TTS
+## TTS Modes
 
-The app now supports a third TTS mode: Piper offline TTS powered by `sherpa_onnx`.
-
-Place these files in `apps/mobile/assets/models/`:
-
-- `piper-korean.onnx`
-- `piper-korean.onnx.json`
-- `tokens.txt` if your model requires it
-- `espeak-ng-data/` with `phontab`, `phonindex`, `phondata`, and `intonations`
-
-Then run `flutter pub get` and select `Piper offline (ONNX Runtime)` in Settings.
-
-The other two modes remain available:
+The mobile app supports two text-to-speech modes:
 
 - Device TTS
 - Google Cloud TTS

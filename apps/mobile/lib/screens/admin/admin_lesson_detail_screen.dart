@@ -663,6 +663,7 @@ class _AdminLessonDetailScreenState
       }
       if (!mounted) return;
       await _load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Imported $count grammar items')),
       );
@@ -701,6 +702,7 @@ class _AdminLessonDetailScreenState
       }
       if (!mounted) return;
       await _load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Imported $count dialogue lines')),
       );
@@ -765,6 +767,7 @@ class _AdminLessonDetailScreenState
       }
       if (!mounted) return;
       await _load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Imported $count quizzes')),
       );

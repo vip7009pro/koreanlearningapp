@@ -57,7 +57,6 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   static const String defaultGoogleModel = 'models/gemma-4-31b-it';
   static const String ttsModeDevice = 'device';
   static const String ttsModeNatural = 'google_neural';
-  static const String ttsModePiper = 'piper_offline';
   static const _kThemeId = 'app_theme_id';
   static const _kThemeMode = 'app_theme_mode';
   static const _kBiometricEnabled = 'biometric_login_enabled';
@@ -176,7 +175,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
         : (adminAiModel ?? state.adminAiModel);
     final resolvedTtsMode = ttsMode == ttsModeNatural
       ? ttsModeNatural
-      : (ttsMode == ttsModePiper ? ttsModePiper : ttsModeDevice);
+      : ttsModeDevice;
 
     state = state.copyWith(
       themeId: themeId ?? state.themeId,
@@ -233,7 +232,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setTtsMode(String mode) async {
     final normalizedMode = mode == ttsModeNatural
         ? ttsModeNatural
-        : (mode == ttsModePiper ? ttsModePiper : ttsModeDevice);
+        : ttsModeDevice;
     state = state.copyWith(ttsMode: normalizedMode);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kTtsMode, normalizedMode);
