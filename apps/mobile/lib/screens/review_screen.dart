@@ -5,6 +5,7 @@ import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
 import '../core/tts_service.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key});
@@ -402,6 +403,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             )
           else
             const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          const AppBannerAd(),
         ],
       ),
     );

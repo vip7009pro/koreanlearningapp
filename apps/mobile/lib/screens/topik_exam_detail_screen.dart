@@ -4,13 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class TopikExamDetailScreen extends ConsumerStatefulWidget {
   final String examId;
   const TopikExamDetailScreen({super.key, required this.examId});
 
   @override
-  ConsumerState<TopikExamDetailScreen> createState() => _TopikExamDetailScreenState();
+  ConsumerState<TopikExamDetailScreen> createState() =>
+      _TopikExamDetailScreenState();
 }
 
 class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
@@ -64,7 +66,9 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
   }
 
   List<Map<String, dynamic>> _sectionsByTypes(Set<String> types) {
-    return _sections().where((s) => types.contains((s['type'] ?? '').toString())).toList();
+    return _sections()
+        .where((s) => types.contains((s['type'] ?? '').toString()))
+        .toList();
   }
 
   int _sumDuration(List<Map<String, dynamic>> sections) {
@@ -107,7 +111,8 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
   Future<void> _practiceTypes(List<String> types) async {
     final api = ref.read(apiClientProvider);
     try {
-      final session = await api.startTopikSession(widget.examId, sectionTypes: types);
+      final session =
+          await api.startTopikSession(widget.examId, sectionTypes: types);
       if (!mounted) return;
       final id = (session.data['id'] ?? '').toString();
       if (id.isNotEmpty) {
@@ -133,7 +138,9 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(exam != null ? (exam['title'] ?? 'Chi tiết đề thi') : 'Chi tiết đề thi'),
+        title: Text(exam != null
+            ? (exam['title'] ?? 'Chi tiết đề thi')
+            : 'Chi tiết đề thi'),
         foregroundColor: Colors.white,
         backgroundColor: Colors.transparent,
         flexibleSpace: Container(
@@ -151,11 +158,13 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.redAccent),
                         const SizedBox(height: 12),
                         Text(_error!, textAlign: TextAlign.center),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _load, child: const Text('Thử lại')),
+                        ElevatedButton(
+                            onPressed: _load, child: const Text('Thử lại')),
                       ],
                     ),
                   ),
@@ -170,9 +179,11 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: palette.seedColor.withValues(alpha: 0.12),
+                                  color:
+                                      palette.seedColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -204,7 +215,8 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.play_circle_outline, color: Colors.orange),
+                                  const Icon(Icons.play_circle_outline,
+                                      color: Colors.orange),
                                   const SizedBox(width: 10),
                                   const Expanded(
                                     child: Text(
@@ -219,13 +231,15 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                             _buildSessionCard(
                               title: 'Ca 1: Nghe + Viết',
                               subtitle: '60 phút Nghe, 50 phút Viết',
-                              sections: _sectionsByTypes({'LISTENING', 'WRITING'}),
+                              sections:
+                                  _sectionsByTypes({'LISTENING', 'WRITING'}),
                             ),
                             const SizedBox(height: 10),
                             SizedBox(
                               height: 44,
                               child: OutlinedButton.icon(
-                                onPressed: () => _practiceTypes(['LISTENING', 'WRITING']),
+                                onPressed: () =>
+                                    _practiceTypes(['LISTENING', 'WRITING']),
                                 icon: const Icon(Icons.fitness_center),
                                 label: const Text('Luyện ca 1'),
                               ),
@@ -252,6 +266,8 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                               sections: _sections(),
                             ),
                           ],
+                          const SizedBox(height: 18),
+                          const AppBannerAd(),
                           const SizedBox(height: 18),
                           SizedBox(
                             height: 48,
@@ -286,13 +302,16 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
                 if (duration > 0)
                   Text(
                     '$duration m',
-                    style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600),
                   ),
               ],
             ),
@@ -303,8 +322,7 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (maxScore > 0)
-                  _pill('$maxScore điểm'),
+                if (maxScore > 0) _pill('$maxScore điểm'),
                 ...sections.map((s) {
                   final type = (s['type'] ?? '').toString();
                   final d = s['durationMinutes'];
@@ -332,7 +350,10 @@ class _TopikExamDetailScreenState extends ConsumerState<TopikExamDetailScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade800,
+            fontWeight: FontWeight.w600),
       ),
     );
   }

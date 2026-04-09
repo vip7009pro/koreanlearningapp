@@ -58,7 +58,7 @@ export default function CourseDetailPage() {
           <p className="text-gray-500 mt-1">{course?.description}</p>
           <div className="flex gap-2 mt-2">
             <span className="badge badge-blue">{course?.level}</span>
-            {course?.isPremium && <span className="badge badge-yellow">Premium</span>}
+            {course?.isPremium && <span className="badge badge-yellow">Ad-free</span>}
             {course?.published ? <span className="badge badge-green">Published</span> : <span className="badge badge-red">Draft</span>}
           </div>
         </div>

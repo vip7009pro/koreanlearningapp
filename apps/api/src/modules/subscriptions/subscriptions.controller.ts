@@ -65,7 +65,7 @@ export class SubscriptionsController {
 
   @Post('google/verify')
   @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
-  @ApiOperation({ summary: 'Verify a Google Play subscription purchase' })
+  @ApiOperation({ summary: 'Verify a Google Play ad-free purchase' })
   verifyGooglePlay(@CurrentUser('id') userId: string, @Body() dto: GooglePlayVerifyDto) {
     return this.subscriptionsService.verifyGooglePlaySubscription(userId, dto);
   }
@@ -77,7 +77,7 @@ export class SubscriptionsController {
 
   @Get('check-premium')
   @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
-  @ApiOperation({ summary: 'Check premium status' })
+  @ApiOperation({ summary: 'Check ad-free status' })
   checkPremium(@CurrentUser('id') userId: string) {
     return this.subscriptionsService.checkPremium(userId).then((isPremium) => ({ isPremium }));
   }

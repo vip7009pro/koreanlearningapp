@@ -88,7 +88,7 @@ async function main() {
 
   const course2 = await prisma.course.create({
     data: {
-      title: 'Tiếng Hàn Công Sở (Premium)',
+      title: 'Tiếng Hàn Công Sở (Ad-free)',
       description: 'Giao tiếp chuyên nghiệp trong môi trường doanh nghiệp Hàn Quốc. Viết email, báo cáo, thuyết trình và văn hóa công ty.',
       level: CourseLevel.INTERMEDIATE,
       isPremium: true,
@@ -247,7 +247,7 @@ async function main() {
 
 
   // ==========================================
-  // COURSE 2: OFFICE KOREAN (PREMIUM)
+  // COURSE 2: OFFICE KOREAN (AD-FREE)
   // ==========================================
   const c2_sec1 = await prisma.section.create({ data: { courseId: course2.id, title: 'Ngày đầu tiên đi làm', orderIndex: 0 } });
   const c2_sec2 = await prisma.section.create({ data: { courseId: course2.id, title: 'Giao tiếp nội bộ', orderIndex: 1 } });

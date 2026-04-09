@@ -260,7 +260,7 @@ export class SubscriptionsService {
         currency: 'VND',
         duration: '30 ngày',
         androidProductId: this.monthlyProductId,
-        features: ['Toàn bộ bài học', 'AI Writing Practice', 'Không giới hạn bài kiểm tra', 'Ôn tập SRS', 'Tải về học offline'],
+        features: ['Không quảng cáo trên toàn app', 'AI Writing Practice', 'Không giới hạn bài kiểm tra', 'Ôn tập SRS', 'Tải về học offline'],
       },
       {
         type: 'LIFETIME',
@@ -268,7 +268,7 @@ export class SubscriptionsService {
         currency: 'VND',
         duration: '12 tháng',
         androidProductId: this.annualProductId,
-        features: ['Tất cả tính năng Premium', 'Cập nhật nội dung miễn phí trong thời hạn gói', 'Ưu tiên hỗ trợ'],
+        features: ['Không quảng cáo trên toàn app', 'Cập nhật nội dung miễn phí trong thời hạn gói', 'Ưu tiên hỗ trợ'],
       },
     ];
   }

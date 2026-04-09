@@ -25,7 +25,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   bool _isLoadingPlans = true;
   bool _billingAvailable = false;
   List<dynamic> _plans = [];
-  bool _isPremium = false;
+  bool _isAdFree = false;
   final Map<String, ProductDetails> _productDetailsById = {};
   final Set<String> _handledTokens = {};
 
@@ -118,7 +118,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       if (!mounted) return;
       setState(() {
         _plans = plans;
-        _isPremium = resStatus.data['isPremium'] ?? false;
+        _isAdFree = resStatus.data['isPremium'] ?? false;
         _billingAvailable = billingAvailable;
         _productDetailsById
           ..clear()
@@ -257,7 +257,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
     if (!mounted) return;
 
-    setState(() => _isPremium = true);
+    setState(() => _isAdFree = true);
 
     try {
       await ref.read(authProvider.notifier).refreshProfile();
@@ -268,7 +268,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         SnackBar(
           content: Text(
             response.data['verified'] == true
-                ? 'Thanh toán Google Play thành công! Bạn đã là Premium.'
+                ? 'Thanh toán Google Play thành công! Quảng cáo đã được tắt.'
                 : 'Thanh toán đã hoàn tất.',
           ),
         ),
@@ -283,7 +283,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gói Premium'),
+        title: const Text('Gói không quảng cáo'),
         actions: [
           if (_billingAvailable)
             TextButton.icon(
@@ -306,7 +306,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'Nâng tầm học Tiếng Hàn',
+                        'Học tập không quảng cáo',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -315,7 +315,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Mua và gia hạn trực tiếp qua Google Play Store. Giá hiển thị đã được định dạng để dễ đọc.',
+                        'Mua và gia hạn trực tiếp qua Google Play Store để ẩn quảng cáo theo tháng hoặc theo năm.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey),
                       ),
@@ -335,7 +335,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             style: TextStyle(color: Colors.orange.shade900),
                           ),
                         ),
-                      if (_isPremium) ...[
+                      if (_isAdFree) ...[
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -350,7 +350,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Tài khoản của bạn đang có Premium.',
+                                  'Tài khoản của bạn đang không có quảng cáo.',
                                   style: TextStyle(
                                     color: Colors.green,
                                     fontWeight: FontWeight.bold,
@@ -481,7 +481,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    onPressed: _isLoading || _isPremium
+                                    onPressed: _isLoading || _isAdFree
                                         ? null
                                         : () => _buyPlan(map),
                                     child: _isLoading

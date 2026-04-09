@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/biometric_auth.dart';
 import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -86,9 +87,8 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
-                      final opened = await ref
-                          .read(ttsProvider)
-                          .openDeviceTtsSettings();
+                      final opened =
+                          await ref.read(ttsProvider).openDeviceTtsSettings();
                       if (!context.mounted) return;
                       ref.invalidate(deviceKoreanVoiceAvailableProvider);
                       if (!opened) {
@@ -137,6 +137,12 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: AppBannerAd(),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );

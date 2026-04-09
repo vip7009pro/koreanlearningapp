@@ -8,6 +8,7 @@ import '../core/api_client.dart';
 import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class LessonDetailScreen extends ConsumerStatefulWidget {
   final String lessonId;
@@ -205,44 +206,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
   Future<void> _loadData() async {
     final api = ref.read(apiClientProvider);
     try {
-      final router = GoRouter.of(context);
-      final premiumRes = await api.checkPremiumStatus();
-      final isPremiumUser = premiumRes.data?['isPremium'] == true;
       final lessonRes = await api.getLesson(widget.lessonId);
       final lessonData = lessonRes.data as Map<String, dynamic>;
-
-      final section = lessonData['section'] as Map?;
-      final course = section?['course'] as Map?;
-      final isPremiumCourse = course?['isPremium'] == true;
-      if (mounted && isPremiumCourse && !isPremiumUser) {
-        final shouldUpgrade = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Cần Premium'),
-            content: const Text(
-              'Bài học này thuộc khóa học Premium. Bạn cần Premium để vào xem nội dung. Bạn muốn nâng cấp ngay không?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Để sau'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Nâng cấp'),
-              ),
-            ],
-          ),
-        );
-
-        if (!mounted) return;
-        if (shouldUpgrade == true) {
-          await router.push('/subscription');
-          if (!mounted) return;
-        }
-        router.pop();
-        return;
-      }
 
       _lesson = lessonData;
       _vocab = _lesson?['vocabularies'] ?? [];
@@ -351,66 +316,81 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     final theme = AppSettingsNotifier.themeById(themeId);
 
     if (_vocabListView) {
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _vocab.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) {
-          final v = _vocab[i];
-          return Card(
-            child: ListTile(
-              title: Text(
-                v['korean'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  if ((v['pronunciation'] ?? '').toString().isNotEmpty)
-                    Text(
-                      v['pronunciation'] ?? '',
-                      style: TextStyle(color: Colors.grey.shade600),
+      return Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _vocab.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) {
+                final v = _vocab[i];
+                return Card(
+                  child: ListTile(
+                    title: Text(
+                      v['korean'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  const SizedBox(height: 2),
-                  Text(
-                    v['vietnamese'] ?? '',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF10B981),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        if ((v['pronunciation'] ?? '').toString().isNotEmpty)
+                          Text(
+                            v['pronunciation'] ?? '',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        const SizedBox(height: 2),
+                        Text(
+                          v['vietnamese'] ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                        if ((v['exampleSentence'] ?? '')
+                            .toString()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            v['exampleSentence'] ?? '',
+                            style: TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          if ((v['exampleMeaning'] ?? '').toString().isNotEmpty)
+                            Text(
+                              v['exampleMeaning'] ?? '',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                        ],
+                      ],
                     ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.volume_up, color: theme.seedColor),
+                      onPressed: () =>
+                          _speakKorean((v['korean'] ?? '').toString()),
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _currentVocabIndex = i;
+                        _vocabListView = false;
+                        _showMeaning = false;
+                      });
+                    },
                   ),
-                  if ((v['exampleSentence'] ?? '').toString().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      v['exampleSentence'] ?? '',
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    if ((v['exampleMeaning'] ?? '').toString().isNotEmpty)
-                      Text(
-                        v['exampleMeaning'] ?? '',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                  ],
-                ],
-              ),
-              trailing: IconButton(
-                icon: Icon(Icons.volume_up, color: theme.seedColor),
-                onPressed: () => _speakKorean((v['korean'] ?? '').toString()),
-              ),
-              onTap: () {
-                setState(() {
-                  _currentVocabIndex = i;
-                  _vocabListView = false;
-                  _showMeaning = false;
-                });
+                );
               },
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: AppBannerAd(),
+          ),
+          const SizedBox(height: 12),
+        ],
       );
     }
 
@@ -616,6 +596,12 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
               child: const Icon(Icons.volume_up, color: Colors.white),
             ),
           ),
+        const SizedBox(height: 12),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AppBannerAd(),
+        ),
+        const SizedBox(height: 12),
         // Progress
         Padding(
           padding: const EdgeInsets.all(16),
@@ -655,71 +641,85 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
     if (_grammar.isEmpty) return const Center(child: Text('Chưa có ngữ pháp'));
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _grammar.length,
-      itemBuilder: (_, i) {
-        final g = _grammar[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  g['pattern'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.volume_up, color: theme.seedColor, size: 20),
-                  onPressed: () => _speakKorean(g['pattern'] ?? ''),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  g['explanationVN'] ?? '',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                if (g['example'] != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            g['example'],
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade700,
-                              fontStyle: FontStyle.italic,
-                            ),
+            itemCount: _grammar.length,
+            itemBuilder: (_, i) {
+              final g = _grammar[i];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        g['pattern'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.volume_up,
+                            color: theme.seedColor, size: 20),
+                        onPressed: () => _speakKorean(g['pattern'] ?? ''),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        g['explanationVN'] ?? '',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      if (g['example'] != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  g['example'],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade700,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.volume_up,
+                                    color: theme.seedColor, size: 18),
+                                onPressed: () =>
+                                    _speakKorean(g['example'] ?? ''),
+                              ),
+                            ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.volume_up,
-                              color: theme.seedColor, size: 18),
-                          onPressed: () => _speakKorean(g['example'] ?? ''),
-                        ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-              ],
-            ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AppBannerAd(),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -908,47 +908,65 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
             },
           ),
         ),
+        const SizedBox(height: 12),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AppBannerAd(),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }
 
   Widget _buildQuizTab() {
     if (_quizzes.isEmpty) return const Center(child: Text('Chưa có bài tập'));
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _quizzes.length,
-      itemBuilder: (_, i) {
-        final q = _quizzes[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.quiz, color: Colors.orange),
-              ),
-            ),
-            title: Text(
-              q['title'] ?? '',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              '${q['quizType']} · ${(q['questions'] as List?)?.length ?? 0} câu hỏi',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-            trailing: const Icon(
-              Icons.play_arrow_rounded,
-              color: Colors.black,
-            ),
-            onTap: () => context.push('/quiz/${q['id']}'),
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _quizzes.length,
+            itemBuilder: (_, i) {
+              final q = _quizzes[i];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.quiz, color: Colors.orange),
+                    ),
+                  ),
+                  title: Text(
+                    q['title'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${q['quizType']} · ${(q['questions'] as List?)?.length ?? 0} câu hỏi',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  trailing: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.black,
+                  ),
+                  onTap: () => context.push('/quiz/${q['id']}'),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AppBannerAd(),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

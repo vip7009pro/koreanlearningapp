@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -46,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _handleOpenCourse(dynamic course) async {
+    await ref.read(adsManagerProvider).maybeShowInterstitialAd();
     if (!mounted) return;
     context.push('/course/${course['id']}');
   }
@@ -296,6 +301,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: AppBannerAd(adSize: AdSize.largeBanner),
+                    ),
+                  ),
 
                   // Courses Header
                   SliverToBoxAdapter(
@@ -402,7 +416,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                       BorderRadius.circular(6),
                                                 ),
                                                 child: Text(
-                                                  'Premium',
+                                                  'Ad-free',
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     color:
@@ -476,7 +490,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: InkWell(
                               onTap: id.isEmpty
                                   ? null
-                                  : () => context.push('/topik/exam/$id'),
+                                  : () async {
+                                      await ref
+                                          .read(adsManagerProvider)
+                                          .maybeShowInterstitialAd();
+                                      if (!context.mounted) return;
+                                      context.push('/topik/exam/$id');
+                                    },
                               borderRadius: BorderRadius.circular(16),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),

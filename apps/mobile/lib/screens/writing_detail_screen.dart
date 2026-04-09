@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class WritingDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> item;
@@ -117,6 +118,8 @@ class WritingDetailScreen extends ConsumerWidget {
               color: Colors.green,
               child: Text(feedback, style: const TextStyle(fontSize: 15)),
             ),
+            const SizedBox(height: 16),
+            const AppBannerAd(),
             const SizedBox(height: 24),
           ],
         ),

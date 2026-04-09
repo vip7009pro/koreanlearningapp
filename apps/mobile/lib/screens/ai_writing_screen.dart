@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+import '../widgets/app_banner_ad.dart';
 
 const List<Map<String, String>> _defaultTopics = [
   {
@@ -280,6 +281,8 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Gửi cho AI chấm điểm'),
             ),
+            const SizedBox(height: 16),
+            const AppBannerAd(),
             if (_result != null) ...[
               const SizedBox(height: 32),
               const Text('Kết quả phân tích 📝',

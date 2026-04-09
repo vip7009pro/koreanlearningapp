@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import 'package:intl/intl.dart';
 
+import '../core/ads_manager.dart';
+import '../widgets/app_banner_ad.dart';
+
 class WritingHistoryScreen extends ConsumerStatefulWidget {
   const WritingHistoryScreen({super.key});
 
@@ -43,6 +46,12 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
     if (score >= 80) return Colors.green;
     if (score >= 50) return Colors.orange;
     return Colors.red;
+  }
+
+  Future<void> _openHistoryItem(dynamic item) async {
+    await ref.read(adsManagerProvider).maybeShowInterstitialAd();
+    if (!mounted) return;
+    context.push('/writing-detail', extra: item);
   }
 
   @override
@@ -100,8 +109,15 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _items.length,
+                        itemCount: _items.length + 1,
                         itemBuilder: (context, index) {
+                          if (index == _items.length) {
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: AppBannerAd(),
+                            );
+                          }
+
                           final item = _items[index];
                           final score = item['score'] ?? 0;
                           final prompt = item['prompt'] ?? '';
@@ -115,8 +131,7 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
                             margin: const EdgeInsets.only(bottom: 12),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(16),
-                              onTap: () =>
-                                  context.push('/writing-detail', extra: item),
+                              onTap: () => _openHistoryItem(item),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Row(

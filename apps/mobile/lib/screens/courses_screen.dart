@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class CoursesScreen extends ConsumerStatefulWidget {
   const CoursesScreen({super.key});
@@ -37,6 +40,12 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     }
   }
 
+  Future<void> _openCourse(dynamic course) async {
+    await ref.read(adsManagerProvider).maybeShowInterstitialAd();
+    if (!mounted) return;
+    context.push('/course/${course['id']}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
@@ -59,8 +68,15 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
               onRefresh: _load,
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _courses.length,
+                itemCount: _courses.length + 1,
                 itemBuilder: (_, index) {
+                  if (index == _courses.length) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: AppBannerAd(adSize: AdSize.largeBanner),
+                    );
+                  }
+
                   final course = _courses[index];
                   final isPremium = course['isPremium'] == true;
 
@@ -68,7 +84,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Card(
                       child: InkWell(
-                        onTap: () => context.push('/course/${course['id']}'),
+                        onTap: () => _openCourse(course),
                         borderRadius: BorderRadius.circular(16),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -78,8 +94,8 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
-                                  color: palette.seedColor
-                                      .withValues(alpha: 0.12),
+                                  color:
+                                      palette.seedColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Center(
@@ -147,7 +163,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                                   BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              'Premium',
+                                              'Ad-free',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: Colors.amber.shade900,

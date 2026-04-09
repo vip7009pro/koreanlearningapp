@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
 import '../providers/auth_provider.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -206,7 +209,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         size: 12, color: Colors.white),
                                     SizedBox(width: 4),
                                     Text(
-                                      'Premium',
+                                      'Không quảng cáo',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
@@ -262,7 +265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Premium Upgrade Banner
+            // Ad-free Upgrade Banner
             Card(
               color: isDark ? const Color(0xFF3B2F0B) : Colors.amber.shade50,
               shape: RoundedRectangleBorder(
@@ -278,14 +281,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   size: 32,
                 ),
                 title: Text(
-                  'Nâng cấp Premium',
+                  'Tắt quảng cáo',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.amber.shade100 : Colors.black87,
                   ),
                 ),
                 subtitle: Text(
-                  'Mở khóa toàn bộ bài học, luyện AI và không quảng cáo.',
+                  'Loại bỏ quảng cáo theo tháng hoặc theo năm và ủng hộ app.',
                   style: TextStyle(
                     color: isDark
                         ? Colors.amber.shade100.withValues(alpha: 0.85)
@@ -401,6 +404,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
+            const SizedBox(height: 16),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: AppBannerAd(adSize: AdSize.largeBanner),
+            ),
             const SizedBox(height: 16),
 
             // Logout

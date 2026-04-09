@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
@@ -84,6 +85,11 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                                 _users[2], 3, Colors.deepOrange.shade300, 80),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: AppBannerAd(),
                     ),
                     const SizedBox(height: 16),
                     Expanded(

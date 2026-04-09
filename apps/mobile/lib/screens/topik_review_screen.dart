@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
+import '../widgets/app_banner_ad.dart';
 
 class TopikReviewScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -86,7 +87,10 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
   }
 
   String _stripHtml(String html) {
-    return html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return html
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   @override
@@ -123,11 +127,13 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.redAccent),
                           const SizedBox(height: 12),
                           Text(_error!, textAlign: TextAlign.center),
                           const SizedBox(height: 16),
-                          ElevatedButton(onPressed: _load, child: const Text('Thử lại')),
+                          ElevatedButton(
+                              onPressed: _load, child: const Text('Thử lại')),
                         ],
                       ),
                     ),
@@ -139,94 +145,111 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                         child: ListView(
                           padding: const EdgeInsets.all(16),
                           children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.emoji_events_outlined),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Tổng điểm',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.grey.shade800,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        '${session['totalScore'] ?? 0}${maxTotalScore != null ? '/$maxTotalScore' : ''}',
-                                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                                      ),
-                                    ],
-                                  ),
-                                  if (achievedLevel != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Đạt Level: $achievedLevel',
-                                      style: const TextStyle(fontWeight: FontWeight.w800),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 12),
-                                  ...sectionScores.map((s) {
-                                    final m = (s as Map).cast<String, dynamic>();
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              (m['type'] ?? '').toString(),
-                                              style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w700),
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.emoji_events_outlined),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Tổng điểm',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.grey.shade800,
                                             ),
                                           ),
-                                          Text(
-                                            '${m['score'] ?? 0}/${m['maxScore'] ?? ''}',
-                                            style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w700),
-                                          ),
-                                        ],
+                                        ),
+                                        Text(
+                                          '${session['totalScore'] ?? 0}${maxTotalScore != null ? '/$maxTotalScore' : ''}',
+                                          style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900),
+                                        ),
+                                      ],
+                                    ),
+                                    if (achievedLevel != null) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Đạt Level: $achievedLevel',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w800),
                                       ),
-                                    );
-                                  }),
-                                ],
+                                    ],
+                                    const SizedBox(height: 12),
+                                    ...sectionScores.map((s) {
+                                      final m =
+                                          (s as Map).cast<String, dynamic>();
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                (m['type'] ?? '').toString(),
+                                                style: TextStyle(
+                                                    color: Colors.grey.shade800,
+                                                    fontWeight:
+                                                        FontWeight.w700),
+                                              ),
+                                            ),
+                                            Text(
+                                              '${m['score'] ?? 0}/${m['maxScore'] ?? ''}',
+                                              style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                  fontWeight: FontWeight.w700),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_aiPending(data!))
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                            const SizedBox(height: 12),
+                            if (_aiPending(data!))
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color:
+                                          Colors.blue.withValues(alpha: 0.2)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                          'Đang chấm phần Viết bằng AI...'),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: const Row(
-                                children: [
-                                  SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text('Đang chấm phần Viết bằng AI...'),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Chi tiết câu trả lời',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w900),
                             ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Chi tiết câu trả lời',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 10),
-                          ..._buildAnswers(session),
+                            const SizedBox(height: 10),
+                            ..._buildAnswers(session),
+                            const SizedBox(height: 16),
+                            const AppBannerAd(),
                           ],
                         ),
                       ),
@@ -246,8 +269,11 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
       final content = _stripHtml((q['contentHtml'] ?? '').toString());
       final listeningScript = (q['listeningScript'] ?? '').toString().trim();
 
-      final selectedChoice = (m['selectedChoice'] as Map?)?.cast<String, dynamic>();
-      final selectedChoiceText = selectedChoice != null ? _stripHtml((selectedChoice['content'] ?? '').toString()) : null;
+      final selectedChoice =
+          (m['selectedChoice'] as Map?)?.cast<String, dynamic>();
+      final selectedChoiceText = selectedChoice != null
+          ? _stripHtml((selectedChoice['content'] ?? '').toString())
+          : null;
 
       final textAnswer = (m['textAnswer'] ?? '').toString();
       final score = m['score'];
@@ -268,7 +294,8 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Script (Listening):',
-                  style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                      color: Colors.grey.shade800, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -285,20 +312,43 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
               if (score != null)
                 Text(
                   'Điểm: $score',
-                  style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                      color: Colors.grey.shade800, fontWeight: FontWeight.w800),
                 ),
               if (qType == 'ESSAY') ...[
                 const SizedBox(height: 8),
                 Text(
                   'AI Score: ${aiScore ?? '—'}',
-                  style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                      color: Colors.grey.shade800, fontWeight: FontWeight.w800),
                 ),
                 if (aiFeedback != null) ...[
                   const SizedBox(height: 8),
-                  _feedbackBlock('Điểm mạnh', (aiFeedback['strengths'] as List?)?.cast<dynamic>().map((e) => e.toString()).toList() ?? []),
-                  _feedbackBlock('Điểm yếu', (aiFeedback['weaknesses'] as List?)?.cast<dynamic>().map((e) => e.toString()).toList() ?? []),
-                  _feedbackBlock('Gợi ý cải thiện', (aiFeedback['improvementSuggestions'] as List?)?.cast<dynamic>().map((e) => e.toString()).toList() ?? []),
-                  if ((aiFeedback['detailedFeedback'] ?? '').toString().trim().isNotEmpty) ...[
+                  _feedbackBlock(
+                      'Điểm mạnh',
+                      (aiFeedback['strengths'] as List?)
+                              ?.cast<dynamic>()
+                              .map((e) => e.toString())
+                              .toList() ??
+                          []),
+                  _feedbackBlock(
+                      'Điểm yếu',
+                      (aiFeedback['weaknesses'] as List?)
+                              ?.cast<dynamic>()
+                              .map((e) => e.toString())
+                              .toList() ??
+                          []),
+                  _feedbackBlock(
+                      'Gợi ý cải thiện',
+                      (aiFeedback['improvementSuggestions'] as List?)
+                              ?.cast<dynamic>()
+                              .map((e) => e.toString())
+                              .toList() ??
+                          []),
+                  if ((aiFeedback['detailedFeedback'] ?? '')
+                      .toString()
+                      .trim()
+                      .isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Text(
                       (aiFeedback['detailedFeedback'] ?? '').toString(),
@@ -325,7 +375,8 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
           const SizedBox(height: 4),
           ...items.take(5).map((s) => Padding(
                 padding: const EdgeInsets.only(bottom: 2),
-                child: Text('• $s', style: TextStyle(color: Colors.grey.shade700)),
+                child:
+                    Text('• $s', style: TextStyle(color: Colors.grey.shade700)),
               )),
         ],
       ),

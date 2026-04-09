@@ -132,7 +132,7 @@ export default function CoursesPage() {
           </div>
           <div className="flex items-center gap-2 mt-6">
             <input type="checkbox" checked={form.isPremium} onChange={(e) => setForm({ ...form, isPremium: e.target.checked })} />
-            <span className="text-sm">Premium Only</span>
+            <span className="text-sm">Ad-free Only</span>
           </div>
           <div className="md:col-span-2 flex gap-2">
             <button type="submit" className="btn-primary">{editId ? 'Update' : 'Create'}</button>
@@ -147,7 +147,7 @@ export default function CoursesPage() {
             <tr>
               <th className="table-header">Title</th>
               <th className="table-header">Level</th>
-              <th className="table-header">Premium</th>
+              <th className="table-header">Ad-free</th>
               <th className="table-header">Published</th>
               <th className="table-header">Actions</th>
             </tr>
@@ -157,7 +157,7 @@ export default function CoursesPage() {
               <tr key={course.id as string} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/courses/${course.id}`)}>
                 <td className="table-cell font-medium text-gray-900">{course.title as string}</td>
                 <td className="table-cell"><span className="badge badge-blue">{course.level as string}</span></td>
-                <td className="table-cell">{(course.isPremium as boolean) ? <span className="badge badge-yellow">Premium</span> : <span className="badge badge-green">Free</span>}</td>
+                <td className="table-cell">{(course.isPremium as boolean) ? <span className="badge badge-yellow">Ad-free</span> : <span className="badge badge-green">Free</span>}</td>
                 <td className="table-cell">{(course.published as boolean) ? <span className="badge badge-green">Published</span> : <span className="badge badge-red">Draft</span>}</td>
                 <td className="table-cell" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-2">

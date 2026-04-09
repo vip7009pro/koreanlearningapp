@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
+import '../widgets/app_banner_ad.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String quizId;
@@ -274,6 +275,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 30),
+            const AppBannerAd(),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -341,7 +344,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
               final borderColor =
                   ok ? const Color(0xFF10B981) : Colors.redAccent;
-
               return Card(
                 child: Container(
                   padding: const EdgeInsets.all(14),
@@ -410,6 +412,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             },
           ),
         ),
+        const SizedBox(height: 12),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AppBannerAd(),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }

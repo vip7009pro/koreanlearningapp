@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
+import '../widgets/app_banner_ad.dart';
 
 class CourseDetailScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -18,7 +19,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
   Map<String, dynamic>? _progress;
   Map<String, bool> _lessonCompleted = {};
   bool _loading = true;
-  bool _isPremiumUser = false;
 
   @override
   void initState() {
@@ -33,7 +33,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
       final sectionsRes = await api.getSections(widget.courseId);
       final progressRes = await api.getCourseProgress(widget.courseId);
       final userProgressRes = await api.getUserProgress();
-      final premiumRes = await api.checkPremiumStatus();
 
       final Map<String, bool> completedMap = {};
       final progressItems = (userProgressRes.data as List?) ?? [];
@@ -52,7 +51,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           _sections = sectionsRes.data ?? [];
           _progress = progressRes.data;
           _lessonCompleted = completedMap;
-          _isPremiumUser = premiumRes.data?['isPremium'] ?? false;
           _loading = false;
         });
       }
@@ -96,7 +94,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
 
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
-    final isPremiumCourse = _course?['isPremium'] == true;
 
     return Scaffold(
       body: CustomScrollView(
@@ -162,6 +159,12 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: AppBannerAd(),
             ),
           ),
           SliverList(
@@ -244,37 +247,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                       return InkWell(
                         onTap: () async {
                           final router = GoRouter.of(context);
-                          if (isPremiumCourse && !_isPremiumUser) {
-                            final shouldUpgrade = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Cần Premium'),
-                                content: const Text(
-                                  'Bạn cần Premium để vào xem bài học trong khóa học này. Bạn muốn nâng cấp ngay không?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
-                                    child: const Text('Để sau'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
-                                    child: const Text('Nâng cấp'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (!mounted) return;
-                            if (shouldUpgrade == true) {
-                              await router.push('/subscription');
-                              if (!mounted) return;
-                              await _loadData();
-                            }
-                            return;
-                          }
-
                           await router.push('/lesson/${lesson['id']}');
                           if (!mounted) return;
                           await _reloadProgress();
