@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -399,16 +400,21 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: () => setState(() => _showMeaning = !_showMeaning),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _showMeaning = !_showMeaning);
+            },
             onHorizontalDragEnd: (details) {
               if (details.primaryVelocity! < 0 &&
                   _currentVocabIndex < _vocab.length - 1) {
+                HapticFeedback.lightImpact();
                 setState(() {
                   _currentVocabIndex++;
                   _showMeaning = false;
                 });
               } else if (details.primaryVelocity! > 0 &&
                   _currentVocabIndex > 0) {
+                HapticFeedback.lightImpact();
                 setState(() {
                   _currentVocabIndex--;
                   _showMeaning = false;

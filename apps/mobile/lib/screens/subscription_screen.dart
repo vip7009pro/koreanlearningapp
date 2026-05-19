@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:intl/intl.dart';
 
 import '../core/api_client.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
@@ -280,10 +282,22 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     final hasPlans = _plans.isNotEmpty;
+    final themeId = ref.watch(appSettingsProvider).themeId;
+    final theme = AppSettingsNotifier.themeById(themeId);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gói không quảng cáo'),
+        title: Text(
+          'Gói không quảng cáo',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+        ),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: theme.gradient),
+          ),
+        ),
         actions: [
           if (_billingAvailable)
             TextButton.icon(
@@ -291,7 +305,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               icon: const Icon(Icons.restore, color: Colors.white),
               label: const Text(
                 'Khôi phục',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
         ],
@@ -301,38 +315,42 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           : !hasPlans
               ? const Center(child: Text('Không tải được danh sách gói.'))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'Học tập không quảng cáo',
-                        style: TextStyle(
-                          fontSize: 24,
+                      const SizedBox(height: 10),
+                      Text(
+                        'Học tập không giới hạn 🚀',
+                        style: GoogleFonts.outfit(
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Mua và gia hạn trực tiếp qua Google Play Store để ẩn quảng cáo theo tháng hoặc theo năm.',
+                      Text(
+                        'Mua và gia hạn trực tiếp qua Google Play Store để tắt hoàn toàn quảng cáo và mở khóa mọi tính năng.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
+                        style: GoogleFonts.outfit(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       if (!_billingAvailable)
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.orange.shade200),
                           ),
                           child: Text(
                             defaultTargetPlatform == TargetPlatform.android
-                                ? 'Thiết bị chưa sẵn sàng cho Google Play Billing. Hãy chạy bản release / internal test đã cài từ Play Store và đăng nhập đúng tài khoản test.'
-                                : 'Google Play Billing chỉ hoạt động trên Android.',
-                            style: TextStyle(color: Colors.orange.shade900),
+                                ? 'Thiết bị chưa sẵn sàng cho Google Play Billing. Hãy chạy bản release / internal test đã cài từ Play Store.'
+                                : 'Google Play Billing chỉ hoạt động trên thiết bị Android.',
+                            style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w500),
                           ),
                         ),
                       if (_isAdFree) ...[
@@ -340,20 +358,29 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green.shade200),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF10B981), Color(0xFF059669)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF10B981).withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.verified, color: Colors.green),
-                              SizedBox(width: 8),
+                              Icon(Icons.verified, color: Colors.white, size: 28),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Tài khoản của bạn đang không có quảng cáo.',
+                                  'Tài khoản của bạn đã kích hoạt tính năng không quảng cáo. Cảm ơn bạn đã ủng hộ!',
                                   style: TextStyle(
-                                    color: Colors.green,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 15,
                                   ),
                                 ),
                               ),
@@ -361,7 +388,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       ..._plans
                           .where((plan) => plan['type'] != 'FREE')
                           .map((plan) {
@@ -372,128 +399,185 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         final title = _planLabel(map['type']?.toString() ?? '');
                         final productId = _planProductId(map);
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: isAnnual
-                                  ? Colors.amber
-                                  : Colors.blue.shade200,
-                              width: isAnnual ? 2 : 1,
-                            ),
+                        // Premium colors
+                        final cardGradient = isAnnual
+                            ? const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : LinearGradient(
+                                colors: [theme.seedColor.withOpacity(0.85), theme.seedColor],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              );
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          decoration: BoxDecoration(
+                            gradient: cardGradient,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (isAnnual ? const Color(0xFFD97706) : theme.seedColor)
+                                    .withOpacity(0.35),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
-                          elevation: isAnnual ? 4 : 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Stack(
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      title,
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: isAnnual
-                                            ? Colors.amber.shade700
-                                            : Colors.blue.shade700,
-                                      ),
+                                // Subtle diagonal light stripe for reflection effect
+                                Positioned(
+                                  top: -50,
+                                  right: -50,
+                                  child: Container(
+                                    width: 150,
+                                    height: 150,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.08),
+                                      shape: BoxShape.circle,
                                     ),
-                                    if (isAnnual)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            title,
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          if (isAnnual)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                'KHUYÊN DÙNG ⭐',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: const Color(0xFFD97706),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        _displayPrice(map),
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        map['duration'] ?? '',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white.withOpacity(0.85),
+                                          fontSize: 14,
                                         ),
-                                        child: const Text(
-                                          'ĐỀ XUẤT',
+                                      ),
+                                      if (productId.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'ID: $productId',
                                           style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                                            color: Colors.white.withOpacity(0.6),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                        child: Divider(color: Colors.white24, height: 1),
+                                      ),
+                                      ...(map['features'] as List).map(
+                                        (feature) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.check_circle_outline,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  feature.toString(),
+                                                  style: GoogleFonts.outfit(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _displayPrice(map),
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  map['duration'] ?? '',
-                                  style: TextStyle(color: Colors.grey.shade600),
-                                ),
-                                if (productId.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Google Play ID: $productId',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                                const Divider(height: 32),
-                                ...(map['features'] as List).map(
-                                  (feature) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.check,
-                                          color: Colors.green,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                            child: Text(feature.toString())),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          isAnnual ? Colors.amber : Colors.blue,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: _isLoading || _isAdFree
-                                        ? null
-                                        : () => _buyPlan(map),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
+                                      const SizedBox(height: 20),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: isAnnual
+                                                ? const Color(0xFFB45309)
+                                                : theme.seedColor,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 16,
                                             ),
-                                          )
-                                        : Text('Mua qua Google Play'),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            elevation: 2,
+                                            shadowColor: Colors.black.withOpacity(0.2),
+                                          ),
+                                          onPressed: _isLoading || _isAdFree
+                                              ? null
+                                              : () => _buyPlan(map),
+                                          child: _isLoading
+                                              ? SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(
+                                                    color: isAnnual
+                                                        ? const Color(0xFFB45309)
+                                                        : theme.seedColor,
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : Text(
+                                                  'Mua ngay qua Google Play',
+                                                  style: GoogleFonts.outfit(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

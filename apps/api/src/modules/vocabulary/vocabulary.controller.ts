@@ -31,16 +31,45 @@ export class VocabularyController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get vocabulary by lesson' })
-  @ApiQuery({ name: 'lessonId', required: true })
+  @ApiOperation({ summary: 'Get vocabulary' })
+  @ApiQuery({ name: 'lessonId', required: false })
+  @ApiQuery({ name: 'category', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  findByLesson(
-    @Query('lessonId') lessonId: string,
+  find(
+    @Query('lessonId') lessonId?: string,
+    @Query('category') category?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 200,
   ) {
-    return this.vocabularyService.findByLesson(lessonId, page, limit);
+    if (category) {
+      return this.vocabularyService.findByCategory(category, Number(page), Number(limit));
+    }
+    return this.vocabularyService.findByLesson(lessonId || '', Number(page), Number(limit));
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get all specialized categories' })
+  getCategories() {
+    return this.vocabularyService.findAllCategories();
+  }
+
+  @Post('categories')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create/update specialized category (Admin only)' })
+  createCategory(@Body() body: { name: string; displayName: string }) {
+    return this.vocabularyService.createCategory(body);
+  }
+
+  @Delete('categories/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete specialized category (Admin only)' })
+  deleteCategory(@Param('id') id: string) {
+    return this.vocabularyService.deleteCategory(id);
   }
 
   @Get(':id')

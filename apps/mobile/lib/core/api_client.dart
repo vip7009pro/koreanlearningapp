@@ -245,6 +245,9 @@ class ApiClient {
   Future<Response> getVocabulary(String lessonId) =>
       _dio.get('/vocabulary', queryParameters: {'lessonId': lessonId});
 
+  Future<Response> getSpecializedVocabulary(String category) =>
+      _dio.get('/vocabulary', queryParameters: {'category': category});
+
   Future<Response> createVocabulary(Map<String, dynamic> data) =>
       _dio.post('/vocabulary', data: data);
   Future<Response> updateVocabulary(String id, Map<String, dynamic> data) =>
@@ -253,6 +256,32 @@ class ApiClient {
       _dio.delete('/vocabulary/$id');
   Future<Response> createVocabularyBulk(List<Map<String, dynamic>> items) =>
       _dio.post('/vocabulary/bulk', data: items);
+
+  // Specialized categories
+  Future<Response> getSpecializedCategories() =>
+      _dio.get('/vocabulary/categories');
+
+  Future<Response> createSpecializedCategory(String name, String displayName) =>
+      _dio.post('/vocabulary/categories', data: {'name': name, 'displayName': displayName});
+
+  Future<Response> deleteSpecializedCategory(String id) =>
+      _dio.delete('/vocabulary/categories/$id');
+
+  Future<Response> adminGenerateSpecializedVocabulary(
+    String category, {
+    int count = 10,
+    String? provider,
+    String? model,
+  }) =>
+      _dio.post(
+        '/ai/admin/specialized-vocab/generate',
+        queryParameters: {
+          'category': category,
+          'count': count,
+          if (provider != null) 'provider': provider,
+          if (model != null) 'model': model,
+        },
+      );
 
   // Grammar
   Future<Response> getGrammar(String lessonId) =>

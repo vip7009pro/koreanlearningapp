@@ -18,7 +18,7 @@ const String _defaultInterstitialAdUnitId = String.fromEnvironment(
 
 const Duration _adFreshnessTimeout = Duration(hours: 4);
 const Duration _appOpenCooldown = Duration(minutes: 1);
-const Duration _interstitialCooldown = Duration(minutes: 2);
+const Duration _interstitialCooldown = Duration(minutes: 3);
 
 final adsManagerProvider = Provider<AdsManager>((ref) => AdsManager(ref));
 

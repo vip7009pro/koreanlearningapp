@@ -3,9 +3,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Difficulty } from '@prisma/client';
 
 export class CreateVocabularyDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  lessonId: string;
+  lessonId?: string;
 
   @ApiProperty({ example: '안녕하세요' })
   @IsString()
@@ -41,9 +42,19 @@ export class CreateVocabularyDto {
   @IsOptional()
   @IsEnum(Difficulty)
   difficulty?: Difficulty;
+
+  @ApiPropertyOptional({ example: 'IT' })
+  @IsOptional()
+  @IsString()
+  category?: string;
 }
 
 export class UpdateVocabularyDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  lessonId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -78,4 +89,9 @@ export class UpdateVocabularyDto {
   @IsOptional()
   @IsEnum(Difficulty)
   difficulty?: Difficulty;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

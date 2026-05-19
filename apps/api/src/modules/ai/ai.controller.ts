@@ -91,6 +91,24 @@ export class AIController {
     return this.aiService.getWritingHistory(userId, page, limit);
   }
 
+  @Post('admin/specialized-vocab/generate')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'AI generate + insert specialized vocabulary (Admin only)' })
+  @ApiQuery({ name: 'category', required: true })
+  @ApiQuery({ name: 'count', required: false })
+  @ApiQuery({ name: 'provider', required: false })
+  @ApiQuery({ name: 'model', required: false })
+  generateSpecializedVocabulary(
+    @Query('category') category: string,
+    @Query('count', new DefaultValuePipe(10), ParseIntPipe) count: number,
+    @Query('provider') provider?: string,
+    @Query('model') model?: string,
+  ) {
+    return this.aiService.generateAndInsertSpecializedVocabulary(category, count, provider, model);
+  }
+
   @Post('admin/lessons/:lessonId/generate-vocabulary')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

@@ -16,6 +16,7 @@ export default function Layout() {
   const navItems = [
     { to: '/', icon: <FiHome size={20} />, label: 'Dashboard' },
     { to: '/courses', icon: <FiBook size={20} />, label: 'Courses' },
+    { to: '/specialized-vocab', icon: <FiBook size={20} />, label: 'Chuyên ngành' },
     { to: '/topik', icon: <FiFileText size={20} />, label: 'TOPIK' },
     { to: '/users', icon: <FiUsers size={20} />, label: 'Users' },
   ];

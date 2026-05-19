@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
@@ -175,7 +176,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               child: InkWell(
                 onTap: optText.isEmpty
                     ? null
-                    : () => setState(() => _answers[qId] = optText),
+                    : () {
+                        HapticFeedback.lightImpact();
+                        setState(() => _answers[qId] = optText);
+                      },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: double.infinity,
@@ -219,6 +223,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   onPressed: _answers.containsKey(
                           (_questions[_currentQuestion]['id'] ?? '').toString())
                       ? () {
+                          HapticFeedback.lightImpact();
                           if (_currentQuestion < _questions.length - 1) {
                             setState(() => _currentQuestion++);
                           } else {

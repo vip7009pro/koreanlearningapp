@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/app_banner_ad.dart';
 
 const List<Map<String, String>> _defaultTopics = [
@@ -180,39 +181,40 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-
-            const Text(
-              'Chọn provider AI',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text('Google ưu tiên'),
-                  selected: _selectedProvider == 'google',
-                  onSelected: (_) =>
-                      setState(() => _selectedProvider = 'google'),
-                ),
-                ChoiceChip(
-                  label: const Text('OpenRouter ưu tiên'),
-                  selected: _selectedProvider == 'openrouter',
-                  onSelected: (_) =>
-                      setState(() => _selectedProvider = 'openrouter'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _selectedProvider == 'google'
-                  ? 'Google sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang OpenRouter.'
-                  : 'OpenRouter sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang Google.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
+            if (ref.watch(authProvider).user?['role'] == 'ADMIN') ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Chọn provider AI',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Google ưu tiên'),
+                    selected: _selectedProvider == 'google',
+                    onSelected: (_) =>
+                        setState(() => _selectedProvider = 'google'),
+                  ),
+                  ChoiceChip(
+                    label: const Text('OpenRouter ưu tiên'),
+                    selected: _selectedProvider == 'openrouter',
+                    onSelected: (_) =>
+                        setState(() => _selectedProvider = 'openrouter'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _selectedProvider == 'google'
+                    ? 'Google sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang OpenRouter.'
+                    : 'OpenRouter sẽ được thử trước, nếu lỗi hệ thống sẽ tự fallback sang Google.',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Display selected topic or custom input
             if (_isCustomTopic)

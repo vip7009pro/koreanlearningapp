@@ -59,6 +59,10 @@ export const aiAdminApi = {
     api.post('/ai/admin/topik/generate-exam', data, {
       params: { provider, model },
     }),
+  generateSpecializedVocabulary: (category: string, count: number, provider?: string, model?: string) =>
+    api.post('/ai/admin/specialized-vocab/generate', {}, {
+      params: { category, count, provider, model },
+    }),
 };
 
 export const topikAdminApi = {
@@ -105,11 +109,15 @@ export const lessonsApi = {
 // Vocabulary
 export const vocabularyApi = {
   getByLesson: (lessonId: string, params?: Record<string, unknown>) => api.get('/vocabulary', { params: { lessonId, ...params } }),
+  getByCategory: (category: string, params?: Record<string, unknown>) => api.get('/vocabulary', { params: { category, ...params } }),
   create: (data: Record<string, unknown>) => api.post('/vocabulary', data),
   createBulk: (data: Record<string, unknown>[]) => api.post('/vocabulary/bulk', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/vocabulary/${id}`, data),
   delete: (id: string) => api.delete(`/vocabulary/${id}`),
   bulkDelete: (ids: string[]) => api.post('/vocabulary/bulk-delete', { ids }),
+  getCategories: () => api.get('/vocabulary/categories'),
+  createCategory: (data: { name: string; displayName: string }) => api.post('/vocabulary/categories', data),
+  deleteCategory: (id: string) => api.delete(`/vocabulary/categories/${id}`),
 };
 
 // Grammar

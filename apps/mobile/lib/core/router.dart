@@ -24,6 +24,7 @@ import '../screens/writing_history_screen.dart';
 import '../screens/writing_detail_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/theme_picker_screen.dart';
+import '../screens/specialized_vocab_screen.dart';
 import '../screens/admin/admin_home_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/admin_courses_screen.dart';
@@ -34,6 +35,7 @@ import '../screens/admin/admin_users_screen.dart';
 import '../screens/admin/admin_upload_screen.dart';
 import '../screens/admin/admin_topik_screen.dart';
 import '../screens/admin/admin_topik_exam_editor_screen.dart';
+import '../screens/admin/admin_specialized_vocab_screen.dart';
 import '../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -122,6 +124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
       GoRoute(path: '/review', builder: (_, __) => const ReviewScreen()),
+      GoRoute(
+        path: '/specialized-vocab',
+        builder: (_, __) => const SpecializedVocabScreen(),
+      ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       GoRoute(
         path: '/settings/theme',
@@ -178,6 +184,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
       GoRoute(
           path: '/admin/upload', builder: (_, __) => const AdminUploadScreen()),
+      GoRoute(
+          path: '/admin/specialized-vocab', builder: (_, __) => const AdminSpecializedVocabScreen()),
     ],
   );
 });

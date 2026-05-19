@@ -1038,6 +1038,116 @@ Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề.`;
     };
   }
 
+  async generateAndInsertSpecializedVocabulary(
+    category: string,
+    count: number,
+    provider?: string,
+    model?: string,
+  ) {
+    const safeCount = Math.max(1, Math.min(200, Math.floor(count || 10)));
+
+    // Fetch existing words to prevent duplicate generation
+    const existingKorean = await this.prisma.vocabulary.findMany({
+      where: { category },
+      select: { korean: true },
+      orderBy: { createdAt: 'asc' },
+      take: 500,
+    });
+    const existingList = existingKorean
+      .map((x) => String(x.korean || '').trim())
+      .filter((x) => x.length)
+      .slice(0, 500);
+
+    const systemPrompt = `Bạn là trợ lý tạo nội dung học tiếng Hàn cho người Việt. Chỉ trả về JSON hợp lệ, không giải thích, không markdown.`;
+    const userPrompt = `Hãy tạo danh sách ${safeCount} từ vựng MỚI và thông dụng nhất của ngành/chủ đề: "${category}".
+
+KHÔNG ĐƯỢC tạo trùng (korean) với các từ đã tồn tại sau đây:
+${existingList.length ? existingList.map((x) => `- ${x}`).join('\n') : '- (trống)'}
+
+YÊU CẦU JSON:
+{
+  "items": [
+    {
+      "korean": "...",
+      "vietnamese": "...",
+      "pronunciation": "...",
+      "exampleSentence": "...",
+      "exampleMeaning": "...",
+      "difficulty": "EASY"|"MEDIUM"|"HARD"
+    }
+  ]
+}
+
+Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan đến từ vựng và ngành chuyên môn đó.`;
+
+    const resolvedProvider = this.normalizeProvider(provider);
+    let items: GeneratedVocabularyItem[] = [];
+    if ((resolvedProvider === 'google' && this.googleApiKey) || (resolvedProvider === 'openrouter' && this.apiKey)) {
+      try {
+        const parsed = await this.callAiJson(resolvedProvider, systemPrompt, userPrompt, model);
+        items = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch (e) {
+        this.logger.warn('AI specialized vocab generation failed, falling back to mock', e as any);
+      }
+    }
+
+    if (!items.length) {
+      items = Array.from({ length: safeCount }).map((_, i) => ({
+        korean: `단어 ${i + 1}`,
+        vietnamese: `Từ chuyên ngành ${i + 1}`,
+        pronunciation: '',
+        exampleSentence: '',
+        exampleMeaning: '',
+        difficulty: 'EASY',
+      }));
+    }
+
+    const rawItems = items.slice(0, safeCount).map((it) => ({
+      lessonId: null,
+      korean: String(it.korean || '').trim(),
+      vietnamese: String(it.vietnamese || '').trim(),
+      pronunciation: String(it.pronunciation || ''),
+      exampleSentence: String(it.exampleSentence || ''),
+      exampleMeaning: String(it.exampleMeaning || ''),
+      difficulty: (it.difficulty as any) || 'EASY',
+      category: category,
+    }));
+
+    const uniqueByKorean = new Map<string, (typeof rawItems)[number]>();
+    for (const it of rawItems) {
+      if (!it.korean) continue;
+      const key = it.korean.toLowerCase();
+      if (!uniqueByKorean.has(key)) uniqueByKorean.set(key, it);
+    }
+
+    const uniqueItems = Array.from(uniqueByKorean.values());
+    const existing = await this.prisma.vocabulary.findMany({
+      where: {
+        category,
+        korean: { in: uniqueItems.map((x) => x.korean) },
+      },
+      select: { korean: true },
+    });
+
+    const existingSet = new Set(existing.map((x) => String(x.korean).toLowerCase()));
+    const createItems = uniqueItems.filter((x) => !existingSet.has(x.korean.toLowerCase()));
+
+    const created = createItems.length
+      ? await this.prisma.vocabulary.createMany({
+          data: createItems,
+          skipDuplicates: false,
+        })
+      : { count: 0 };
+
+    return {
+      inserted: created.count,
+      requested: safeCount,
+      generatedUnique: uniqueItems.length,
+      skippedExisting: uniqueItems.length - createItems.length,
+      category,
+    };
+  }
+
   async generateAndInsertGrammar(
     lessonId: string,
     count: number,

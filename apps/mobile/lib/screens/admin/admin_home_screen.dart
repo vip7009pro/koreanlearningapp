@@ -52,6 +52,14 @@ class AdminHomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _AdminNavCard(
+            icon: Icons.business_center,
+            title: 'Chuyên ngành',
+            subtitle: 'Quản lý từ vựng chuyên ngành',
+            onTap: () => context.push('/admin/specialized-vocab'),
+            color: theme.seedColor,
+          ),
+          const SizedBox(height: 12),
+          _AdminNavCard(
             icon: Icons.fact_check,
             title: 'TOPIK',
             subtitle: 'Quản lý đề thi TOPIK',

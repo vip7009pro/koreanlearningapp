@@ -305,7 +305,7 @@ model Lesson {
 
 model Vocabulary {
   id              String     @id @default(uuid())
-  lessonId        String
+  lessonId        String?
   korean          String
   vietnamese      String
   pronunciation   String     @default("")
@@ -313,10 +313,11 @@ model Vocabulary {
   exampleMeaning  String     @default("")
   audioUrl        String?
   difficulty      Difficulty @default(EASY)
+  category        String     @default("GENERAL")
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  lesson  Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson  Lesson?               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   reviews UserVocabularyReview[]
 }
 
@@ -474,4 +475,11 @@ model DailyGoal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+model SpecializedCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
 }

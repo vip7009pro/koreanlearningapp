@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -47,6 +48,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   }
 
   Future<void> _submitResult(bool correct) async {
+    HapticFeedback.mediumImpact();
     if (_currentIndex >= _reviews.length) return;
     final r = _reviews[_currentIndex];
     final vocabId = r['vocabularyId'];
@@ -183,11 +185,13 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         if (details.primaryVelocity == null) return;
         if (details.primaryVelocity! < 0 &&
             _currentIndex < _reviews.length - 1) {
+          HapticFeedback.lightImpact();
           setState(() {
             _currentIndex++;
             _showMeaning = false;
           });
         } else if (details.primaryVelocity! > 0 && _currentIndex > 0) {
+          HapticFeedback.lightImpact();
           setState(() {
             _currentIndex--;
             _showMeaning = false;
@@ -204,7 +208,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _showMeaning = true),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _showMeaning = true);
+              },
               child: Container(
                 margin: const EdgeInsets.all(24),
                 decoration: BoxDecoration(

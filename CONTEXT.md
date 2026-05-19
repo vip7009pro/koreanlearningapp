@@ -1,6 +1,6 @@
 # CONTEXT
 
-Last updated: 2026-04-09
+Last updated: 2026-05-19
 
 ## Persistent Rules
 - Check this file before responding when it exists.
@@ -20,7 +20,12 @@ Last updated: 2026-04-09
 - `google_mobile_ads` 7.0.0 `AppOpenAd.load` does not accept an `orientation` argument; keep app-open loading on the current signature.
 
 ## Current Task
-- Completed a comprehensive expert feature review of the Korean Learning App ecosystem.
-- Created `ROADMAP.md` in the repository root detailing specialized vocabulary features, TOPIK Writing scaffolds, B2C/B2B monetization strategies (ads, subscriptions, consumable tickets), and technical setup/installation instructions.
-- Documented implementation plan and task tracking artifacts.
+- Updated database schema with `SpecializedCategory` table and relation to `Vocabulary`.
+- Refactored `VocabularyService` with database seeding, and added endpoints to CRUD categories in `VocabularyController`.
+- Implemented `generateAndInsertSpecializedVocabulary` in `AIService` and exposed AI generation endpoints in `AIController`.
+- Refactored React Web Admin with dynamic categories loader, Add/Delete categories forms, and direct AI generation popup.
+- Updated Flutter mobile API client `api_client.dart` with categories CRUD and AI generation methods.
+- Refactored `specialized_vocab_screen.dart` and `admin_specialized_vocab_screen.dart` to fetch categories dynamically from the API and support custom categories deletion, addition, and Direct AI Generation trigger.
+- Refactored Gen AI generation popup on both React Web Admin and Flutter Mobile Admin to fetch and list available AI Models dynamically based on the selected AI Provider.
+- Verified compilation and build checks (`npx tsc --noEmit` and `flutter analyze` both compile successfully with 0 errors).
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.
