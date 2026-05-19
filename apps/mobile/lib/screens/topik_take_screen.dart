@@ -48,6 +48,291 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
   bool _ttsSpeaking = false;
 
+  final Map<String, bool> _helperExpanded = {};
+
+  final List<Map<String, String>> _q53Templates = [
+    {
+      'text': '...에 대해 설문조사를 실시한 결과에 따르면 ',
+      'translation': 'Theo kết quả khảo sát về...'
+    },
+    {
+      'text': '...을/를 대상으로 ...에 대한 조사를 실시하였다. ',
+      'translation': 'Tiến hành khảo sát đối tượng... về...'
+    },
+    {
+      'text': '...으로 급격히 증가하였다. ',
+      'translation': '...tăng nhanh chóng lên...'
+    },
+    {
+      'text': '...에 그치던 것이 ...으로 크게 상승했다. ',
+      'translation': 'Chỉ dừng lại ở... nhưng đã tăng mạnh lên...'
+    },
+    {
+      'text': '...에 비해 소폭 감소한 것으로 나타났다. ',
+      'translation': 'Cho thấy đã giảm nhẹ so với...'
+    },
+    {
+      'text': '...이/가 가장 높은 비율을 차지했다. ',
+      'translation': '...chiếm tỷ lệ cao nhất.'
+    },
+    {
+      'text': '그 뒤를 이어 ... (으)로 나타났다. ',
+      'translation': 'Theo sau đó là... .'
+    },
+    {
+      'text': '이러한 변화의 원인은 ... 기인한 것이다. ',
+      'translation': 'Nguyên nhân của sự biến đổi này bắt nguồn từ...'
+    },
+    {
+      'text': '... 기인한 것으로 분석된다. ',
+      'translation': 'Được phân tích là bắt nguồn từ...'
+    },
+  ];
+
+  final List<Map<String, String>> _q54Templates = [
+    {
+      'text': '최근 우리 사회에서 ...에 대한 논란이 끊이지 않고 있다. ',
+      'translation': 'Gần đây trong xã hội, tranh luận về... vẫn chưa dứt.'
+    },
+    {
+      'text': '...은/는 현대 사회에서 해결해야 할 중요한 과제 중 하나이다. ',
+      'translation': '...là một trong những nhiệm vụ quan trọng cần giải quyết.'
+    },
+    {
+      'text': '첫째, ... 은/는 문제를 유발할 수 있다. ',
+      'translation': 'Thứ nhất, ... có thể gây ra vấn đề.'
+    },
+    {
+      'text': '이뿐만 아니라 ... 은/는 긍정적인 영향을 미친다. ',
+      'translation': 'Không chỉ vậy, ... còn mang lại ảnh hưởng tích cực.'
+    },
+    {
+      'text': '반면, ...에 대한 부작용도 간과해서는 안 된다. ',
+      'translation': 'Mặt khác, tác dụng phụ của... cũng không được xem nhẹ.'
+    },
+    {
+      'text': '따라서 우리는 ... 해결하기 위해 노력을 기울여야 한다. ',
+      'translation': 'Vì vậy, chúng ta phải nỗ lực để giải quyết...'
+    },
+  ];
+
+  final List<Map<String, String>> _keywordsTemplates = [
+    {'text': '증가하다 ', 'translation': 'Tăng'},
+    {'text': '감소하다 ', 'translation': 'Giảm'},
+    {'text': '차지하다 ', 'translation': 'Chiếm'},
+    {'text': '기인하다 ', 'translation': 'Bắt nguồn từ'},
+    {'text': '원인 ', 'translation': 'Nguyên nhân'},
+    {'text': '영향 ', 'translation': 'Ảnh hưởng'},
+    {'text': '해결책 ', 'translation': 'Giải pháp'},
+    {'text': '찬성하다 ', 'translation': 'Đồng ý'},
+    {'text': '반대하다 ', 'translation': 'Phản đối'},
+    {'text': '중요성 ', 'translation': 'Tầm quan trọng'},
+  ];
+
+  void _insertTemplateText(String qId, int questionIndex, String template) {
+    final ctrl = _textControllers[qId];
+    if (ctrl == null) return;
+
+    final text = ctrl.text;
+    final selection = ctrl.selection;
+    String newText;
+    int newCursorOffset;
+
+    if (selection.isValid && selection.start >= 0) {
+      newText = text.replaceRange(selection.start, selection.end, template);
+      newCursorOffset = selection.start + template.length;
+    } else {
+      newText = text + (text.isEmpty ? '' : ' ') + template;
+      newCursorOffset = newText.length;
+    }
+
+    ctrl.text = newText;
+    ctrl.selection = TextSelection.fromPosition(TextPosition(offset: newCursorOffset));
+
+    final d = _currentDraft(qId);
+    setState(() {
+      _currentIndex = questionIndex;
+      _draft[qId] = {
+        ...d,
+        'selectedChoiceId': null,
+        'textAnswer': newText,
+      };
+      _dirtyQuestionIds.add(qId);
+    });
+
+    _saveQuestion(qId, questionIndex, bestEffort: true);
+  }
+
+  Widget _buildScaffoldTabContent(
+    String qId,
+    int index,
+    List<Map<String, String>> items, {
+    bool isWrap = false,
+  }) {
+    if (isWrap) {
+      return SingleChildScrollView(
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: items.map((item) {
+            final text = item['text']!;
+            final translation = item['translation']!;
+            return ActionChip(
+              label: Text(text),
+              tooltip: translation,
+              onPressed: () => _insertTemplateText(qId, index, text),
+            );
+          }).toList(),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        final item = items[i];
+        final text = item['text']!;
+        final translation = item['translation']!;
+
+        return InkWell(
+          onTap: () => _insertTemplateText(qId, index, text),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2D2D34)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF3A3A42)
+                    : Colors.grey.shade200,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  translation,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWritingScaffoldHelper(String qId, int index) {
+    final isExpanded = _helperExpanded[qId] ?? false;
+
+    if (!isExpanded) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              _helperExpanded[qId] = true;
+            });
+          },
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.lightbulb_outline, size: 18),
+          label: const Text('💡 Trợ lý viết TOPIK (Mở)'),
+        ),
+      );
+    }
+
+    return Card(
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E24)
+          : const Color(0xFFF0F7FF),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+        ),
+      ),
+      margin: const EdgeInsets.only(top: 10, bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.lightbulb, color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Dàn ý & Cụm từ gợi ý',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _helperExpanded[qId] = false;
+                    });
+                  },
+                )
+              ],
+            ),
+            const Divider(),
+            DefaultTabController(
+              length: 3,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TabBar(
+                    isScrollable: true,
+                    labelColor: Theme.of(context).primaryColor,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Theme.of(context).primaryColor,
+                    tabs: const [
+                      Tab(text: 'Câu 53 (Biểu đồ)'),
+                      Tab(text: 'Câu 54 (Nghị luận)'),
+                      Tab(text: 'Từ vựng hay'),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 200,
+                    child: TabBarView(
+                      children: [
+                        _buildScaffoldTabContent(qId, index, _q53Templates),
+                        _buildScaffoldTabContent(qId, index, _q54Templates),
+                        _buildScaffoldTabContent(qId, index, _keywordsTemplates, isWrap: true),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1007,7 +1292,9 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                   ),
                 );
               })
-            else
+            else ...[
+              if (qType == 'ESSAY')
+                _buildWritingScaffoldHelper(qId, index),
               TextField(
                 minLines: qType == 'ESSAY' ? 8 : 2,
                 maxLines: qType == 'ESSAY' ? 16 : 4,
@@ -1040,6 +1327,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                   await _saveQuestion(qId, index, bestEffort: true);
                 },
               ),
+            ],
           ],
         ),
       ),

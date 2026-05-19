@@ -20,12 +20,10 @@ Last updated: 2026-05-19
 - `google_mobile_ads` 7.0.0 `AppOpenAd.load` does not accept an `orientation` argument; keep app-open loading on the current signature.
 
 ## Current Task
-- Updated database schema with `SpecializedCategory` table and relation to `Vocabulary`.
-- Refactored `VocabularyService` with database seeding, and added endpoints to CRUD categories in `VocabularyController`.
-- Implemented `generateAndInsertSpecializedVocabulary` in `AIService` and exposed AI generation endpoints in `AIController`.
-- Refactored React Web Admin with dynamic categories loader, Add/Delete categories forms, and direct AI generation popup.
-- Updated Flutter mobile API client `api_client.dart` with categories CRUD and AI generation methods.
-- Refactored `specialized_vocab_screen.dart` and `admin_specialized_vocab_screen.dart` to fetch categories dynamically from the API and support custom categories deletion, addition, and Direct AI Generation trigger.
-- Refactored Gen AI generation popup on both React Web Admin and Flutter Mobile Admin to fetch and list available AI Models dynamically based on the selected AI Provider.
-- Verified compilation and build checks (`npx tsc --noEmit` and `flutter analyze` both compile successfully with 0 errors).
+- Completed Phase 2 task **TOPIK Writing Scaffold (Trợ lý viết TOPIK)**:
+  - Designed templates and keywords for TOPIK II Question 53 (chart/graph analysis) and Question 54 (essay/social argument).
+  - Implemented `_insertTemplateText` inside `_TopikTakeScreenState` to insert structural Korean expressions directly at the cursor selection point of the active `TextEditingController`.
+  - Added a collapsible and tabbed helper UI card `_buildWritingScaffoldHelper` containing three tabs: "Câu 53 (Biểu đồ)", "Câu 54 (Nghị luận)", and "Từ vựng hay".
+  - Rendered the helper section above the text field in the TOPIK taking screen `topik_take_screen.dart` when the question type is `ESSAY`.
+  - Verified static compilation with `flutter analyze` which completed cleanly with zero warnings or errors on our newly written code.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.
