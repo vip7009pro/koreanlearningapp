@@ -48,6 +48,8 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
   bool _ttsSpeaking = false;
 
+  TtsService? _ttsService;
+
   final Map<String, bool> _helperExpanded = {};
 
   final List<Map<String, String>> _q53Templates = [
@@ -336,6 +338,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
   @override
   void initState() {
     super.initState();
+    _ttsService = ref.read(ttsProvider);
     _audioStateSub = _audio.onPlayerStateChanged.listen((s) {
       if (!mounted) return;
       setState(() => _audioState = s);
@@ -359,7 +362,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     _audioDurationSub?.cancel();
     _audioPositionSub?.cancel();
     _audio.dispose();
-    unawaited(ref.read(ttsProvider).stop());
+    _ttsService?.stop();
     _scroll.dispose();
     for (final c in _textControllers.values) {
       c.dispose();
@@ -369,7 +372,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
   Future<void> _stopTts() async {
     try {
-      await ref.read(ttsProvider).stop();
+      await _ttsService?.stop();
     } catch (_) {
       // ignore
     }
@@ -383,7 +386,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     try {
       if (!mounted) return;
       setState(() => _ttsSpeaking = true);
-      await ref.read(ttsProvider).speakAndWait(text);
+      await _ttsService?.speakAndWait(text);
       if (!mounted) return;
       setState(() => _ttsSpeaking = false);
     } catch (_) {

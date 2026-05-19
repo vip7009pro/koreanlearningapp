@@ -25,5 +25,6 @@ Last updated: 2026-05-19
   - Implemented `_insertTemplateText` inside `_TopikTakeScreenState` to insert structural Korean expressions directly at the cursor selection point of the active `TextEditingController`.
   - Added a collapsible and tabbed helper UI card `_buildWritingScaffoldHelper` containing three tabs: "Câu 53 (Biểu đồ)", "Câu 54 (Nghị luận)", and "Từ vựng hay".
   - Rendered the helper section above the text field in the TOPIK taking screen `topik_take_screen.dart` when the question type is `ESSAY`.
+  - Resolved `StateError: Cannot use "ref" after the widget was disposed` in `topik_take_screen.dart` by caching the `TtsService` instance in `initState` and utilizing it directly during `dispose`, avoiding any `ref.read` calls post-dispose.
   - Verified static compilation with `flutter analyze` which completed cleanly with zero warnings or errors on our newly written code.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.
