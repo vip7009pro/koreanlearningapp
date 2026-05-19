@@ -20,5 +20,7 @@ Last updated: 2026-04-09
 - `google_mobile_ads` 7.0.0 `AppOpenAd.load` does not accept an `orientation` argument; keep app-open loading on the current signature.
 
 ## Current Task
-- Implemented ad-free subscription semantics, banner/interstitial/app-open ads, backend/admin wording cleanup, and fixed the `ads_manager.dart` lint/API mismatch.
+- Completed a comprehensive expert feature review of the Korean Learning App ecosystem.
+- Created `ROADMAP.md` in the repository root detailing specialized vocabulary features, TOPIK Writing scaffolds, B2C/B2B monetization strategies (ads, subscriptions, consumable tickets), and technical setup/installation instructions.
+- Documented implementation plan and task tracking artifacts.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.
