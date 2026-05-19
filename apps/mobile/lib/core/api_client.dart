@@ -283,6 +283,9 @@ class ApiClient {
         },
       );
 
+  // AI Diagnostics
+  Future<Response> getAiDiagnostics() => _dio.get('/analytics/diagnostics');
+
   // Grammar
   Future<Response> getGrammar(String lessonId) =>
       _dio.get('/grammar', queryParameters: {'lessonId': lessonId});

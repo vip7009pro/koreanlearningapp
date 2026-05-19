@@ -1625,4 +1625,29 @@ QUY TẮC BẮT BUỘC:
       totalPages: Math.ceil(total / safeLimit),
     };
   }
+
+  async analyzeGapDiagnostics(errorLogs: Array<{ questionText: string; selectedAnswerText: string; correctAnswerText: string; explanation?: string }>): Promise<any> {
+    const systemPrompt = `You are an expert Korean language educator and analytics system.
+Analyze the user's incorrect exam answers and diagnose their core grammatical and vocabulary weaknesses.
+Identify the top 1-3 weak concepts.
+You MUST respond ONLY with a JSON object matching this structure:
+{
+  "weaknesses": [
+    {
+      "concept": "Name of the concept in Vietnamese (e.g., Trợ từ 은/는 vs 이/가, Cấu trúc -아/어서)",
+      "category": "Ngữ pháp",
+      "description": "Short explanation in Vietnamese of the mistake and how to correct it.",
+      "keywords": ["은", "는"]
+    }
+  ]
+}`;
+    const userPrompt = `Here is the list of questions the student answered incorrectly:\n${JSON.stringify(errorLogs, null, 2)}`;
+    try {
+      const response = await this.callAiJson('google', systemPrompt, userPrompt);
+      return response || { weaknesses: [] };
+    } catch (error) {
+      this.logger.error('Failed to analyze gap diagnostics with AI', error);
+      return { weaknesses: [] };
+    }
+  }
 }

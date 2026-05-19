@@ -46,4 +46,11 @@ export class AnalyticsController {
   getByType(@Query('type') type: string, @Query('days') days = 30) {
     return this.analyticsService.getEventsByType(type, days);
   }
+
+  @Get('diagnostics')
+  @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get personalized AI gap diagnostics and study prescriptions' })
+  getDiagnostics(@CurrentUser('id') userId: string) {
+    return this.analyticsService.getAiDiagnostics(userId);
+  }
 }

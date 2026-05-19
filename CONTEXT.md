@@ -20,11 +20,11 @@ Last updated: 2026-05-19
 - `google_mobile_ads` 7.0.0 `AppOpenAd.load` does not accept an `orientation` argument; keep app-open loading on the current signature.
 
 ## Current Task
-- Completed Phase 2 task **TOPIK Writing Scaffold (Trợ lý viết TOPIK)**:
-  - Designed templates and keywords for TOPIK II Question 53 (chart/graph analysis) and Question 54 (essay/social argument).
-  - Implemented `_insertTemplateText` inside `_TopikTakeScreenState` to insert structural Korean expressions directly at the cursor selection point of the active `TextEditingController`.
-  - Added a collapsible and tabbed helper UI card `_buildWritingScaffoldHelper` containing three tabs: "Câu 53 (Biểu đồ)", "Câu 54 (Nghị luận)", and "Từ vựng hay".
-  - Rendered the helper section above the text field in the TOPIK taking screen `topik_take_screen.dart` when the question type is `ESSAY`.
-  - Resolved `StateError: Cannot use "ref" after the widget was disposed` in `topik_take_screen.dart` by caching the `TtsService` instance in `initState` and utilizing it directly during `dispose`, avoiding any `ref.read` calls post-dispose.
-  - Verified static compilation with `flutter analyze` which completed cleanly with zero warnings or errors on our newly written code.
+- Completed Phase 2 task **AI Gap Diagnostics & Study Rx (Chẩn đoán điểm yếu AI & Đơn thuốc học tập)**:
+  - **Backend API**: Created `GET /analytics/diagnostics` endpoint in NestJS `AnalyticsController`. It queries incorrect answers from `TopikAnswer` records, calls `AIService` to identify core grammar/vocabulary weak concepts using Gemini, maps them to matching DB `Lesson` titles, and compiles a personalized Study Rx response.
+  - **AIService**: Added `analyzeGapDiagnostics` utilizing the unified Gemini client for structural JSON-based gap analysis.
+  - **Mobile Client**: Registered new GoRoute `/diagnostics` mapping to `AiDiagnosticsScreen` in `router.dart`.
+  - **Mobile Screen**: Created `ai_diagnostics_screen.dart` featuring dynamic HSL dark/light themed circular progress meters for Listening/Reading/Writing skills, list of AI detected error patterns (e.g. particles/connectors), and clickable prescription cards navigating users directly to relevant study lessons.
+  - **Home Screen Entry**: Integrated a premium "Bác sĩ Chẩn đoán Năng lực AI" card on the `HomeScreen` navigation dashboard.
+  - **Verification**: Confirmed backend API builds successfully, and verified mobile Flutter static analysis reports zero compiler errors.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.

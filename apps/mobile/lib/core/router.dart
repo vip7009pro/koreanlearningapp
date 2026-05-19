@@ -18,6 +18,7 @@ import '../screens/set_password_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/subscription_screen.dart';
 import '../screens/ai_writing_screen.dart';
+import '../screens/ai_diagnostics_screen.dart';
 import '../screens/leaderboard_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/writing_history_screen.dart';
@@ -121,6 +122,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (_, __) => const SubscriptionScreen()),
       GoRoute(
           path: '/ai-practice', builder: (_, __) => const AiWritingScreen()),
+      GoRoute(
+          path: '/diagnostics', builder: (_, __) => const AiDiagnosticsScreen()),
       GoRoute(
           path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
       GoRoute(path: '/review', builder: (_, __) => const ReviewScreen()),
