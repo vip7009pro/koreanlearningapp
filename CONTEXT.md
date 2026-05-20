@@ -20,11 +20,14 @@ Last updated: 2026-05-19
 - `google_mobile_ads` 7.0.0 `AppOpenAd.load` does not accept an `orientation` argument; keep app-open loading on the current signature.
 
 ## Current Task
-- Completed Phase 2 task **AI Gap Diagnostics & Study Rx (Chẩn đoán điểm yếu AI & Đơn thuốc học tập)**:
-  - **Backend API**: Created `GET /analytics/diagnostics` endpoint in NestJS `AnalyticsController`. It queries incorrect answers from `TopikAnswer` records, calls `AIService` to identify core grammar/vocabulary weak concepts using Gemini, maps them to matching DB `Lesson` titles, and compiles a personalized Study Rx response.
-  - **AIService**: Added `analyzeGapDiagnostics` utilizing the unified Gemini client for structural JSON-based gap analysis.
-  - **Mobile Client**: Registered new GoRoute `/diagnostics` mapping to `AiDiagnosticsScreen` in `router.dart`.
-  - **Mobile Screen**: Created `ai_diagnostics_screen.dart` featuring dynamic HSL dark/light themed circular progress meters for Listening/Reading/Writing skills, list of AI detected error patterns (e.g. particles/connectors), and clickable prescription cards navigating users directly to relevant study lessons.
-  - **Home Screen Entry**: Integrated a premium "Bác sĩ Chẩn đoán Năng lực AI" card on the `HomeScreen` navigation dashboard.
-  - **Verification**: Confirmed backend API builds successfully, and verified mobile Flutter static analysis reports zero compiler errors.
+- Completed Giai đoạn 3 sub-feature **Hội thoại Tương tác AI (Interactive AI Dialogue Tutor & Speaking Practice)**:
+  - **Prisma & DB**: Appended `DialogueScenario`, `DialogueSession`, and `DialogueTurn` models and successfully synchronized the schema using `npx prisma db push`.
+  - **Backend API**: Developed `ai-dialogues` NestJS module exposing scenarios fetching, session initiation, and turn evaluation. Seeding default roleplays (Job Interview, Restaurant Ordering, Train Directions) is fully automated.
+  - **Gemini Evaluation**: Instructed Gemini to yield structured JSON evaluating user grammar, score performance (0-100), offer native phrasing recommendations, and prompt the next character reply.
+  - **Mobile UI**:
+    - Add `speech_to_text` dependency to Flutter mobile workspace.
+    - Set up permissions for recording audio in `AndroidManifest.xml`.
+    - Created `DialogueListScreen` to browse roleplays by difficulty, and `DialoguePracticeScreen` presenting a dynamic chat bubble stream, audio transcription using Speech-to-Text, playback using Flutter TTS, and expandable Shadowing Evaluation drawers.
+    - Added routes to `router.dart` and navigation cards to `HomeScreen`.
+  - **Verification**: Ran NestJS compiler checks and mobile static analyses (`flutter analyze`), yielding zero errors/warnings.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.

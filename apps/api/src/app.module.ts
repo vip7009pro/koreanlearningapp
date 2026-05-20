@@ -23,6 +23,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { HealthModule } from './modules/health/health.module';
 import { TopikModule } from './modules/topik/topik.module';
 import { TtsModule } from './modules/tts/tts.module';
+import { AIDialoguesModule } from './modules/ai-dialogues/ai-dialogues.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { TtsModule } from './modules/tts/tts.module';
     HealthModule,
     TopikModule,
     TtsModule,
+    AIDialoguesModule,
   ],
 })
 export class AppModule {}

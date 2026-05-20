@@ -70,6 +70,13 @@ export class SubscriptionsController {
     return this.subscriptionsService.verifyGooglePlaySubscription(userId, dto);
   }
 
+  @Post('google/verify-consumable')
+  @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify a Google Play consumable ticket purchase' })
+  verifyConsumableTicket(@CurrentUser('id') userId: string, @Body() dto: GooglePlayVerifyDto) {
+    return this.subscriptionsService.verifyConsumableTicketPurchase(userId, dto);
+  }
+
   @Delete()
   @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel subscription' })

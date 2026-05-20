@@ -1438,6 +1438,29 @@ QUY TẮC BẮT BUỘC:
     userAnswer: string,
     preferredProvider?: string,
   ): Promise<WritingCorrectionResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subscriptions: {
+          where: {
+            status: 'ACTIVE',
+            planType: { in: ['PREMIUM', 'LIFETIME'] },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
+    }
+
+    const isPremium = user.role === 'ADMIN' || user.subscriptions.length > 0;
+    if (!isPremium) {
+      if (user.aiTicketsBalance <= 0) {
+        throw new HttpException('Bạn đã dùng hết lượt chấm AI miễn phí. Vui lòng đăng ký Premium hoặc mua thêm vé chấm điểm!', HttpStatus.FORBIDDEN);
+      }
+    }
+
     const normalizedProvider = String(preferredProvider || '').trim().toLowerCase();
     const providerOrder = normalizedProvider === 'openrouter'
       ? ['openrouter', 'google']
@@ -1476,6 +1499,17 @@ QUY TẮC BẮT BUỘC:
         score: result.score,
       },
     });
+
+    if (!isPremium) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          aiTicketsBalance: {
+            decrement: 1,
+          },
+        },
+      });
+    }
 
     return result;
   }

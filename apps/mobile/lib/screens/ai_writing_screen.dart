@@ -75,6 +75,31 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
     return _defaultTopics[_selectedTopicIndex]['prompt']!;
   }
 
+  void _showOutOfTicketsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hết lượt chấm AI 🤖'),
+        content: const Text(
+          'Bạn đã sử dụng hết lượt chấm điểm AI miễn phí. Hãy mua thêm vé chấm điểm hoặc đăng ký Premium để tiếp tục học tập không giới hạn.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Để sau'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.push('/store');
+            },
+            child: const Text('Đến Cửa Hàng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submitText() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -82,6 +107,15 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập chủ đề viết')),
       );
+      return;
+    }
+
+    final user = ref.read(authProvider).user;
+    final isPremium = user?['role'] == 'ADMIN' || (user?['subscription'] != null);
+    final currentTickets = user?['aiTicketsBalance'] ?? 0;
+
+    if (!isPremium && currentTickets <= 0) {
+      _showOutOfTicketsDialog();
       return;
     }
 
@@ -101,6 +135,8 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
         setState(() {
           _result = res.data;
         });
+        // Refresh ticket balance
+        ref.read(authProvider.notifier).refreshProfile();
       }
     } catch (e) {
       if (mounted) {
@@ -122,6 +158,10 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final isPremium = user?['role'] == 'ADMIN' || (user?['subscription'] != null);
+    final currentTickets = user?['aiTicketsBalance'] ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Luyện Viết AI 🤖'),
@@ -267,6 +307,23 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            if (!isPremium) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Số vé chấm AI của bạn: $currentTickets',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.add_shopping_cart, size: 16),
+                    label: const Text('Mua thêm'),
+                    onPressed: () => context.push('/store'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(

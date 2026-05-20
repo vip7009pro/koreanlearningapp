@@ -248,6 +248,7 @@ export class AuthService {
         role: user.role,
         totalXP: user.totalXP,
         streakDays: user.streakDays,
+        aiTicketsBalance: user.aiTicketsBalance,
       },
       needsPassword: false,
     };
@@ -296,6 +297,7 @@ export class AuthService {
         role: user.role,
         totalXP: user.totalXP,
         streakDays: user.streakDays,
+        aiTicketsBalance: user.aiTicketsBalance,
       },
       needsPassword: false,
     };
@@ -390,6 +392,7 @@ export class AuthService {
         role: user.role,
         totalXP: user.totalXP,
         streakDays: user.streakDays,
+        aiTicketsBalance: user.aiTicketsBalance,
       },
       needsPassword: !user.passwordHash,
     };
@@ -470,6 +473,7 @@ export class AuthService {
         role: user.role,
         totalXP: user.totalXP,
         streakDays: user.streakDays,
+        aiTicketsBalance: user.aiTicketsBalance,
       },
       needsPassword: !user.passwordHash,
     };
@@ -634,6 +638,7 @@ export class AuthService {
         role: user.role,
         totalXP: user.totalXP,
         streakDays: user.streakDays,
+        aiTicketsBalance: user.aiTicketsBalance,
       },
       needsPassword: false,
     };
@@ -683,6 +688,7 @@ export class AuthService {
       role: user.role,
       totalXP: user.totalXP,
       streakDays: user.streakDays,
+      aiTicketsBalance: user.aiTicketsBalance,
       createdAt: user.createdAt,
       subscription: user.subscriptions[0] || null,
     };
@@ -705,6 +711,7 @@ export class AuthService {
       role: user.role,
       totalXP: user.totalXP,
       streakDays: user.streakDays,
+      aiTicketsBalance: user.aiTicketsBalance,
     };
   }
 

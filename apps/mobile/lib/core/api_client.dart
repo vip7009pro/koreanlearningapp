@@ -371,6 +371,8 @@ class ApiClient {
       _dio.post('/subscriptions', data: {'planType': planType});
   Future<Response> verifyGooglePlaySubscription(Map<String, dynamic> data) =>
       _dio.post('/subscriptions/google/verify', data: data);
+  Future<Response> verifyConsumablePurchase(Map<String, dynamic> data) =>
+      _dio.post('/subscriptions/google/verify-consumable', data: data);
   Future<Response> checkPremiumStatus() =>
       _dio.get('/subscriptions/check-premium');
 
@@ -391,6 +393,15 @@ class ApiClient {
   Future<Response> getWritingHistory({int page = 1, int limit = 20}) =>
       _dio.get('/ai/writing-history',
           queryParameters: {'page': page, 'limit': limit});
+
+  // AI Dialogue
+  Future<Response> getDialogueScenarios() => _dio.get('/ai-dialogues/scenarios');
+  Future<Response> createDialogueSession(String scenarioId) =>
+      _dio.post('/ai-dialogues/sessions', data: {'scenarioId': scenarioId});
+  Future<Response> getDialogueSessionHistory(String sessionId) =>
+      _dio.get('/ai-dialogues/sessions/$sessionId/history');
+  Future<Response> submitDialogueTurn(String sessionId, String userAnswer) =>
+      _dio.post('/ai-dialogues/sessions/$sessionId/turn', data: {'userAnswer': userAnswer});
 
   // AI (Admin)
   Future<Response> adminListAiModels({String? provider}) =>

@@ -17,8 +17,11 @@ import '../screens/forgot_password_screen.dart';
 import '../screens/set_password_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/subscription_screen.dart';
+import '../screens/store_screen.dart';
 import '../screens/ai_writing_screen.dart';
 import '../screens/ai_diagnostics_screen.dart';
+import '../screens/dialogue_list_screen.dart';
+import '../screens/dialogue_practice_screen.dart';
 import '../screens/leaderboard_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/writing_history_screen.dart';
@@ -121,9 +124,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/subscription',
           builder: (_, __) => const SubscriptionScreen()),
       GoRoute(
+          path: '/store',
+          builder: (_, __) => const StoreScreen()),
+      GoRoute(
           path: '/ai-practice', builder: (_, __) => const AiWritingScreen()),
       GoRoute(
           path: '/diagnostics', builder: (_, __) => const AiDiagnosticsScreen()),
+      GoRoute(
+        path: '/dialogues',
+        builder: (_, __) => const DialogueListScreen(),
+      ),
+      GoRoute(
+        path: '/dialogues/practice/:sessionId',
+        builder: (_, state) => DialoguePracticeScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
+      ),
       GoRoute(
           path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
       GoRoute(path: '/review', builder: (_, __) => const ReviewScreen()),

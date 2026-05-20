@@ -281,4 +281,91 @@ export class SubscriptionsService {
       default: return 0;
     }
   }
+
+  async verifyConsumableTicketPurchase(userId: string, input: GooglePlayVerifyInput) {
+    const packageName = String(input.packageName || this.packageName).trim();
+    const purchaseToken = String(input.purchaseToken || '').trim();
+    const productId = String(input.productId || '').trim();
+
+    if (!purchaseToken) {
+      throw new BadRequestException('purchaseToken is required');
+    }
+    if (!productId) {
+      throw new BadRequestException('productId is required');
+    }
+
+    // Determine ticket count based on product ID
+    let ticketCount = 10;
+    if (productId.endsWith('_100')) {
+      ticketCount = 100;
+    } else if (productId.endsWith('_30')) {
+      ticketCount = 30;
+    } else if (productId.endsWith('_10')) {
+      ticketCount = 10;
+    } else {
+      // Try to parse number from product id if possible, e.g. ai_tickets_50
+      const match = productId.match(/_(\d+)$/);
+      if (match) {
+        ticketCount = parseInt(match[1], 10);
+      }
+    }
+
+    let isVerified = false;
+    let orderId = input.orderId || null;
+
+    try {
+      const accessToken = await this.getGooglePlayAccessToken();
+      const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}`;
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        timeout: 30000,
+      });
+
+      if (response.data && response.data.purchaseState === 0) {
+        isVerified = true;
+        orderId = response.data.orderId || orderId;
+      } else {
+        throw new BadRequestException('Giao dịch chưa thanh toán hoặc đã bị hủy trên Google Play');
+      }
+    } catch (error) {
+      // In development or if google credentials are missing, we fall back to mock verification
+      const isMissingCredentials = error instanceof ServiceUnavailableException || 
+        (error instanceof Error && error.message.includes('Google Play service account is not configured'));
+
+      if (isMissingCredentials || process.env.NODE_ENV !== 'production') {
+        this.logger.warn(
+          { productId, purchaseToken, error: error instanceof Error ? error.message : String(error) },
+          'Google Play verification not configured or failed, using mock verification in non-production mode'
+        );
+        isVerified = true;
+        orderId = orderId || `MOCK_TICKET_${Date.now()}`;
+      } else {
+        throw error;
+      }
+    }
+
+    if (!isVerified) {
+      throw new BadRequestException('Xác minh giao dịch thất bại');
+    }
+
+    // Increment user's ticket balance
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        aiTicketsBalance: {
+          increment: ticketCount,
+        },
+      },
+    });
+
+    return {
+      verified: true,
+      provider: 'google_play',
+      productId,
+      orderId,
+      ticketsAdded: ticketCount,
+      newBalance: updatedUser.aiTicketsBalance,
+    };
+  }
 }
