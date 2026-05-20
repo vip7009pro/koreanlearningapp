@@ -1053,7 +1053,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
     final d = _currentDraft(qId);
 
-    final questionText = _stripHtml((q['contentHtml'] ?? '').toString());
+    final parts = _parseQuestionText((q['contentHtml'] ?? '').toString());
 
     final choices = (q['choices'] as List?) ?? [];
 
@@ -1119,9 +1119,29 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              questionText,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parts.instruction,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
+                if (parts.body != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    parts.body!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.normal,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (audioUrl.isNotEmpty || showTts) ...[
               const SizedBox(height: 12),
@@ -1336,4 +1356,55 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       ),
     );
   }
+}
+
+class QuestionTextParts {
+  final String instruction;
+  final String? body;
+  QuestionTextParts(this.instruction, this.body);
+}
+
+QuestionTextParts _parseQuestionText(String html) {
+  if (html.isEmpty) return QuestionTextParts('', null);
+  
+  final regex = RegExp(r'<br\s*\/?>', caseSensitive: false);
+  
+  // Custom helper to strip tags locally
+  String strip(String text) {
+    return text.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  if (!html.contains(regex)) {
+    final newlineRegex = RegExp(r'\r?\n');
+    if (html.contains(newlineRegex)) {
+      final index = html.indexOf(newlineRegex);
+      final first = html.substring(0, index);
+      final second = html.substring(index).trim();
+      return QuestionTextParts(strip(first), second.isNotEmpty ? strip(second) : null);
+    }
+    return QuestionTextParts(strip(html), null);
+  }
+  
+  final matches = regex.allMatches(html).toList();
+  final firstMatch = matches.first;
+  final firstPart = html.substring(0, firstMatch.start);
+  
+  int secondPartStart = firstMatch.end;
+  for (int i = 1; i < matches.length; i++) {
+    final prevMatch = matches[i - 1];
+    final currentMatch = matches[i];
+    final between = html.substring(prevMatch.end, currentMatch.start).trim();
+    if (between.isEmpty) {
+      secondPartStart = currentMatch.end;
+    } else {
+      break;
+    }
+  }
+  
+  final secondPart = html.substring(secondPartStart);
+  
+  return QuestionTextParts(
+    strip(firstPart),
+    secondPart.trim().isNotEmpty ? strip(secondPart) : null,
+  );
 }

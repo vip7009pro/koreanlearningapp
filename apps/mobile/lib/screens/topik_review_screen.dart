@@ -266,7 +266,7 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
       final qType = (q['questionType'] ?? '').toString();
       final section = (q['section'] as Map?)?.cast<String, dynamic>();
       final sectionType = (section?['type'] ?? '').toString();
-      final content = _stripHtml((q['contentHtml'] ?? '').toString());
+      final parts = _parseQuestionText((q['contentHtml'] ?? '').toString());
       final listeningScript = (q['listeningScript'] ?? '').toString().trim();
 
       final selectedChoice =
@@ -286,9 +286,29 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                content,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    parts.instruction,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (parts.body != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      parts.body!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.normal,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if (sectionType == 'LISTENING' && listeningScript.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -382,4 +402,55 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
       ),
     );
   }
+}
+
+class QuestionTextParts {
+  final String instruction;
+  final String? body;
+  QuestionTextParts(this.instruction, this.body);
+}
+
+QuestionTextParts _parseQuestionText(String html) {
+  if (html.isEmpty) return QuestionTextParts('', null);
+  
+  final regex = RegExp(r'<br\s*\/?>', caseSensitive: false);
+  
+  // Custom helper to strip tags locally
+  String strip(String text) {
+    return text.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  if (!html.contains(regex)) {
+    final newlineRegex = RegExp(r'\r?\n');
+    if (html.contains(newlineRegex)) {
+      final index = html.indexOf(newlineRegex);
+      final first = html.substring(0, index);
+      final second = html.substring(index).trim();
+      return QuestionTextParts(strip(first), second.isNotEmpty ? strip(second) : null);
+    }
+    return QuestionTextParts(strip(html), null);
+  }
+  
+  final matches = regex.allMatches(html).toList();
+  final firstMatch = matches.first;
+  final firstPart = html.substring(0, firstMatch.start);
+  
+  int secondPartStart = firstMatch.end;
+  for (int i = 1; i < matches.length; i++) {
+    final prevMatch = matches[i - 1];
+    final currentMatch = matches[i];
+    final between = html.substring(prevMatch.end, currentMatch.start).trim();
+    if (between.isEmpty) {
+      secondPartStart = currentMatch.end;
+    } else {
+      break;
+    }
+  }
+  
+  final secondPart = html.substring(secondPartStart);
+  
+  return QuestionTextParts(
+    strip(firstPart),
+    secondPart.trim().isNotEmpty ? strip(secondPart) : null,
+  );
 }

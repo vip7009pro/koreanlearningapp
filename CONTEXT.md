@@ -22,6 +22,9 @@ Last updated: 2026-05-20
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Fixed TOPIK exam screen question layout:
+  - Added HTML break tag parsing (`_parseQuestionText` RegExp utility) to both [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart) and [topik_review_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_review_screen.dart).
+  - Split the question content into two parts: instruction (rendered in bold, size 16) and question/paragraph body (rendered in normal weight, size 16), separated by a vertical spacer to make paragraphs highly legible.
 - Seeded 500 leaderboard users:
   - Created [seed_leaderboard.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/prisma/seed_leaderboard.ts) to generate 500 random users with standard Vietnamese names, realistic emails, random XP, and random streak counts.
   - Successfully executed the script via `npx ts-node prisma/seed_leaderboard.ts` to populate the database for high-fidelity Leaderboard tab testing.
