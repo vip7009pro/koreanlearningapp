@@ -135,10 +135,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const DialogueListScreen(),
       ),
       GoRoute(
-        path: '/dialogues/practice/:sessionId',
-        builder: (_, state) => DialoguePracticeScreen(
-          sessionId: state.pathParameters['sessionId']!,
-        ),
+        path: '/dialogues/practice/:id',
+        builder: (_, state) {
+          final isNew = state.uri.queryParameters['isNew'] == 'true';
+          return DialoguePracticeScreen(
+            id: state.pathParameters['id']!,
+            isNew: isNew,
+          );
+        },
       ),
       GoRoute(
           path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),

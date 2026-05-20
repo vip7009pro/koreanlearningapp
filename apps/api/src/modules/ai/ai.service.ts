@@ -119,14 +119,53 @@ type QuotaInfo = {
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it';
-  constructor(private prisma: PrismaService) {}
+  private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemini-3.5-flash';
+  //private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it';
+  constructor(private prisma: PrismaService) { }
 
   private _googleClient: GoogleGenAI | null = null;
 
   private get googleApiKey(): string {
     // Support both common env var names.
     return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  }
+
+  private getProviderForModel(modelName: string): 'google' | 'openrouter' {
+    const m = String(modelName || '').trim().toLowerCase();
+    if (m.startsWith('models/')) {
+      return 'google';
+    }
+    if (m.includes('/')) {
+      return 'openrouter';
+    }
+    return 'google';
+  }
+
+  private getResolvedModelAndProvider(
+    provider: 'google' | 'openrouter',
+    modelOverride?: string,
+  ): { provider: 'google' | 'openrouter'; model: string } {
+    const forceModel = process.env.FORCE_AI_MODEL === 'true';
+    const defaultModel = process.env.DEFAULT_AI_MODEL;
+
+    if (forceModel && defaultModel) {
+      const resolvedProvider = this.getProviderForModel(defaultModel);
+      return {
+        provider: resolvedProvider,
+        model: defaultModel,
+      };
+    }
+
+    const resolvedModel =
+      (modelOverride && String(modelOverride).trim()) ||
+      (provider === 'google'
+        ? AIService.DEFAULT_GOOGLE_MODEL
+        : process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001');
+
+    return {
+      provider,
+      model: resolvedModel,
+    };
   }
 
   private async callAiJson(
@@ -136,10 +175,11 @@ export class AIService {
     modelOverride?: string,
     maxTokens?: number,
   ): Promise<any> {
-    if (provider === 'google') {
-      return this.callGoogleGenAiJson(systemPrompt, userPrompt, modelOverride);
+    const resolved = this.getResolvedModelAndProvider(provider, modelOverride);
+    if (resolved.provider === 'google') {
+      return this.callGoogleGenAiJson(systemPrompt, userPrompt, resolved.model);
     }
-    return this.callOpenRouterJson(systemPrompt, userPrompt, modelOverride, maxTokens);
+    return this.callOpenRouterJson(systemPrompt, userPrompt, resolved.model, maxTokens);
   }
 
   private async callGoogleGenAiJson(
@@ -149,7 +189,13 @@ export class AIService {
   ): Promise<any> {
     this.enforceGoogleQuota();
     const ai = this.getGoogleClient();
-    const model = (modelOverride && String(modelOverride).trim()) || AIService.DEFAULT_GOOGLE_MODEL;
+    let model = (modelOverride && String(modelOverride).trim()) || AIService.DEFAULT_GOOGLE_MODEL;
+    if (process.env.FORCE_AI_MODEL === 'true' && process.env.DEFAULT_AI_MODEL) {
+      model = process.env.DEFAULT_AI_MODEL;
+      this.logger.log(`[AI Call] Google GenAI (FORCED MODEL): "${model}"`);
+    } else {
+      this.logger.log(`[AI Call] Google GenAI (Model: "${model}")`);
+    }
 
     // Keep it simple: send combined prompt as text. We still enforce JSON-only in the system prompt.
     const response = await ai.models.generateContent({
@@ -665,10 +711,10 @@ ${writingHint}`;
             explanation: (q as any).explanation ?? null,
             choices: Array.isArray((q as any).choices)
               ? (q as any).choices.map((c: any, idx: number) => ({
-                  orderIndex: Number.isFinite(Number(c?.orderIndex)) ? Number(c.orderIndex) : idx + 1,
-                  content: String(c?.content || '').trim(),
-                  isCorrect: c?.isCorrect === true,
-                }))
+                orderIndex: Number.isFinite(Number(c?.orderIndex)) ? Number(c.orderIndex) : idx + 1,
+                content: String(c?.content || '').trim(),
+                isCorrect: c?.isCorrect === true,
+              }))
               : undefined,
           };
 
@@ -749,10 +795,17 @@ ${writingHint}`;
       throw new Error('OPENROUTER_API_KEY is not configured');
     }
 
-    const resolvedModel =
+    let resolvedModel =
       (modelOverride && String(modelOverride).trim()) ||
       process.env.OPENROUTER_MODEL ||
       'google/gemini-2.0-flash-001';
+
+    if (process.env.FORCE_AI_MODEL === 'true' && process.env.DEFAULT_AI_MODEL) {
+      resolvedModel = process.env.DEFAULT_AI_MODEL;
+      this.logger.log(`[AI Call] OpenRouter JSON (FORCED MODEL): "${resolvedModel}"`);
+    } else {
+      this.logger.log(`[AI Call] OpenRouter JSON (Model: "${resolvedModel}")`);
+    }
 
     if (this.isFreeModel(resolvedModel)) {
       this.enforceFreeModelQuota(resolvedModel);
@@ -1024,9 +1077,9 @@ Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan chủ đề.`;
 
     const created = createItems.length
       ? await this.prisma.vocabulary.createMany({
-          data: createItems,
-          skipDuplicates: false,
-        })
+        data: createItems,
+        skipDuplicates: false,
+      })
       : { count: 0 };
 
     return {
@@ -1134,9 +1187,9 @@ Lưu ý: ví dụ câu nên ngắn, tự nhiên, liên quan đến từ vựng v
 
     const created = createItems.length
       ? await this.prisma.vocabulary.createMany({
-          data: createItems,
-          skipDuplicates: false,
-        })
+        data: createItems,
+        skipDuplicates: false,
+      })
       : { count: 0 };
 
     return {
@@ -1418,15 +1471,15 @@ Lưu ý: mỗi quiz nên có 3-10 câu hỏi, options tối thiểu 4 lựa ch�
 QUY TẮC BẮT BUỘC:
 1. Bạn CHỈ được phản hồi liên quan đến việc học tiếng Hàn.
 2. Nếu người dùng gửi nội dung KHÔNG liên quan đến tiếng Hàn, nội dung nhạy cảm, bạo lực, chính trị, khiêu dâm hoặc vi phạm đạo đức, hãy từ chối lịch sự và nhắc họ gửi bài viết tiếng Hàn.
-3. Luôn phản hồi bằng tiếng Việt.
+3. BẮT BUỘC dùng tiếng Việt cho tất cả lời nhận xét (feedback), hướng dẫn, diễn giải lỗi (explanation). TUYỆT ĐỐI KHÔNG dùng tiếng Hàn cho các đoạn diễn giải, nhận xét hay giải thích lỗi này. Chỉ có các câu tiếng Hàn được sửa hoặc các từ/câu ví dụ tiếng Hàn thì mới được viết bằng tiếng Hàn.
 4. Phản hồi phải ở dạng JSON hợp lệ với cấu trúc:
 {
-  "correctedText": "bài viết đã sửa",
-  "feedback": "nhận xét tổng thể",
+  "correctedText": "bài viết đã sửa bằng tiếng Hàn",
+  "feedback": "nhận xét tổng thể và hướng dẫn chi tiết BẰNG TIẾNG VIỆT",
   "score": <số từ 0-100>,
-  "errors": [{"original": "lỗi gốc", "corrected": "đã sửa", "explanation": "giải thích"}]
+  "errors": [{"original": "lỗi gốc trong bài viết của học viên", "corrected": "cách viết đã sửa bằng tiếng Hàn", "explanation": "giải thích chi tiết lý do sai và cách dùng BẰNG TIẾNG VIỆT"}]
 }
-5. Nếu bài viết tốt và không có lỗi, vẫn đưa ra nhận xét và điểm cao.`;
+5. Nếu bài viết tốt và không có lỗi, vẫn đưa ra nhận xét bằng tiếng Việt và điểm cao.`;
 
   /**
    * Call OpenRouter API for AI writing correction.
@@ -1462,9 +1515,14 @@ QUY TẮC BẮT BUỘC:
     }
 
     const normalizedProvider = String(preferredProvider || '').trim().toLowerCase();
-    const providerOrder = normalizedProvider === 'openrouter'
+    let providerOrder = normalizedProvider === 'openrouter'
       ? ['openrouter', 'google']
       : ['google', 'openrouter'];
+
+    if (process.env.FORCE_AI_MODEL === 'true' && process.env.DEFAULT_AI_MODEL) {
+      const forcedProvider = this.getProviderForModel(process.env.DEFAULT_AI_MODEL);
+      providerOrder = forcedProvider === 'google' ? ['google', 'openrouter'] : ['openrouter', 'google'];
+    }
 
     let result: WritingCorrectionResult | null = null;
     const failures: Array<{ provider: string; error: string }> = [];
@@ -1497,6 +1555,8 @@ QUY TẮC BẮT BUỘC:
         userAnswer,
         aiFeedback: result.feedback,
         score: result.score,
+        correctedText: result.correctedText,
+        errors: result.errors as any,
       },
     });
 
@@ -1515,10 +1575,18 @@ QUY TẮC BẮT BUỘC:
   }
 
   private async callOpenRouter(prompt: string, userAnswer: string): Promise<WritingCorrectionResult> {
+    let model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    if (process.env.FORCE_AI_MODEL === 'true' && process.env.DEFAULT_AI_MODEL) {
+      model = process.env.DEFAULT_AI_MODEL;
+      this.logger.log(`[AI Call] OpenRouter Writing Correction (FORCED MODEL): "${model}"`);
+    } else {
+      this.logger.log(`[AI Call] OpenRouter Writing Correction (Model: "${model}")`);
+    }
+
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001',
+        model,
         messages: [
           { role: 'system', content: this.SYSTEM_PROMPT },
           {
@@ -1541,7 +1609,7 @@ QUY TẮC BẮT BUỘC:
     );
 
     const content = response.data?.choices?.[0]?.message?.content || '';
-    
+
     // Try to parse JSON from the response
     try {
       // Extract JSON from markdown code block if present

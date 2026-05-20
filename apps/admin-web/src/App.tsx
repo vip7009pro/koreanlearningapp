@@ -10,6 +10,7 @@ import UsersPage from './pages/UsersPage';
 import TopikPage from './pages/TopikPage';
 import TopikExamEditorPage from './pages/TopikExamEditorPage';
 import SpecializedVocabPage from './pages/SpecializedVocabPage';
+import DialogueScenariosPage from './pages/DialogueScenariosPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="topik" element={<TopikPage />} />
         <Route path="topik/exams/:examId" element={<TopikExamEditorPage />} />
         <Route path="specialized-vocab" element={<SpecializedVocabPage />} />
+        <Route path="dialogue-scenarios" element={<DialogueScenariosPage />} />
       </Route>
     </Routes>
   );

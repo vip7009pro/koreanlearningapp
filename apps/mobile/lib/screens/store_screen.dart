@@ -236,7 +236,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final isPremium = user?['role'] == 'ADMIN' || (user?['subscription'] != null);
+    final isPremium = user?['role'] == 'ADMIN' ||
+        (user?['subscription'] != null &&
+            user?['subscription']?['planType'] != 'FREE');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
     return Scaffold(

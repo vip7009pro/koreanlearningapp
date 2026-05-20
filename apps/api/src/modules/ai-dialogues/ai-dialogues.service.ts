@@ -110,6 +110,31 @@ export class AIDialoguesService {
   }
 
   async submitTurn(userId: string, sessionId: string, userAnswer: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subscriptions: {
+          where: {
+            status: 'ACTIVE',
+            planType: { in: ['PREMIUM', 'LIFETIME'] },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const isPremium = user.role === 'ADMIN' || user.subscriptions.length > 0;
+    if (!isPremium) {
+      if (user.aiTicketsBalance <= 0) {
+        throw new ForbiddenException(
+          'Bạn đã dùng hết lượt dùng AI miễn phí. Vui lòng đăng ký Premium hoặc mua thêm vé để tiếp tục hội thoại!',
+        );
+      }
+    }
+
     const session = await this.prisma.dialogueSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -220,9 +245,101 @@ Hãy đánh giá câu nói cuối cùng của User và đưa ra phản hồi ti�
       },
     });
 
+    if (!isPremium) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          aiTicketsBalance: {
+            decrement: 1,
+          },
+        },
+      });
+    }
+
     return {
       userTurn: updatedUserTurn,
       aiTurn,
     };
+  }
+
+  async getSessionsByScenario(userId: string, scenarioId: string) {
+    return this.prisma.dialogueSession.findMany({
+      where: {
+        userId,
+        scenarioId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        turns: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+  }
+
+  async deleteSession(userId: string, sessionId: string) {
+    const session = await this.prisma.dialogueSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      throw new NotFoundException('Không tìm thấy cuộc hội thoại');
+    }
+    if (session.userId !== userId) {
+      throw new ForbiddenException('Bạn không có quyền xóa cuộc hội thoại này');
+    }
+    await this.prisma.dialogueSession.delete({
+      where: { id: sessionId },
+    });
+    return { success: true };
+  }
+
+  async createScenario(dto: {
+    title: string;
+    description: string;
+    difficulty: Difficulty;
+    initialPrompt: string;
+    starterMessage: string;
+  }) {
+    return this.prisma.dialogueScenario.create({
+      data: dto,
+    });
+  }
+
+  async updateScenario(
+    id: string,
+    dto: {
+      title?: string;
+      description?: string;
+      difficulty?: Difficulty;
+      initialPrompt?: string;
+      starterMessage?: string;
+    },
+  ) {
+    const scenario = await this.prisma.dialogueScenario.findUnique({
+      where: { id },
+    });
+    if (!scenario) {
+      throw new NotFoundException('Không tìm thấy kịch bản');
+    }
+    return this.prisma.dialogueScenario.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async deleteScenario(id: string) {
+    const scenario = await this.prisma.dialogueScenario.findUnique({
+      where: { id },
+    });
+    if (!scenario) {
+      throw new NotFoundException('Không tìm thấy kịch bản');
+    }
+    return this.prisma.dialogueScenario.delete({
+      where: { id },
+    });
   }
 }

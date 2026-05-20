@@ -111,7 +111,9 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
     }
 
     final user = ref.read(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' || (user?['subscription'] != null);
+    final isPremium = user?['role'] == 'ADMIN' ||
+        (user?['subscription'] != null &&
+            user?['subscription']?['planType'] != 'FREE');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
     if (!isPremium && currentTickets <= 0) {
@@ -159,7 +161,9 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' || (user?['subscription'] != null);
+    final isPremium = user?['role'] == 'ADMIN' ||
+        (user?['subscription'] != null &&
+            user?['subscription']?['planType'] != 'FREE');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
     return Scaffold(

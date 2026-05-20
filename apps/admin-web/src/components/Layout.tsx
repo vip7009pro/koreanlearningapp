@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { FiHome, FiBook, FiUsers, FiLogOut, FiMenu, FiFileText } from 'react-icons/fi';
+import { FiHome, FiBook, FiUsers, FiLogOut, FiMenu, FiFileText, FiMessageSquare } from 'react-icons/fi';
 import { useState } from 'react';
 
 export default function Layout() {
@@ -18,6 +18,7 @@ export default function Layout() {
     { to: '/courses', icon: <FiBook size={20} />, label: 'Courses' },
     { to: '/specialized-vocab', icon: <FiBook size={20} />, label: 'Chuyên ngành' },
     { to: '/topik', icon: <FiFileText size={20} />, label: 'TOPIK' },
+    { to: '/dialogue-scenarios', icon: <FiMessageSquare size={20} />, label: 'Kịch bản AI' },
     { to: '/users', icon: <FiUsers size={20} />, label: 'Users' },
   ];
 

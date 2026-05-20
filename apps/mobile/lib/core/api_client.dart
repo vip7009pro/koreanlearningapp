@@ -400,8 +400,12 @@ class ApiClient {
       _dio.post('/ai-dialogues/sessions', data: {'scenarioId': scenarioId});
   Future<Response> getDialogueSessionHistory(String sessionId) =>
       _dio.get('/ai-dialogues/sessions/$sessionId/history');
+  Future<Response> getDialogueSessionsForScenario(String scenarioId) =>
+      _dio.get('/ai-dialogues/scenarios/$scenarioId/sessions');
   Future<Response> submitDialogueTurn(String sessionId, String userAnswer) =>
       _dio.post('/ai-dialogues/sessions/$sessionId/turn', data: {'userAnswer': userAnswer});
+  Future<Response> deleteDialogueSession(String sessionId) =>
+      _dio.delete('/ai-dialogues/sessions/$sessionId');
 
   // AI (Admin)
   Future<Response> adminListAiModels({String? provider}) =>

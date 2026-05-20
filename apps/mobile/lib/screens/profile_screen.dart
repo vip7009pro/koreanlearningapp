@@ -34,6 +34,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final badgesRes = await api.getUserBadges();
       final statsRes = await api.getReviewStats();
       final premiumRes = await api.checkPremiumStatus();
+      try {
+        await ref.read(authProvider.notifier).refreshProfile();
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _badges = badgesRes.data ?? [];
@@ -260,6 +263,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ],
                     ),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // AI Ticket balance display card
+            Card(
+              color: isDark ? const Color(0xFF1E1E2F) : Colors.indigo.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : Colors.indigo.shade200,
+                ),
+              ),
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.confirmation_num,
+                    color: Color(0xFF6366F1),
+                    size: 28,
+                  ),
+                ),
+                title: const Text(
+                  'Vé Hội thoại AI',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(
+                  'Số vé còn lại: ${user?['aiTicketsBalance'] ?? 0}',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.indigo.shade900,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                trailing: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  onPressed: () => context.push('/store'),
+                  child: const Text('Mua thêm'),
                 ),
               ),
             ),

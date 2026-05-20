@@ -151,6 +151,13 @@ export const quizzesApi = {
 };
 
 // Users
+export const aiDialoguesApi = {
+  getScenarios: () => api.get('/ai-dialogues/scenarios'),
+  createScenario: (data: any) => api.post('/ai-dialogues/scenarios', data),
+  updateScenario: (id: string, data: any) => api.patch(`/ai-dialogues/scenarios/${id}`, data),
+  deleteScenario: (id: string) => api.delete(`/ai-dialogues/scenarios/${id}`),
+};
+
 export const usersApi = {
   getAll: (params?: Record<string, unknown>) => api.get('/users', { params }),
   getOne: (id: string) => api.get(`/users/${id}`),

@@ -119,6 +119,45 @@ class WritingDetailScreen extends ConsumerWidget {
               child: Text(feedback, style: const TextStyle(fontSize: 15)),
             ),
             const SizedBox(height: 16),
+            if (item['correctedText'] != null &&
+                item['correctedText'].toString().trim().isNotEmpty) ...[
+              _buildSection(
+                context,
+                icon: Icons.auto_fix_high,
+                title: 'Bài viết đã sửa',
+                color: Colors.blue,
+                child: Text(item['correctedText'], style: const TextStyle(fontSize: 15)),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (item['errors'] != null &&
+                (item['errors'] as List).isNotEmpty) ...[
+              _buildSection(
+                context,
+                icon: Icons.error_outline,
+                title: 'Lỗi cần chú ý',
+                color: Colors.red,
+                child: Column(
+                  children: (item['errors'] as List).map((err) {
+                    final original = err['original'] ?? '';
+                    final corrected = err['corrected'] ?? '';
+                    final explanation = err['explanation'] ?? '';
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.error_outline, color: Colors.red),
+                        title: Text(
+                          'Sửa: $original ➡️ $corrected',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(explanation),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             const AppBannerAd(),
             const SizedBox(height: 24),
           ],

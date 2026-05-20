@@ -34,6 +34,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final coursesRes = await api.getCourses();
       final topikRes = await api.getTopikExams();
       final goalRes = await api.getDailyGoal();
+      try {
+        await ref.read(authProvider.notifier).refreshProfile();
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _courses = coursesRes.data?['data'] ?? [];
@@ -178,22 +181,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                // Stats Row
-                                Row(
-                                  children: [
-                                    _StatChip(
-                                      icon: Icons.local_fire_department,
-                                      label: '${user?['streakDays'] ?? 0} ngày',
-                                      color: Colors.orange,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _StatChip(
-                                      icon: Icons.star,
-                                      label: '${user?['totalXP'] ?? 0} XP',
-                                      color: Colors.amber,
-                                    ),
-                                  ],
-                                ),
+                                 SingleChildScrollView(
+                                   scrollDirection: Axis.horizontal,
+                                   child: Row(
+                                     children: [
+                                       _StatChip(
+                                         icon: Icons.local_fire_department,
+                                         label: '${user?['streakDays'] ?? 0} ngày',
+                                         color: Colors.orange,
+                                       ),
+                                       const SizedBox(width: 12),
+                                       _StatChip(
+                                         icon: Icons.star,
+                                         label: '${user?['totalXP'] ?? 0} XP',
+                                         color: Colors.amber,
+                                       ),
+                                       const SizedBox(width: 12),
+                                       _StatChip(
+                                         icon: Icons.auto_awesome,
+                                         label: (user?['role'] == 'ADMIN' ||
+                                                 (user?['subscription'] != null &&
+                                                     user?['subscription']?['planType'] != 'FREE'))
+                                             ? 'Vô hạn AI'
+                                             : '${user?['aiTicketsBalance'] ?? 0} vé AI',
+                                         color: Colors.cyanAccent,
+                                       ),
+                                     ],
+                                   ),
+                                 ),
                               ],
                             ),
                           ),
@@ -547,98 +562,126 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 4,
+                          vertical: 6,
                         ),
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _handleOpenCourse(course),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: theme.gradient),
                             borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        '📚',
-                                        style: TextStyle(fontSize: 28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.seedColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              onTap: () => _handleOpenCourse(course),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.25),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '📚',
+                                          style: TextStyle(fontSize: 28),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          course['title'] ?? '',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          course['description'] ?? '',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            _LevelBadge(
-                                              level:
-                                                  course['level'] ?? 'BEGINNER',
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            course['title'] ?? '',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: Colors.white,
                                             ),
-                                            if (course['isPremium'] ==
-                                                true) ...[
-                                              const SizedBox(width: 8),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            course['description'] ?? '',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
                                               Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
+                                                padding: const EdgeInsets.symmetric(
                                                   horizontal: 8,
                                                   vertical: 2,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.amber.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
+                                                  color: Colors.white.withOpacity(0.2),
+                                                  borderRadius: BorderRadius.circular(6),
                                                 ),
                                                 child: Text(
-                                                  'Ad-free',
-                                                  style: TextStyle(
+                                                  course['level'] ?? 'BEGINNER',
+                                                  style: const TextStyle(
                                                     fontSize: 11,
-                                                    color:
-                                                        Colors.amber.shade900,
-                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
+                                              if (course['isPremium'] ==
+                                                  true) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.amber,
+                                                    borderRadius:
+                                                        BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text(
+                                                    'Ad-free',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.black87,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ],
-                                          ],
-                                        ),
-                                      ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                ],
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -688,97 +731,116 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final year = exam['year'];
                         return Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          child: Card(
-                            child: InkWell(
-                              onTap: id.isEmpty
-                                  ? null
-                                  : () async {
-                                      await ref
-                                          .read(adsManagerProvider)
-                                          .maybeShowInterstitialAd();
-                                      if (!context.mounted) return;
-                                      context.push('/topik/exam/$id');
-                                    },
+                              horizontal: 16, vertical: 6),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF2563EB),
+                                  Color(0xFF4F46E5),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                               borderRadius: BorderRadius.circular(16),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Center(
-                                        child: Text('📝',
-                                            style: TextStyle(fontSize: 26)),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            title,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4F46E5).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                onTap: id.isEmpty
+                                    ? null
+                                    : () async {
+                                        await ref
+                                            .read(adsManagerProvider)
+                                            .maybeShowInterstitialAd();
+                                        if (!context.mounted) return;
+                                        context.push('/topik/exam/$id');
+                                      },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 56,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.25),
+                                            width: 1,
                                           ),
-                                          const SizedBox(height: 6),
-                                          Row(
-                                            children: [
-                                              if (topikLevel.isNotEmpty)
-                                                Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.blue
-                                                        .withValues(alpha: 0.1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            6),
+                                        ),
+                                        child: const Center(
+                                          child: Text('📝',
+                                              style: TextStyle(fontSize: 26)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: Colors.white),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                if (topikLevel.isNotEmpty)
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white.withOpacity(0.2),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              6),
+                                                    ),
+                                                    child: Text(
+                                                      topikLevel.replaceAll(
+                                                          '_', ' '),
+                                                      style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.w600),
+                                                    ),
                                                   ),
-                                                  child: Text(
-                                                    topikLevel.replaceAll(
-                                                        '_', ' '),
-                                                    style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: Colors
-                                                            .blue.shade900,
-                                                        fontWeight:
-                                                            FontWeight.w600),
+                                                if (year != null) ...[
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Năm $year',
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.white70),
                                                   ),
-                                                ),
-                                              if (year != null) ...[
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  'Năm $year',
-                                                  style: TextStyle(
-                                                      fontSize: 12,
-                                                      color:
-                                                          Colors.grey.shade700),
-                                                ),
+                                                ],
                                               ],
-                                            ],
-                                          ),
-                                        ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    Icon(Icons.chevron_right,
-                                        color: Colors.grey.shade400),
-                                  ],
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.white),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -873,33 +935,6 @@ class _StatChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LevelBadge extends StatelessWidget {
-  final String level;
-  const _LevelBadge({required this.level});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = {
-      'BEGINNER': Colors.green,
-      'ELEMENTARY': Colors.teal,
-      'INTERMEDIATE': Colors.blue,
-      'ADVANCED': Colors.purple,
-    };
-    final c = colors[level] ?? Colors.grey;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        level,
-        style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w500),
       ),
     );
   }

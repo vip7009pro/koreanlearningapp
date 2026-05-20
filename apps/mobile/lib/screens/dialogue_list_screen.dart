@@ -16,7 +16,6 @@ class _DialogueListScreenState extends ConsumerState<DialogueListScreen> {
   bool _isLoading = true;
   String? _error;
   List<dynamic> _scenarios = [];
-  bool _isCreatingSession = false;
 
   @override
   void initState() {
@@ -44,28 +43,6 @@ class _DialogueListScreenState extends ConsumerState<DialogueListScreen> {
         _error = 'Không thể tải danh sách kịch bản. Vui lòng kiểm tra kết nối mạng.';
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _startSession(String scenarioId) async {
-    setState(() => _isCreatingSession = true);
-    try {
-      final api = ref.read(apiClientProvider);
-      final res = await api.createDialogueSession(scenarioId);
-      final session = res.data;
-      final sessionId = session['id'] as String;
-
-      if (!mounted) return;
-      context.push('/dialogues/practice/$sessionId');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể tạo phòng trò chuyện: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isCreatingSession = false);
-      }
     }
   }
 
@@ -337,7 +314,7 @@ class _DialogueListScreenState extends ConsumerState<DialogueListScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    onPressed: _isCreatingSession ? null : () => _startSession(id),
+                                    onPressed: () => context.push('/dialogues/practice/$id?isNew=true'),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
@@ -365,23 +342,6 @@ class _DialogueListScreenState extends ConsumerState<DialogueListScreen> {
               ],
             ),
           ),
-          if (_isCreatingSession)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Color(0xFF6366F1)),
-                    SizedBox(height: 16),
-                    Text(
-                      'Đang khởi tạo phòng hội thoại...',
-                      style: TextStyle(color: Colors.white, decoration: TextDecoration.none, fontSize: 15),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
