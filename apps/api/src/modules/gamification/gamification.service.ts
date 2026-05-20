@@ -48,11 +48,14 @@ export class GamificationService {
     });
   }
 
-  async getLeaderboard(limit = 20) {
+  async getLeaderboard(limit: number | string = 100) {
+    const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+    const safeLimit = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 100;
+
     const users = await this.prisma.user.findMany({
       where: { role: 'USER' },
       orderBy: { totalXP: 'desc' },
-      take: limit,
+      take: safeLimit,
       select: { id: true, displayName: true, avatarUrl: true, totalXP: true },
     });
 

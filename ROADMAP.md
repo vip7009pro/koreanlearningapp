@@ -71,7 +71,7 @@ graph TD
 Dưới đây là checklist phân chia theo 3 giai đoạn triển khai chi tiết:
 
 ### Giai đoạn 1: Nâng Cấp UX/UI Cao Cấp & Phát Triển Từ Vựng Chuyên Ngành (Tháng 1 - Giai đoạn Nền tảng)
-*   [ ] **Cải tiến UI/UX & Mỹ thuật số (Aesthetics):**
+*   [/] **Cải tiến UI/UX & Mỹ thuật số (Aesthetics):**
     *   [ ] Thiết kế và áp dụng **Glassmorphism Dark Mode** hiện đại, tạo cảm giác sang trọng, giảm mỏi mắt khi học ban đêm.
     *   [ ] Tích hợp hiệu ứng rung nhẹ (Haptic Feedback) qua gói `services` của Flutter khi người dùng vuốt Flashcard đúng/sai, chọn đáp án Quiz hoặc mở khóa thành tựu.
     *   [ ] Sử dụng font chữ chuyên dụng `Inter` phối hợp cùng `Outfit` để tạo giao diện hiển thị tiếng Hàn - tiếng Việt cân đối, thanh lịch.

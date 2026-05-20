@@ -22,6 +22,13 @@ Last updated: 2026-05-20
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Seeded 500 leaderboard users:
+  - Created [seed_leaderboard.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/prisma/seed_leaderboard.ts) to generate 500 random users with standard Vietnamese names, realistic emails, random XP, and random streak counts.
+  - Successfully executed the script via `npx ts-node prisma/seed_leaderboard.ts` to populate the database for high-fidelity Leaderboard tab testing.
+  - Updated [gamification.service.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/src/modules/gamification/gamification.service.ts) to parse query limit parameters safely and increased the default leaderboard response size from `20` to `100` so that the mobile app shows a vibrant top 100 list out-of-the-box.
+- Fixed Admin Web User list limit:
+  - Added server-side pagination with page size dropdown (10, 20, 50, 100) and page selection buttons to [UsersPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/UsersPage.tsx).
+  - Admins can now view, browse, and paginate through all 500+ users dynamically.
 - Completed all Interactive AI Dialogue & Speaking Practice features:
   - Added a prominent "Bắt đầu" splash UI to `DialoguePracticeScreen` when starting a new session to avoid polluting session history with empty trials.
   - Implemented dynamic session creation, delaying network instantiation until the "Bắt đầu" button is clicked.
@@ -54,4 +61,11 @@ Last updated: 2026-05-20
   - Refactored `HomeScreen` to feature custom decorated, border-radius 16 container-based cards with theme-matching vibrant gradient backgrounds (using `theme.gradient` for Courses and a blue-indigo gradient for TOPIK exams), white text colors, and translucent inner badges to harmonize perfectly with the premium widgets at the top.
 - Subscription Check Refinement:
   - Corrected `isPremium` checks in `home_screen.dart`, `store_screen.dart`, `dialogue_practice_screen.dart`, and `ai_writing_screen.dart` to check `user?['subscription']?['planType'] != 'FREE'`. This resolves the bug where non-admin users with a FREE plan subscription (which is created by default upon registration) were falsely shown as having unlimited "Vô hạn AI" access while their profile screen showed the correct ticket counts.
+- Home Screen & SilverAppBar Branding Redesign:
+  - Completely redesigned `SliverAppBar` in `home_screen.dart` to emphasize the "Tiếng Hàn FDI" brand.
+  - Implemented a custom `flexibleSpace` using `LayoutBuilder` that computes a progress ratio dynamically.
+  - Added smooth cross-fading animations: when expanded, displays a large personalized greeting, a premium "TIẾNG HÀN FDI" brand row with a tagline ("Học tiếng Hàn, chạm ngàn cơ hội FDI"), and streak/XP/ticket chips; when collapsed, exhibits a centered, elegant, smaller "TIẾNG HÀN FDI" logo row.
+  - Added background glassmorphic/glowing circular gradient visual accents for a state-of-the-art aesthetic.
+  - Integrated the profile avatar button as a persistent action item in the top-right corner of the app bar, resolving all related Dart analyzer nullability errors.
+  - Cleaned up deprecated `withOpacity` calls inside `home_screen.dart` to use `withValues(alpha: ...)`.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.

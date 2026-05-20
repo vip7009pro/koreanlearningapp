@@ -75,144 +75,276 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 slivers: [
                   // App Bar
                   SliverAppBar(
-                    expandedHeight: 180,
+                    expandedHeight: 235,
                     floating: false,
                     pinned: true,
-                    flexibleSpace: FlexibleSpaceBar(
-                      titlePadding: const EdgeInsetsDirectional.only(
-                        start: 12,
-                        bottom: 14,
-                      ),
-                      title: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
-                          ),
-                        ),
-                        child: const Text(
-                          'Tiếng Hàn FDI',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                blurRadius: 10,
-                                offset: Offset(0, 2),
-                                color: Color(0x55000000),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: theme.gradient),
-                        ),
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Xin chào 👋',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.8,
-                                            ),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          user?['displayName'] ?? 'User',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    GestureDetector(
-                                      onTap: () => context.push('/profile'),
-                                      child: CircleAvatar(
-                                        radius: 22,
-                                        backgroundColor:
-                                            Colors.white.withValues(alpha: 0.2),
-                                        backgroundImage: (user?['avatarUrl'] !=
-                                                    null &&
-                                                (user?['avatarUrl'] as String)
-                                                    .toString()
-                                                    .isNotEmpty)
-                                            ? NetworkImage(
-                                                api.absoluteUrl(
-                                                    user?['avatarUrl']
-                                                        as String?),
-                                              )
-                                            : null,
-                                        child: (user?['avatarUrl'] == null ||
-                                                (user?['avatarUrl'] as String?)
-                                                        ?.isEmpty ==
-                                                    true)
-                                            ? const Icon(
-                                                Icons.person,
-                                                color: Colors.white,
-                                              )
-                                            : null,
-                                      ),
-                                    ),
-                                  ],
+                    automaticallyImplyLeading: false,
+                    backgroundColor: theme.seedColor,
+                    elevation: 0,
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () => context.push('/profile'),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1.5,
                                 ),
-                                const SizedBox(height: 16),
-                                 SingleChildScrollView(
-                                   scrollDirection: Axis.horizontal,
-                                   child: Row(
-                                     children: [
-                                       _StatChip(
-                                         icon: Icons.local_fire_department,
-                                         label: '${user?['streakDays'] ?? 0} ngày',
-                                         color: Colors.orange,
-                                       ),
-                                       const SizedBox(width: 12),
-                                       _StatChip(
-                                         icon: Icons.star,
-                                         label: '${user?['totalXP'] ?? 0} XP',
-                                         color: Colors.amber,
-                                       ),
-                                       const SizedBox(width: 12),
-                                       _StatChip(
-                                         icon: Icons.auto_awesome,
-                                         label: (user?['role'] == 'ADMIN' ||
-                                                 (user?['subscription'] != null &&
-                                                     user?['subscription']?['planType'] != 'FREE'))
-                                             ? 'Vô hạn AI'
-                                             : '${user?['aiTicketsBalance'] ?? 0} vé AI',
-                                         color: Colors.cyanAccent,
-                                       ),
-                                     ],
-                                   ),
-                                 ),
-                              ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                backgroundImage: (user?['avatarUrl'] != null &&
+                                        (user?['avatarUrl'] as String?)?.isNotEmpty == true)
+                                    ? NetworkImage(api.absoluteUrl(user?['avatarUrl'] as String?))
+                                    : null,
+                                child: (user?['avatarUrl'] == null ||
+                                        (user?['avatarUrl'] as String?)?.isEmpty == true)
+                                    ? const Icon(Icons.person, color: Colors.white, size: 18)
+                                    : null,
+                              ),
                             ),
                           ),
                         ),
+                      ),
+                    ],
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final topPadding = MediaQuery.of(context).padding.top;
+                          const double expandedHeight = 235;
+                          final double currentHeight = constraints.biggest.height;
+
+                          // Calculate progress ratio (1.0 = expanded, 0.0 = collapsed)
+                          final double rawProgress = (currentHeight - (kToolbarHeight + topPadding)) /
+                              (expandedHeight - (kToolbarHeight + topPadding));
+                          final double progress = rawProgress.clamp(0.0, 1.0);
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: theme.gradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.antiAlias,
+                              children: [
+                                // Glowing background decorations
+                                Positioned(
+                                  top: -25,
+                                  right: 40,
+                                  child: Container(
+                                    width: 120,
+                                    height: 120,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.12),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: -20,
+                                  left: 70,
+                                  child: Container(
+                                    width: 90,
+                                    height: 90,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.06),
+                                    ),
+                                  ),
+                                ),
+
+                                // Collapsed Header (Visible when progress is near 0)
+                                if (progress < 0.95)
+                                  Opacity(
+                                    opacity: (1.0 - progress).clamp(0.0, 1.0),
+                                    child: Container(
+                                      padding: EdgeInsets.only(top: topPadding),
+                                      height: kToolbarHeight + topPadding,
+                                      alignment: Alignment.centerLeft,
+                                      margin: const EdgeInsets.only(left: 16.0),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.auto_awesome, color: Colors.amber, size: 18),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                            'TIẾNG HÀN',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [Colors.amber, Colors.orange],
+                                              ),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'FDI',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                // Expanded Header (Visible when progress is near 1)
+                                if (progress > 0.05)
+                                  Positioned(
+                                    top: topPadding + 10,
+                                    left: 16,
+                                    right: 16,
+                                    child: Opacity(
+                                      opacity: progress.clamp(0.0, 1.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Greeting
+                                          Text(
+                                            'Xin chào 👋',
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(alpha: 0.8),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          SizedBox(
+                                            width: MediaQuery.of(context).size.width - 100,
+                                            child: Text(
+                                              user?['displayName'] ?? 'User',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          // Branding
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withValues(alpha: 0.2),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Colors.white.withValues(alpha: 0.15),
+                                                  ),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.auto_awesome,
+                                                  color: Colors.amber,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      const Text(
+                                                        'TIẾNG HÀN',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 20,
+                                                          fontWeight: FontWeight.w900,
+                                                          letterSpacing: 1.0,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          gradient: const LinearGradient(
+                                                            colors: [Colors.amber, Colors.orange],
+                                                          ),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: const Text(
+                                                          'FDI',
+                                                          style: TextStyle(
+                                                            color: Colors.black,
+                                                            fontWeight: FontWeight.w900,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Học tiếng Hàn, chạm ngàn cơ hội FDI',
+                                                    style: TextStyle(
+                                                      color: Colors.white.withValues(alpha: 0.85),
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 20),
+                                          // Chips
+                                          SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              children: [
+                                                _StatChip(
+                                                  icon: Icons.local_fire_department,
+                                                  label: '${user?['streakDays'] ?? 0} ngày',
+                                                  color: Colors.orange,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                _StatChip(
+                                                  icon: Icons.star,
+                                                  label: '${user?['totalXP'] ?? 0} XP',
+                                                  color: Colors.amber,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                _StatChip(
+                                                  icon: Icons.auto_awesome,
+                                                  label: (user?['role'] == 'ADMIN' ||
+                                                          (user?['subscription'] != null &&
+                                                              user?['subscription']?['planType'] != 'FREE'))
+                                                      ? 'Vô hạn AI'
+                                                      : '${user?['aiTicketsBalance'] ?? 0} vé AI',
+                                                  color: Colors.cyanAccent,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -288,7 +420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: theme.seedColor.withOpacity(0.3),
+                                          color: theme.seedColor.withValues(alpha: 0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         ),
@@ -390,7 +522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF7C3AED).withOpacity(0.3),
+                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 4),
                                   ),
@@ -401,7 +533,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -462,7 +594,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF4F46E5).withOpacity(0.3),
+                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 4),
                                   ),
@@ -473,7 +605,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
