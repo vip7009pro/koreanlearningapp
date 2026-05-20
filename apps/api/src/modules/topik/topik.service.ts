@@ -510,6 +510,8 @@ export class TopikService {
     correctTextAnswer?: string;
     scoreWeight?: number;
     explanation?: string;
+    imageUrl?: string;
+    imagePrompt?: string;
     choices?: { orderIndex: number; content: string; isCorrect: boolean }[];
   }) {
     const question = await this.prisma.topikQuestion.create({
@@ -523,6 +525,8 @@ export class TopikService {
         correctTextAnswer: dto.correctTextAnswer,
         scoreWeight: dto.scoreWeight ?? 1,
         explanation: dto.explanation,
+        imageUrl: dto.imageUrl || null,
+        imagePrompt: dto.imagePrompt || null,
       } as any,
     });
 
@@ -639,6 +643,8 @@ export class TopikService {
               correctTextAnswer: q.correctTextAnswer ? String(q.correctTextAnswer) : null,
               scoreWeight: q.scoreWeight != null ? Number(q.scoreWeight) : 1,
               explanation: q.explanation ? String(q.explanation) : null,
+              imageUrl: q.imageUrl ? String(q.imageUrl) : null,
+              imagePrompt: q.imagePrompt ? String(q.imagePrompt) : null,
             } as any,
           });
 

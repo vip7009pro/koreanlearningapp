@@ -481,6 +481,8 @@ class _AdminTopikExamEditorScreenState
     final correctTextCtrl = TextEditingController(text: q['correctTextAnswer']?.toString() ?? '');
     final scoreWeightCtrl = TextEditingController(text: q['scoreWeight']?.toString() ?? '');
     final explanationCtrl = TextEditingController(text: q['explanation']?.toString() ?? '');
+    final imageUrlCtrl = TextEditingController(text: q['imageUrl']?.toString() ?? '');
+    final imagePromptCtrl = TextEditingController(text: q['imagePrompt']?.toString() ?? '');
 
     final choices = (q['choices'] as List?)?.map((c) => (c as Map).cast<String, dynamic>()).toList() ?? <Map<String, dynamic>>[];
 
@@ -572,6 +574,24 @@ class _AdminTopikExamEditorScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
+                TextField(
+                  controller: imagePromptCtrl,
+                  minLines: 2,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Image Prompt (mô tả ảnh/biểu đồ)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: imageUrlCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Image URL (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (questionType == 'MCQ')
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,6 +677,8 @@ class _AdminTopikExamEditorScreenState
         'correctTextAnswer': correctTextCtrl.text.trim().isEmpty ? null : correctTextCtrl.text.trim(),
         'scoreWeight': scoreWeightCtrl.text.trim().isEmpty ? null : int.tryParse(scoreWeightCtrl.text.trim()),
         'explanation': explanationCtrl.text.trim().isEmpty ? null : explanationCtrl.text,
+        'imageUrl': imageUrlCtrl.text.trim().isEmpty ? null : imageUrlCtrl.text.trim(),
+        'imagePrompt': imagePromptCtrl.text.trim().isEmpty ? null : imagePromptCtrl.text,
       };
 
       if (questionType == 'MCQ') {

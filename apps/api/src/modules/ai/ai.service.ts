@@ -73,6 +73,8 @@ type TopikGeneratedQuestion = {
   correctTextAnswer?: string | null;
   scoreWeight?: number;
   explanation?: string | null;
+  imageUrl?: string | null;
+  imagePrompt?: string | null;
   choices?: TopikGeneratedChoice[];
 };
 
@@ -517,6 +519,10 @@ QUY TẮC BẮT BUỘC:
    - SHORT_TEXT: có correctTextAnswer (một đáp án mẫu ngắn).
    - ESSAY: không cần correctTextAnswer.
 6) Không tạo nội dung nhạy cảm/vi phạm pháp luật. Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn nếu cần, nhưng ưu tiên giống đề TOPIK (chủ yếu tiếng Hàn).
+7) Hỗ trợ hình ảnh/sơ đồ: Nếu câu hỏi thuộc dạng cần tranh/ảnh/biểu đồ (ví dụ: TOPIK I câu nghe nhìn tranh chọn đáp án, TOPIK II câu 53 viết phân tích biểu đồ, hoặc câu đọc/nghe mà đề có hình minh họa), thì:
+   - imageUrl = null (Admin sẽ upload ảnh sau).
+   - imagePrompt = Mô tả CHI TIẾT nội dung hình ảnh/biểu đồ bằng tiếng Việt. Mô tả phải đủ cụ thể để một người dùng AI image generator (như Midjourney, DALL-E) có thể tạo ảnh chính xác. Ví dụ: "Biểu đồ cột thể hiện tỷ lệ sử dụng điện thoại thông minh theo độ tuổi (10대: 85%, 20대: 95%, 30대: 90%, 40대: 75%, 50대 이상: 55%). Trục X: độ tuổi, Trục Y: phần trăm (%)".
+   - Nếu câu hỏi KHÔNG cần ảnh, để imageUrl = null và imagePrompt = null.
 `;
 
   private getTopikBlueprint(topikLevel: 'TOPIK_I' | 'TOPIK_II') {
@@ -571,6 +577,8 @@ Ràng buộc:
       "correctTextAnswer": "...",
       "scoreWeight": 1,
       "explanation": "...",
+      "imageUrl": null,
+      "imagePrompt": null,
       "choices": [
         {"orderIndex":1,"content":"...","isCorrect":false}
       ]
@@ -580,8 +588,11 @@ Ràng buộc:
 
 Ghi chú:
 - LISTENING: luôn có listeningScript (tiếng Hàn), audioUrl = null, thường là MCQ.
-- READING: thường là MCQ.
-- WRITING: có thể SHORT_TEXT hoặc ESSAY. ESSAY có prompt rõ ràng như đề TOPIK thật.
+  + Một số câu LISTENING (đặc biệt TOPIK I câu 1-6) là dạng nhìn tranh chọn đáp án. Với các câu này, hãy tạo imagePrompt mô tả chi tiết bức tranh.
+- READING: thường là MCQ. Một số câu đọc hiểu có kèm biểu đồ/hình minh họa, hãy tạo imagePrompt cho các câu đó.
+- WRITING: có thể SHORT_TEXT hoặc ESSAY. Câu 53 TOPIK II thường phân tích biểu đồ — hãy tạo imagePrompt mô tả biểu đồ chi tiết.
+- imagePrompt: Nếu câu hỏi CẦN hình ảnh/biểu đồ, hãy viết mô tả chi tiết bằng tiếng Việt. Nếu KHÔNG cần, để null.
+- imageUrl: luôn để null (Admin sẽ upload sau).
 ${writingHint}`;
 
     const tryParseOnce = async () => {
@@ -709,6 +720,8 @@ ${writingHint}`;
             correctTextAnswer: (q as any).correctTextAnswer ?? null,
             scoreWeight: Number.isFinite(Number((q as any).scoreWeight)) ? Number((q as any).scoreWeight) : 1,
             explanation: (q as any).explanation ?? null,
+            imageUrl: (q as any).imageUrl ?? null,
+            imagePrompt: (q as any).imagePrompt ? String((q as any).imagePrompt).trim() : null,
             choices: Array.isArray((q as any).choices)
               ? (q as any).choices.map((c: any, idx: number) => ({
                 orderIndex: Number.isFinite(Number(c?.orderIndex)) ? Number(c.orderIndex) : idx + 1,

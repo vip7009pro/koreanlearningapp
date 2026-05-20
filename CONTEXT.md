@@ -72,3 +72,15 @@ Last updated: 2026-05-20
   - Integrated the profile avatar button as a persistent action item in the top-right corner of the app bar, resolving all related Dart analyzer nullability errors.
   - Cleaned up deprecated `withOpacity` calls inside `home_screen.dart` to use `withValues(alpha: ...)`.
 - Root AGENTS.md remains in place to enforce CONTEXT.md maintenance.
+- TOPIK Exam Image Support:
+  - Added `imageUrl` (String?) and `imagePrompt` (String?) columns to `TopikQuestion` model in `schema.prisma` and pushed to database.
+  - Updated `CreateTopikQuestionDto` and `UpdateTopikQuestionDto` in `topik.dto.ts` to accept the new fields.
+  - Updated `adminCreateQuestion` and `adminImportExam` in `topik.service.ts` to persist `imageUrl` and `imagePrompt`.
+  - Extended `TopikGeneratedQuestion` type in `ai.service.ts` with `imageUrl` and `imagePrompt`.
+  - Updated `TOPIK_SYSTEM_PROMPT` and `generateTopikQuestionsChunk` user prompt in `ai.service.ts` to instruct AI to generate detailed `imagePrompt` descriptions for visual questions (TOPIK I listening pictures, TOPIK II essay charts, etc.) and always set `imageUrl = null`.
+  - Updated normalization logic in `generateTopikExamPayload` to carry `imageUrl` and `imagePrompt` through.
+  - Updated `TopikExamEditorPage.tsx` (Admin Web) with Image Prompt textarea + Copy button, Image URL input + Upload button, and image preview.
+  - Updated `prompt_generator.dart` (Mobile) to sync TOPIK prompt template with new `imageUrl`/`imagePrompt` fields.
+  - Updated `admin_topik_exam_editor_screen.dart` (Mobile Admin) with `imageUrl` and `imagePrompt` TextFields in the edit question dialog and included them in the API patch.
+  - Updated `topik_take_screen.dart` (Mobile) to display uploaded images via `Image.network` or a tappable placeholder box (grey with icon) when `imagePrompt` exists but `imageUrl` is empty. Tap shows a dialog with the full `imagePrompt` text.
+  - Updated `topik_review_screen.dart` (Mobile) with identical image/placeholder display logic.

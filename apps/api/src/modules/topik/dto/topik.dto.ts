@@ -123,6 +123,8 @@ export class CreateTopikQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() correctTextAnswer?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(100) scoreWeight?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() explanation?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() imageUrl?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() imagePrompt?: string;
 
   @ApiPropertyOptional({ type: [CreateTopikChoiceInput] })
   @IsOptional()
@@ -147,6 +149,8 @@ export class UpdateTopikQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() correctTextAnswer?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(100) scoreWeight?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() explanation?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() imageUrl?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() imagePrompt?: string;
 }
 
 export class StartTopikSessionDto {

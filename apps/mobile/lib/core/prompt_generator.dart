@@ -187,6 +187,10 @@ QUY TẮC BẮT BUỘC:
    - SHORT_TEXT: có correctTextAnswer (một đáp án mẫu ngắn).
    - ESSAY: không cần correctTextAnswer.
 6) Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn.
+7) Hỗ trợ hình ảnh/biểu đồ: Nếu câu hỏi cần tranh/ảnh/biểu đồ (ví dụ: TOPIK I câu nghe nhìn tranh, TOPIK II câu 53 biểu đồ), thì:
+   - imageUrl = null (Admin sẽ upload ảnh sau).
+   - imagePrompt = Mô tả CHI TIẾT nội dung hình ảnh/biểu đồ bằng tiếng Việt.
+   - Nếu câu hỏi KHÔNG cần ảnh, để imageUrl = null và imagePrompt = null.
 
 Hãy tạo đề thi $lvl năm $year.
 Cấu trúc: $sections
@@ -219,6 +223,8 @@ Trả về JSON theo format sau:
           "correctTextAnswer": null,
           "scoreWeight": 1,
           "explanation": "Giải thích đáp án",
+          "imageUrl": null,
+          "imagePrompt": null,
           "choices": [
             {"orderIndex": 1, "content": "Đáp án 1", "isCorrect": false},
             {"orderIndex": 2, "content": "Đáp án 2", "isCorrect": true},

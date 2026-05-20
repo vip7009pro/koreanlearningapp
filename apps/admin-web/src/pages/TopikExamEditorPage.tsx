@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiSave, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
-import { topikAdminApi } from '../lib/api';
+import { FiArrowLeft, FiSave, FiTrash2, FiEye, FiEyeOff, FiCopy, FiUpload, FiImage } from 'react-icons/fi';
+import { topikAdminApi, uploadApi } from '../lib/api';
 
 function stripHtml(html: string) {
   return String(html || '')
@@ -24,6 +24,8 @@ type QuestionDraft = {
   correctTextAnswer?: string | null;
   scoreWeight?: number;
   explanation?: string | null;
+  imageUrl?: string | null;
+  imagePrompt?: string | null;
   choices?: ChoiceDraft[];
 };
 
@@ -59,6 +61,8 @@ export default function TopikExamEditorPage() {
           correctTextAnswer: q.correctTextAnswer,
           scoreWeight: q.scoreWeight,
           explanation: q.explanation,
+          imageUrl: q.imageUrl,
+          imagePrompt: q.imagePrompt,
           choices: Array.isArray(q.choices)
             ? q.choices.map((c: any) => ({
                 orderIndex: c.orderIndex,
@@ -135,6 +139,8 @@ export default function TopikExamEditorPage() {
       correctTextAnswer: d.correctTextAnswer,
       scoreWeight: d.scoreWeight,
       explanation: d.explanation,
+      imageUrl: d.imageUrl,
+      imagePrompt: d.imagePrompt,
     };
     if (d.questionType === 'MCQ') {
       patch.choices = (d.choices || []).map((c) => ({
@@ -336,6 +342,75 @@ export default function TopikExamEditorPage() {
                           value={String(d.explanation || '')}
                           onChange={(e) => setDraft({ explanation: e.target.value })}
                         />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <label className="label mb-0">Image Prompt</label>
+                          {d.imagePrompt && (
+                            <button
+                              type="button"
+                              className="text-xs flex items-center gap-1 text-primary-600 hover:text-primary-800 font-medium"
+                              onClick={() => {
+                                navigator.clipboard.writeText(d.imagePrompt || '');
+                                toast.success('Copied image prompt!');
+                              }}
+                            >
+                              <FiCopy size={12} /> Copy
+                            </button>
+                          )}
+                        </div>
+                        <textarea
+                          className="input min-h-[70px] font-mono text-sm"
+                          placeholder="Mô tả hình ảnh/biểu đồ cho câu hỏi (nếu có)..."
+                          value={String(d.imagePrompt || '')}
+                          onChange={(e) => setDraft({ imagePrompt: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="label">Image</label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            className="input flex-1"
+                            placeholder="Image URL (auto-filled after upload)"
+                            value={String(d.imageUrl || '')}
+                            onChange={(e) => setDraft({ imageUrl: e.target.value })}
+                          />
+                          <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                            <FiUpload size={14} /> Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const res = await uploadApi.uploadImage(file);
+                                  const url = res.data?.url;
+                                  if (url) {
+                                    setDraft({ imageUrl: url });
+                                    toast.success('Image uploaded!');
+                                  }
+                                } catch (err: any) {
+                                  toast.error('Upload failed: ' + (err.message || err));
+                                }
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {d.imageUrl && (
+                          <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 inline-block">
+                            <img
+                              src={d.imageUrl.startsWith('/') ? d.imageUrl : d.imageUrl}
+                              alt="Question image"
+                              className="max-h-[200px] object-contain"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 

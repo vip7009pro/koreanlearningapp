@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/api_client.dart';
 import '../widgets/app_banner_ad.dart';
@@ -105,15 +106,16 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        // Ensure back always returns to TOPIK list instead of exiting app.
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) context.go('/');
+        });
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kết quả TOPIK'),
           leading: IconButton(
             onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              context.go('/');
             },
             icon: const Icon(Icons.arrow_back),
           ),
@@ -310,6 +312,95 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                   ],
                 ],
               ),
+              // --- Image / Image Prompt ---
+              Builder(builder: (_) {
+                final imageUrl = (q['imageUrl'] ?? '').toString().trim();
+                final imagePrompt = (q['imagePrompt'] ?? '').toString().trim();
+                if (imageUrl.isEmpty && imagePrompt.isEmpty) return const SizedBox.shrink();
+
+                void showPromptDialog() {
+                  if (imagePrompt.isEmpty) return;
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Mô tả hình ảnh'),
+                      content: SingleChildScrollView(
+                        child: Text(imagePrompt, style: const TextStyle(fontSize: 14, height: 1.5)),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+                      ],
+                    ),
+                  );
+                }
+
+                if (imageUrl.isNotEmpty) {
+                  final api = ref.read(apiClientProvider);
+                  final fullUrl = api.absoluteUrl(imageUrl);
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: GestureDetector(
+                      onTap: showPromptDialog,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          fullUrl,
+                          width: double.infinity,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text('Không tải được ảnh', style: TextStyle(color: Colors.red)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                // Placeholder when imagePrompt exists but no imageUrl
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: GestureDetector(
+                    onTap: showPromptDialog,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Đề bài dạng tranh ảnh (Chưa cập nhật)',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Chạm để xem mô tả',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
               if (sectionType == 'LISTENING' && listeningScript.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
