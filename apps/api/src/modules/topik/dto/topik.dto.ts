@@ -151,6 +151,13 @@ export class UpdateTopikQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() explanation?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() imageUrl?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() imagePrompt?: string;
+
+  @ApiPropertyOptional({ type: [CreateTopikChoiceInput] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateTopikChoiceInput)
+  choices?: CreateTopikChoiceInput[];
 }
 
 export class StartTopikSessionDto {

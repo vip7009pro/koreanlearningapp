@@ -1,6 +1,6 @@
 # CONTEXT
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Persistent Rules
 - Check this file before responding when it exists.
@@ -79,7 +79,10 @@ Last updated: 2026-05-20
   - Extended `TopikGeneratedQuestion` type in `ai.service.ts` with `imageUrl` and `imagePrompt`.
   - Updated `TOPIK_SYSTEM_PROMPT` and `generateTopikQuestionsChunk` user prompt in `ai.service.ts` to instruct AI to generate detailed `imagePrompt` descriptions for visual questions (TOPIK I listening pictures, TOPIK II essay charts, etc.) and always set `imageUrl = null`.
   - Updated normalization logic in `generateTopikExamPayload` to carry `imageUrl` and `imagePrompt` through.
-  - Updated `TopikExamEditorPage.tsx` (Admin Web) with Image Prompt textarea + Copy button, Image URL input + Upload button, and image preview.
+  - Updated `TopikExamEditorPage.tsx` (Admin Web) with:
+    - Image Prompt textarea + Copy button, Image URL input + Upload button, and image preview.
+    - An image filter toggle switch to only view questions that have an image or prompt, based on saved/database state (avoiding premature disappearance during manual input edits).
+    - Collapsible and expandable sections with interactive header states, visual indicators, and quick "Thu gọn tất cả" (Collapse all) / "Mở rộng tất cả" (Expand all) controls.
   - Updated `prompt_generator.dart` (Mobile) to sync TOPIK prompt template with new `imageUrl`/`imagePrompt` fields.
   - Updated `admin_topik_exam_editor_screen.dart` (Mobile Admin) with `imageUrl` and `imagePrompt` TextFields in the edit question dialog and included them in the API patch.
   - Updated `topik_take_screen.dart` (Mobile) to display uploaded images via `Image.network` or a tappable placeholder box (grey with icon) when `imagePrompt` exists but `imageUrl` is empty. Tap shows a dialog with the full `imagePrompt` text.
@@ -91,3 +94,10 @@ Last updated: 2026-05-20
   - Fix: Changed `context.go()` to `context.pushReplacement()` in `topik_take_screen.dart` line 689. This replaces ONLY the current route (take→review) while preserving parent routes in the stack: `['/', '/topik', '/topik/exam/:examId', '/review']`.
   - `TopikReviewScreen`: Removed `WidgetsBindingObserver`, `PopScope`, and custom AppBar back button. Flutter's default back behavior now works because the stack is preserved.
   - `TopikExamsScreen`: Kept `WidgetsBindingObserver` as safety net for edge cases (deep linking to `/topik` with flat stack). Added custom AppBar back with canPop check.
+- Admin Web UX Improvements:
+  - Implemented a clean, beautiful filter and collapsible panel interface in `TopikExamEditorPage.tsx` with premium look and feel.
+  - Validated build success with `tsc --noEmit` checking successfully with 0 errors.
+- Fixed TOPIK Question update validation error:
+  - Root cause: `UpdateTopikQuestionDto` in `topik.dto.ts` did not define the `choices` property, causing NestJS's strict `ValidationPipe` to throw `property choices should not exist` when saving MCQ questions from the admin panel.
+  - Fix: Added `choices` optional array property with proper class-validator and class-transformer decorators to `UpdateTopikQuestionDto`.
+  - Validated backend TypeScript build success.
