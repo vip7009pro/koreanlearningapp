@@ -55,7 +55,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
 
   Future<void> _playAudio(String url) async {
     try {
-      await _audioPlayer.play(UrlSource(url));
+      final api = ref.read(apiClientProvider);
+      await _audioPlayer.play(UrlSource(api.absoluteUrl(url)));
     } catch (_) {}
   }
 
@@ -155,7 +156,8 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
               if (!done.isCompleted) done.complete();
             });
 
-            await _audioPlayer.play(UrlSource(audioUrl));
+            final api = ref.read(apiClientProvider);
+            await _audioPlayer.play(UrlSource(api.absoluteUrl(audioUrl)));
 
             try {
               await done.future.timeout(const Duration(seconds: 30));

@@ -43,6 +43,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
   StreamSubscription<PlayerState>? _audioStateSub;
   StreamSubscription<Duration>? _audioDurationSub;
   StreamSubscription<Duration>? _audioPositionSub;
+  StreamSubscription<void>? _audioCompleteSub;
 
   bool _navFlaggedOnly = false;
 
@@ -351,6 +352,16 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       if (!mounted) return;
       setState(() => _audioPosition = p);
     });
+    _audioCompleteSub = _audio.onPlayerComplete.listen((_) async {
+      try {
+        await _audio.seek(Duration.zero);
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _audioPosition = Duration.zero;
+        _audioState = PlayerState.stopped;
+      });
+    });
     _load();
   }
 
@@ -361,6 +372,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     _audioStateSub?.cancel();
     _audioDurationSub?.cancel();
     _audioPositionSub?.cancel();
+    _audioCompleteSub?.cancel();
     _audio.dispose();
     _ttsService?.stop();
     _scroll.dispose();
@@ -424,7 +436,12 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       return;
     }
 
-    if (_audioQuestionId == qId && _audioUrl == url) return;
+    if (_audioQuestionId == qId &&
+        _audioUrl == url &&
+        _audioState != PlayerState.stopped &&
+        _audioState != PlayerState.completed) {
+      return;
+    }
 
     await _stopAudio();
     if (!mounted) return;
@@ -434,7 +451,9 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     });
 
     try {
-      await _audio.setSourceUrl(url);
+      final api = ref.read(apiClientProvider);
+      final absoluteUrl = api.absoluteUrl(url);
+      await _audio.setSourceUrl(absoluteUrl);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -1242,119 +1261,129 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                   border: Border.all(color: Colors.grey.shade300),
                   color: Colors.grey.shade50,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () async {
-                            _currentIndex = index;
-                            if (showTts) {
-                              if (_ttsSpeaking) {
-                                await _stopTts();
-                              } else {
-                                await _stopAudio();
-                                await _speakTts(listeningScript);
-                              }
-                              return;
-                            }
+                child: Builder(builder: (_) {
+                  final isCurrentPlaying = _audioQuestionId == qId;
+                  final isCurrentTts = _ttsSpeaking && _currentIndex == index;
 
-                            await _ensureAudioForQuestion(q);
-
-                            try {
-                              await _stopTts();
-                              if (_audioState == PlayerState.playing) {
-                                await _audio.pause();
-                              } else {
-                                await _audio.resume();
-                              }
-                            } catch (_) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Không thể phát audio.')),
-                              );
-                            }
-                          },
-                          icon: Icon(
-                            showTts
-                                ? (_ttsSpeaking
-                                    ? Icons.stop_circle
-                                    : Icons.record_voice_over)
-                                : (_audioState == PlayerState.playing
-                                    ? Icons.pause_circle_filled
-                                    : Icons.play_circle_fill),
-                            size: 34,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Audio',
-                            style: TextStyle(
-                              color: Colors.grey.shade800,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Dừng',
-                          onPressed: () async {
-                            await _stopAudio();
-                            await _stopTts();
-                          },
-                          icon: const Icon(Icons.stop_circle_outlined),
-                        ),
-                      ],
-                    ),
-                    if (!showTts) ...[
-                      Slider(
-                        value: _audioPosition.inMilliseconds
-                            .clamp(
-                              0,
-                              _audioDuration.inMilliseconds == 0
-                                  ? 0
-                                  : _audioDuration.inMilliseconds,
-                            )
-                            .toDouble(),
-                        max: (_audioDuration.inMilliseconds == 0
-                                ? 1
-                                : _audioDuration.inMilliseconds)
-                            .toDouble(),
-                        onChanged: (v) async {
-                          try {
-                            await _audio.seek(Duration(milliseconds: v.toInt()));
-                          } catch (_) {
-                            // ignore
-                          }
-                        },
-                      ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
-                          Text(
-                            _formatTime(
-                              (_audioPosition.inSeconds).clamp(0, 999999),
-                            ),
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
+                          IconButton(
+                            onPressed: () async {
+                              _currentIndex = index;
+                              if (showTts) {
+                                if (isCurrentTts) {
+                                  await _stopTts();
+                                } else {
+                                  await _stopAudio();
+                                  await _speakTts(listeningScript);
+                                }
+                                return;
+                              }
+
+                              await _ensureAudioForQuestion(q);
+
+                              try {
+                                await _stopTts();
+                                if (isCurrentPlaying && _audioState == PlayerState.playing) {
+                                  await _audio.pause();
+                                } else {
+                                  if (_audioState == PlayerState.completed || _audioState == PlayerState.stopped) {
+                                    await _audio.seek(Duration.zero);
+                                  }
+                                  await _audio.resume();
+                                }
+                              } catch (_) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Không thể phát audio.')),
+                                );
+                              }
+                            },
+                            icon: Icon(
+                              showTts
+                                  ? (isCurrentTts
+                                      ? Icons.stop_circle
+                                      : Icons.record_voice_over)
+                                  : (isCurrentPlaying && _audioState == PlayerState.playing
+                                      ? Icons.pause_circle_filled
+                                      : Icons.play_circle_fill),
+                              size: 34,
                             ),
                           ),
-                          const Spacer(),
-                          Text(
-                            _formatTime(
-                              (_audioDuration.inSeconds).clamp(0, 999999),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Audio',
+                              style: TextStyle(
+                                color: Colors.grey.shade800,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Dừng',
+                            onPressed: () async {
+                              await _stopAudio();
+                              await _stopTts();
+                            },
+                            icon: const Icon(Icons.stop_circle_outlined),
                           ),
                         ],
                       ),
+                      if (!showTts) ...[
+                        Slider(
+                          value: (isCurrentPlaying ? _audioPosition.inMilliseconds : 0)
+                              .clamp(
+                                0,
+                                (isCurrentPlaying && _audioDuration.inMilliseconds > 0)
+                                    ? _audioDuration.inMilliseconds
+                                    : 0,
+                              )
+                              .toDouble(),
+                          max: ((isCurrentPlaying && _audioDuration.inMilliseconds > 0)
+                                  ? _audioDuration.inMilliseconds
+                                  : 1)
+                              .toDouble(),
+                          onChanged: isCurrentPlaying
+                              ? (v) async {
+                                  try {
+                                    await _audio.seek(Duration(milliseconds: v.toInt()));
+                                  } catch (_) {
+                                    // ignore
+                                  }
+                                }
+                              : null,
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              _formatTime(
+                                (isCurrentPlaying ? _audioPosition.inSeconds : 0).clamp(0, 999999),
+                              ),
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _formatTime(
+                                (isCurrentPlaying ? _audioDuration.inSeconds : 0).clamp(0, 999999),
+                              ),
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
-                ),
+                  );
+                }),
               ),
             ],
             const SizedBox(height: 14),
