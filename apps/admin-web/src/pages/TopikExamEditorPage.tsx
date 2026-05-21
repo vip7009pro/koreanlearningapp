@@ -88,6 +88,36 @@ export default function TopikExamEditorPage() {
     return map;
   }, [sections]);
 
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState<string | null>(null);
+
+  const handleGenerateAudio = async (qid: string) => {
+    const d = dirtyQuestions[qid] || questionIndex[qid];
+    if (!d?.listeningScript?.trim()) {
+      toast.error('Vui lòng nhập Listening Script trước khi tạo âm thanh AI');
+      return;
+    }
+    setIsGeneratingAudio(qid);
+    try {
+      const res = await topikAdminApi.generateQuestionAudio(qid);
+      const url = res.data?.audioUrl;
+      if (url) {
+        setDirtyQuestions((prev) => ({
+          ...prev,
+          [qid]: {
+            ...(prev[qid] || questionIndex[qid]),
+            audioUrl: url,
+          },
+        }));
+        toast.success('Đã tạo audio AI thành công!');
+        qc.invalidateQueries({ queryKey: ['topik-exam', examId] });
+      }
+    } catch (err: any) {
+      toast.error('AI Gen failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsGeneratingAudio(null);
+    }
+  };
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => topikAdminApi.deleteExam(id),
     onSuccess: () => {
@@ -406,6 +436,56 @@ export default function TopikExamEditorPage() {
                               onChange={(e) => setDraft({ listeningScript: e.target.value })}
                             />
                           </div>
+
+                          {s.type === 'LISTENING' && (
+                            <div className="md:col-span-2">
+                              <label className="label">Audio</label>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  className="input flex-1"
+                                  placeholder="Audio URL (auto-filled after upload or AI gen)"
+                                  value={String(d.audioUrl || '')}
+                                  onChange={(e) => setDraft({ audioUrl: e.target.value })}
+                                />
+                                <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                                  <FiUpload size={14} /> Upload
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      try {
+                                        const res = await uploadApi.uploadAudio(file);
+                                        const url = res.data?.url;
+                                        if (url) {
+                                          setDraft({ audioUrl: url });
+                                          toast.success('Audio uploaded!');
+                                        }
+                                      } catch (err: any) {
+                                        toast.error('Upload failed: ' + (err.message || err));
+                                      }
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  disabled={isGeneratingAudio === q.id || !d.listeningScript?.trim()}
+                                  onClick={() => handleGenerateAudio(q.id)}
+                                  className="btn-primary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                                >
+                                  {isGeneratingAudio === q.id ? 'Generating...' : 'AI Gen'}
+                                </button>
+                              </div>
+                              {d.audioUrl && (
+                                <div className="mt-2">
+                                  <audio src={d.audioUrl} controls className="w-full max-w-md h-10" />
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {d.questionType !== 'MCQ' && (
                             <div className="md:col-span-2">

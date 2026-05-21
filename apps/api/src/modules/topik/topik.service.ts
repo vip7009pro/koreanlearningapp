@@ -15,12 +15,19 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { TOPIK_QUEUE, TOPIK_REVIEW_ESSAY_JOB } from './topik.queue';
+import { AIService } from '../ai/ai.service';
+import { UploadService } from '../upload/upload.service';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TopikService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(TOPIK_QUEUE) private readonly topikQueue: Queue,
+    private readonly aiService: AIService,
+    private readonly uploadService: UploadService,
   ) {}
 
   private computeAchievedLevel(topikLevel: any, totalScore: number | null | undefined) {
@@ -584,6 +591,39 @@ export class TopikService {
     return this.prisma.topikQuestion.update({
       where: { id },
       data: questionData as any,
+    });
+  }
+
+  async adminGenerateQuestionAudio(id: string) {
+    const question = await this.prisma.topikQuestion.findUnique({
+      where: { id },
+    });
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+    const script = question.listeningScript?.trim();
+    if (!script) {
+      throw new BadRequestException('Listening script is empty for this question');
+    }
+
+    const audioBuffer = await this.aiService.generateTtsAudio(script);
+
+    const filename = `${uuidv4()}.wav`;
+    const uploadDir = this.uploadService.getUploadDir();
+    const audioPath = path.join(uploadDir, 'audio', filename);
+
+    if (!fs.existsSync(path.dirname(audioPath))) {
+      fs.mkdirSync(path.dirname(audioPath), { recursive: true });
+    }
+
+    fs.writeFileSync(audioPath, audioBuffer);
+
+    const audioUrl = this.uploadService.getFileUrl(`audio/${filename}`);
+
+    return this.prisma.topikQuestion.update({
+      where: { id },
+      data: { audioUrl },
+      include: { choices: { orderBy: { orderIndex: 'asc' } }, section: true },
     });
   }
 

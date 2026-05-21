@@ -97,7 +97,12 @@ Last updated: 2026-05-21
 - Admin Web UX Improvements:
   - Implemented a clean, beautiful filter and collapsible panel interface in `TopikExamEditorPage.tsx` with premium look and feel.
   - Validated build success with `tsc --noEmit` checking successfully with 0 errors.
-- Fixed TOPIK Question update validation error:
-  - Root cause: `UpdateTopikQuestionDto` in `topik.dto.ts` did not define the `choices` property, causing NestJS's strict `ValidationPipe` to throw `property choices should not exist` when saving MCQ questions from the admin panel.
-  - Fix: Added `choices` optional array property with proper class-validator and class-transformer decorators to `UpdateTopikQuestionDto`.
-  - Validated backend TypeScript build success.
+- TOPIK Exam Audio Support:
+  - Added `UploadModule` import to `topik.module.ts` to allow injectability of `UploadService` in `TopikService`.
+  - Added `POST /questions/:id/generate-audio` endpoint to `topik.admin.controller.ts`.
+  - Added `generateTtsAudio` helper in `ai.service.ts` using `gemini-3.1-flash-tts-preview`, dynamically parsing dialogue speakers from the script using a global regular expression (supporting inline single-line dialogues like `남: ... 여: ...` as well as newline-separated scripts) and supplying exactly 2 matching voice configurations (mapping first detected female/male speakers to `Kore`/`Puck` voices) or falling back to single-speaker configurations if fewer than 2 speakers exist. This resolves the 400 `INVALID_ARGUMENT: the number of enabled_voices must equal 2` error and ensures multi-voice generation works for inline scripts.
+  - Prepended a custom 44-byte WAV header to the raw PCM audio bytes to build a valid WAV container.
+  - Added `adminGenerateQuestionAudio` in `topik.service.ts` to parse `listeningScript`, request AI generation, write the resulting WAV file to `./uploads/audio/{uuid}.wav`, update the question's `audioUrl` in the database, and return the updated entity.
+  - Added `generateQuestionAudio` frontend helper in `api.ts`.
+  - Added audio URL input, audio upload button (calling `uploadApi.uploadAudio`), "AI Gen" button (calling TTS endpoint with loading states), and an interactive `<audio>` controller for listening-only questions in `TopikExamEditorPage.tsx`.
+  - Verified backend and frontend compile with 0 TypeScript/lint warnings.

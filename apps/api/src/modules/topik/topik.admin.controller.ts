@@ -120,6 +120,15 @@ export class AdminTopikController {
     return this.topikService.adminUpdateQuestion(id, dto as any);
   }
 
+  @Post('questions/:id/generate-audio')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate TTS audio for question (Admin)' })
+  generateQuestionAudio(@Param('id') id: string) {
+    return this.topikService.adminGenerateQuestionAudio(id);
+  }
+
   @Post('import')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

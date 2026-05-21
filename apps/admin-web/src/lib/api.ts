@@ -75,6 +75,7 @@ export const topikAdminApi = {
   deleteExam: (id: string) => api.delete(`/topik/admin/exams/${id}`),
   updateSection: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/sections/${id}`, data),
   updateQuestion: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/questions/${id}`, data),
+  generateQuestionAudio: (id: string) => api.post(`/topik/admin/questions/${id}/generate-audio`),
 };
 
 // Courses

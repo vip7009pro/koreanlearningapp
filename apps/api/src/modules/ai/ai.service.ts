@@ -1765,4 +1765,106 @@ You MUST respond ONLY with a JSON object matching this structure:
       return { weaknesses: [] };
     }
   }
+
+  async generateTtsAudio(text: string): Promise<Buffer> {
+    const ai = this.getGoogleClient();
+    const model = 'models/gemini-3.1-flash-tts-preview';
+
+    this.logger.log(`[AI Call] Google GenAI (Model: "${model}") for TTS`);
+
+    // Extract speakers dynamically from the text using regex
+    const speakerSet = new Set<string>();
+    const isKoreanOrEnglishSpeaker = (name: string) => {
+      const lower = name.toLowerCase();
+      if (['note', 'tip', 'warning', 'hint', 'question', 'q', 'ex', 'example'].includes(lower)) {
+        return false;
+      }
+      return name.length >= 1 && name.length <= 10 && /^[a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]+$/.test(name);
+    };
+
+    const regex = /([a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]+)\s*:/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const candidate = match[1].trim();
+      if (isKoreanOrEnglishSpeaker(candidate)) {
+        speakerSet.add(candidate);
+      }
+    }
+
+    const speakers = Array.from(speakerSet);
+    const speechConfig: any = {};
+
+    if (speakers.length >= 2) {
+      const sp1 = speakers[0];
+      const sp2 = speakers[1];
+      const firstIsFemale = /여|woman|girl|female/i.test(sp1);
+      const voice1 = firstIsFemale ? 'Kore' : 'Puck';
+      const voice2 = firstIsFemale ? 'Puck' : 'Kore';
+
+      speechConfig.multiSpeakerVoiceConfig = {
+        speakerVoiceConfigs: [
+          { speaker: sp1, voiceConfig: { prebuiltVoiceConfig: { voiceName: voice1 } } },
+          { speaker: sp2, voiceConfig: { prebuiltVoiceConfig: { voiceName: voice2 } } },
+        ],
+      };
+    } else {
+      speechConfig.voiceConfig = {
+        prebuiltVoiceConfig: {
+          voiceName: 'Kore',
+        },
+      };
+    }
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: text,
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig,
+        } as any,
+      } as any);
+
+      const part = response?.candidates?.[0]?.content?.parts?.[0] as any;
+      const base64Data = part?.inlineData?.data;
+      if (!base64Data) {
+        throw new Error('No audio data received from Gemini');
+      }
+
+      const rawPcm = Buffer.from(base64Data, 'base64');
+      
+      // Add 44-byte WAV header (24000 Hz, 16-bit mono PCM)
+      const header = Buffer.alloc(44);
+      const sampleRate = 24000;
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const blockAlign = (numChannels * bitsPerSample) / 8; // 2
+      const byteRate = sampleRate * blockAlign; // 48000
+      const fileSize = 36 + rawPcm.length;
+
+      header.write('RIFF', 0);
+      header.writeUInt32LE(fileSize, 4);
+      header.write('WAVE', 8);
+
+      header.write('fmt ', 12);
+      header.writeUInt32LE(16, 16); // Subchunk1Size
+      header.writeUInt16LE(1, 20);  // AudioFormat (PCM = 1)
+      header.writeUInt16LE(numChannels, 22);
+      header.writeUInt32LE(sampleRate, 24);
+      header.writeUInt32LE(byteRate, 28);
+      header.writeUInt16LE(blockAlign, 32);
+      header.writeUInt16LE(bitsPerSample, 34);
+
+      header.write('data', 36);
+      header.writeUInt32LE(rawPcm.length, 40);
+
+      return Buffer.concat([header, rawPcm]);
+    } catch (error) {
+      this.logger.error('Failed to generate TTS audio with Gemini', error);
+      throw new HttpException(
+        'Failed to generate TTS audio: ' + (error instanceof Error ? error.message : error),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
