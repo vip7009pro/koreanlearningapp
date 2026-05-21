@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/ads_manager.dart';
 import '../core/api_client.dart';
@@ -44,6 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _dailyGoal = goalRes.data;
           _loading = false;
         });
+        _checkAndShowTrialNotice();
       }
     } catch (_) {
       if (mounted) {
@@ -702,7 +704,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.seedColor.withOpacity(0.3),
+                                color: theme.seedColor.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -720,10 +722,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       width: 56,
                                       height: 56,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
+                                        color: Colors.white.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.25),
+                                          color: Colors.white.withValues(alpha: 0.25),
                                           width: 1,
                                         ),
                                       ),
@@ -767,7 +769,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   vertical: 2,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.white.withOpacity(0.2),
+                                                  color: Colors.white.withValues(alpha: 0.2),
                                                   borderRadius: BorderRadius.circular(6),
                                                 ),
                                                 child: Text(
@@ -877,7 +879,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF4F46E5).withOpacity(0.3),
+                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -903,10 +905,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         width: 56,
                                         height: 56,
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.2),
+                                          color: Colors.white.withValues(alpha: 0.2),
                                           borderRadius: BorderRadius.circular(14),
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(0.25),
+                                            color: Colors.white.withValues(alpha: 0.25),
                                             width: 1,
                                           ),
                                         ),
@@ -940,7 +942,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                         horizontal: 8,
                                                         vertical: 2),
                                                     decoration: BoxDecoration(
-                                                      color: Colors.white.withOpacity(0.2),
+                                                      color: Colors.white.withValues(alpha: 0.2),
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               6),
@@ -1031,6 +1033,173 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           }
         },
       ),
+    );
+  }
+
+  Future<void> _checkAndShowTrialNotice() async {
+    final auth = ref.read(authProvider);
+    final user = auth.user;
+    if (user == null) return;
+
+    final subscription = user['subscription'];
+    final isPremium = subscription != null && subscription['planType'] != 'FREE';
+    if (isPremium) return;
+
+    final createdAtStr = user['createdAt'] as String?;
+    if (createdAtStr == null) return;
+
+    final createdAt = DateTime.tryParse(createdAtStr);
+    if (createdAt == null) return;
+
+    final difference = DateTime.now().difference(createdAt).inSeconds.abs();
+    if (difference >= 24 * 3600) return; // More than 24 hours
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'trial_notice_shown_${user['id']}';
+    final alreadyShown = prefs.getBool(key) ?? false;
+    if (alreadyShown) return;
+
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTrialDialog(context, key, prefs);
+    });
+  }
+
+  void _showTrialDialog(BuildContext context, String key, SharedPreferences prefs) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final themeId = ref.watch(appSettingsProvider).themeId;
+        final theme = AppSettingsNotifier.themeById(themeId);
+        
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 10,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: theme.gradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        color: Colors.amber,
+                        size: 48,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'QUÀ TẶNG TRẢI NGHIỆM! 🎁',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Chào mừng bạn đến với Tiếng Hàn FDI!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Bạn được tặng '),
+                            TextSpan(
+                              text: '1 ngày trải nghiệm HOÀN TOÀN KHÔNG QUẢNG CÁO',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.seedColor,
+                              ),
+                            ),
+                            const TextSpan(text: ' để thoả sức học tập và ôn tập hiệu quả nhất.'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await prefs.setBool(key, true);
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.seedColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'Bắt đầu học ngay',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

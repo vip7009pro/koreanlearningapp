@@ -22,6 +22,10 @@ Last updated: 2026-05-21
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Added 1-day ad-free trial for new users:
+  - Updated `adFreeStatusProvider` in [monetization_provider.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/providers/monetization_provider.dart) to grant automatic ad-free status to users within 24 hours of registration.
+  - Implemented `_checkAndShowTrialNotice` and `_showTrialDialog` in [home_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/home_screen.dart) to show a beautiful, premium one-time trial announcement dialog upon entering Home.
+  - Cleaned up deprecated `withOpacity` calls inside [home_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/home_screen.dart) using `.withValues(alpha: ...)` to ensure warning-free compilation.
 - Fixed TOPIK exam screen question layout:
   - Added HTML break tag parsing (`_parseQuestionText` RegExp utility) to both [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart) and [topik_review_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_review_screen.dart).
   - Split the question content into two parts: instruction (rendered in bold, size 16) and question/paragraph body (rendered in normal weight, size 16), separated by a vertical spacer to make paragraphs highly legible.
