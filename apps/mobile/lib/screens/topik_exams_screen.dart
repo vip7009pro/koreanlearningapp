@@ -14,7 +14,8 @@ class TopikExamsScreen extends ConsumerStatefulWidget {
   ConsumerState<TopikExamsScreen> createState() => _TopikExamsScreenState();
 }
 
-class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen> {
+class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen>
+    with WidgetsBindingObserver {
   List<dynamic> _exams = [];
   bool _loading = true;
   String? _error;
@@ -22,7 +23,26 @@ class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Future<bool> didPopRoute() async {
+    // Only intercept when this screen is the current (visible) route
+    // AND the navigator can't pop (flat stack from context.go()).
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent && !Navigator.of(context).canPop()) {
+      context.go('/');
+      return true; // handled — prevent app exit
+    }
+    return super.didPopRoute(); // let GoRouter handle normally
   }
 
   Future<void> _load() async {
@@ -64,6 +84,16 @@ class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen> {
         title: const Text('Luyện đề TOPIK'),
         foregroundColor: Colors.white,
         backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/');
+            }
+          },
+        ),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: palette.gradient),

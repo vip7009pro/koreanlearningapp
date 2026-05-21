@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 
 import '../core/api_client.dart';
 import '../widgets/app_banner_ad.dart';
@@ -102,24 +102,10 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
     final achievedLevel = data?['achievedLevel'];
     final maxTotalScore = data?['maxTotalScore'];
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (context.mounted) context.go('/');
-        });
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Kết quả TOPIK'),
-          leading: IconButton(
-            onPressed: () {
-              context.go('/');
-            },
-            icon: const Icon(Icons.arrow_back),
-          ),
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kết quả TOPIK'),
+      ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
@@ -255,7 +241,6 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                           ],
                         ),
                       ),
-      ),
     );
   }
 

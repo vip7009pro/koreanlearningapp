@@ -686,7 +686,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
 
       if (!mounted) return;
       final session = res.data as Map<String, dynamic>;
-      context.go('/topik/session/${session['id']}/review');
+      context.pushReplacement('/topik/session/${session['id']}/review');
     } catch (_) {
       if (!mounted) return;
       if (!auto) {

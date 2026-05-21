@@ -84,3 +84,10 @@ Last updated: 2026-05-20
   - Updated `admin_topik_exam_editor_screen.dart` (Mobile Admin) with `imageUrl` and `imagePrompt` TextFields in the edit question dialog and included them in the API patch.
   - Updated `topik_take_screen.dart` (Mobile) to display uploaded images via `Image.network` or a tappable placeholder box (grey with icon) when `imagePrompt` exists but `imageUrl` is empty. Tap shows a dialog with the full `imagePrompt` text.
   - Updated `topik_review_screen.dart` (Mobile) with identical image/placeholder display logic.
+- NestJS Payload limit increase:
+  - Added `body-parser` configuration in `main.ts` (API) to increase the JSON and urlencoded payload size limits to `10mb` to handle large generated TOPIK exam JSON structures (100+ questions and image prompts) without throwing `PayloadTooLargeError: request entity too large`.
+- Mobile TOPIK navigation fixes (system back button):
+  - Root cause: `topik_take_screen.dart` used `context.go('/review')` after exam submission, which REPLACED the entire GoRouter navigation stack. This left the review screen as the only entry in the stack, so system back exited the app.
+  - Fix: Changed `context.go()` to `context.pushReplacement()` in `topik_take_screen.dart` line 689. This replaces ONLY the current route (take→review) while preserving parent routes in the stack: `['/', '/topik', '/topik/exam/:examId', '/review']`.
+  - `TopikReviewScreen`: Removed `WidgetsBindingObserver`, `PopScope`, and custom AppBar back button. Flutter's default back behavior now works because the stack is preserved.
+  - `TopikExamsScreen`: Kept `WidgetsBindingObserver` as safety net for edge cases (deep linking to `/topik` with flat stack). Added custom AppBar back with canPop check.
