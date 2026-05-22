@@ -35,10 +35,13 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
 
   bool _showDetails = false;
   List<GlobalKey> _questionKeys = [];
+  final ScrollController _scrollController = ScrollController();
+  bool _showScrollToTop = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _audioStateSub = _audio.onPlayerStateChanged.listen((s) {
       if (!mounted) return;
       setState(() => _audioState = s);
@@ -64,9 +67,18 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
     _load();
   }
 
+  void _onScroll() {
+    final shouldShow = _scrollController.offset > 300;
+    if (shouldShow != _showScrollToTop) {
+      setState(() => _showScrollToTop = shouldShow);
+    }
+  }
+
   @override
   void dispose() {
     _poll?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _audioStateSub?.cancel();
     _audioDurationSub?.cancel();
     _audioPositionSub?.cancel();
@@ -367,6 +379,18 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
       appBar: AppBar(
         title: const Text('Kết quả TOPIK'),
       ),
+      floatingActionButton: _showScrollToTop
+          ? FloatingActionButton.small(
+              onPressed: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOut,
+                );
+              },
+              child: const Icon(Icons.arrow_upward),
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -408,9 +432,13 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                           _questionKeys = List.generate(answers.length, (_) => GlobalKey());
                         }
 
-                        return ListView(
+                        return SingleChildScrollView(
+                          controller: _scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.all(16),
-                          children: [
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             if (listeningAudioUrl.isNotEmpty)
                               _buildConsolidatedAudioPlayer(palette, listeningAudioUrl),
                             Card(
@@ -505,10 +533,15 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
 
                                 return InkWell(
                                   onTap: () {
+                                    final wasShowingDetails = _showDetails;
                                     setState(() {
                                       _showDetails = true;
                                     });
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    // Use double-frame callback to ensure all detail
+                                    // cards are laid out before scrolling (especially
+                                    // for questions further down in the list).
+                                    void doScroll() {
+                                      if (!mounted) return;
                                       final targetContext = _questionKeys[idx].currentContext;
                                       if (targetContext != null) {
                                         Scrollable.ensureVisible(
@@ -518,7 +551,16 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                                           alignment: 0.1,
                                         );
                                       }
-                                    });
+                                    }
+                                    if (wasShowingDetails) {
+                                      // Details already rendered, single frame is fine
+                                      WidgetsBinding.instance.addPostFrameCallback((_) => doScroll());
+                                    } else {
+                                      // Details just expanded: wait two frames for layout
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        WidgetsBinding.instance.addPostFrameCallback((_) => doScroll());
+                                      });
+                                    }
                                   },
                                   borderRadius: BorderRadius.circular(999),
                                   child: Container(
@@ -603,6 +645,7 @@ class _TopikReviewScreenState extends ConsumerState<TopikReviewScreen> {
                             const SizedBox(height: 16),
                             const AppBannerAd(),
                           ],
+                          ),
                         );
                       }),
                     ),
