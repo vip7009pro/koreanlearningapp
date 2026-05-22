@@ -329,11 +329,7 @@ export class SubscriptionsService {
         throw new BadRequestException('Giao dịch chưa thanh toán hoặc đã bị hủy trên Google Play');
       }
     } catch (error) {
-      // In development or if google credentials are missing, we fall back to mock verification
-      const isMissingCredentials = error instanceof ServiceUnavailableException || 
-        (error instanceof Error && error.message.includes('Google Play service account is not configured'));
-
-      if (isMissingCredentials || process.env.NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV !== 'production') {
         this.logger.warn(
           { productId, purchaseToken, error: error instanceof Error ? error.message : String(error) },
           'Google Play verification not configured or failed, using mock verification in non-production mode'

@@ -98,7 +98,18 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
     if (!_billingAvailable || product == null) {
       // Direct mock purchase dialog if Play Store billing is not available
-      _showMockPurchaseDialog(productId);
+      final authState = ref.read(authProvider);
+      final isAdmin = authState.user?['role'] == 'ADMIN';
+      
+      if (isAdmin) {
+        _showMockPurchaseDialog(productId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cửa hàng hiện tại không khả dụng. Vui lòng thử lại sau.'),
+          ),
+        );
+      }
       return;
     }
 
@@ -134,24 +145,33 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               SnackBar(content: Text(purchase.error?.message ?? 'Giao dịch thất bại')),
             );
           }
+          if (purchase.pendingCompletePurchase) {
+            await _inAppPurchase.completePurchase(purchase);
+          }
           continue;
         }
 
         if (purchase.status == PurchaseStatus.purchased || purchase.status == PurchaseStatus.restored) {
           if (_handledTokens.contains(token)) continue;
           _handledTokens.add(token);
-          await _verifyTicketPurchase(purchase.productID, token, purchase.purchaseID);
+          final success = await _verifyTicketPurchase(purchase.productID, token, purchase.purchaseID);
+          if (success) {
+            if (purchase.pendingCompletePurchase) {
+              await _inAppPurchase.completePurchase(purchase);
+            }
+          } else {
+            _handledTokens.remove(token);
+          }
         }
+      } catch (e) {
+        debugPrint('Error handling purchase update: $e');
       } finally {
-        if (purchase.pendingCompletePurchase) {
-          await _inAppPurchase.completePurchase(purchase);
-        }
         if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _verifyTicketPurchase(String productId, String token, String? orderId) async {
+  Future<bool> _verifyTicketPurchase(String productId, String token, String? orderId) async {
     final api = ref.read(apiClientProvider);
     try {
       final res = await api.verifyConsumablePurchase({
@@ -160,7 +180,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         if (orderId != null) 'orderId': orderId,
       });
 
-      if (!mounted) return;
+      if (!mounted) return false;
       if (res.data['verified'] == true) {
         final added = res.data['ticketsAdded'] ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -170,17 +190,24 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
           ),
         );
         await ref.read(authProvider.notifier).refreshProfile();
+        return true;
       }
+      return false;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Không thể xác minh giao dịch với hệ thống: $e')),
         );
       }
+      return false;
     }
   }
 
   void _showMockPurchaseDialog(String productId) {
+    final authState = ref.read(authProvider);
+    final isAdmin = authState.user?['role'] == 'ADMIN';
+    if (!isAdmin) return;
+
     final package = _ticketPackages.firstWhere((p) => p['id'] == productId);
     showDialog(
       context: context,
@@ -466,6 +493,27 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                                           ),
                                         ),
                                       ),
+                                      if (user?['role'] == 'ADMIN') ...[
+                                        const SizedBox(height: 8),
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: package['color'] as Color,
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: const Size(60, 30),
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          onPressed: _isLoading
+                                              ? null
+                                              : () => _showMockPurchaseDialog(productId),
+                                          child: Text(
+                                            'Mô phỏng',
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ],

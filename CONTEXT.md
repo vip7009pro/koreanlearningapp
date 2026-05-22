@@ -22,6 +22,14 @@ Last updated: 2026-05-21
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Google Play Store Billing Integration:
+  - Modified [store_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/store_screen.dart) to only consume/complete purchases via `_inAppPurchase.completePurchase` once the backend returns `verified: true`.
+  - Added the `<uses-permission android:name="com.android.vending.BILLING"/>` permission in [AndroidManifest.xml](file:///g:/NODEJS/koreanlearningapp/apps/mobile/android/app/src/main/AndroidManifest.xml).
+  - Modified [subscriptions.service.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/src/modules/subscriptions/subscriptions.service.ts) to disable the mock payment verification fallback when running in production mode (`process.env.NODE_ENV === 'production'`).
+  - Added Google Play Developer credentials and package name configuration parameters in [apps/api/.env.example](file:///g:/NODEJS/koreanlearningapp/apps/api/.env.example).
+- Admin-only Mock Payment Simulation in Store Screen:
+  - Added an admin check (`isAdmin`) inside `_showMockPurchaseDialog` in [store_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/store_screen.dart) as a safety guard.
+  - Added a dedicated "Mô phỏng" button to the ticket package card only visible when `user?['role'] == 'ADMIN'`.
 - Added 1-day ad-free trial for new users:
   - Updated `adFreeStatusProvider` in [monetization_provider.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/providers/monetization_provider.dart) to grant automatic ad-free status to users within 24 hours of registration.
   - Implemented `_checkAndShowTrialNotice` and `_showTrialDialog` in [home_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/home_screen.dart) to show a beautiful, premium one-time trial announcement dialog upon entering Home.
