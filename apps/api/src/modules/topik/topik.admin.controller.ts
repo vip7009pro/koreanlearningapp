@@ -129,6 +129,15 @@ export class AdminTopikController {
     return this.topikService.adminGenerateQuestionAudio(id);
   }
 
+  @Post('exams/:id/generate-listening-audio')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate consolidated TTS audio for exam listening section (Admin)' })
+  generateExamListeningAudio(@Param('id') id: string) {
+    return this.topikService.adminGenerateExamListeningAudio(id);
+  }
+
   @Post('import')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

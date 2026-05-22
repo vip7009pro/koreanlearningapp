@@ -76,6 +76,7 @@ export const topikAdminApi = {
   updateSection: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/sections/${id}`, data),
   updateQuestion: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/questions/${id}`, data),
   generateQuestionAudio: (id: string) => api.post(`/topik/admin/questions/${id}/generate-audio`),
+  generateExamListeningAudio: (id: string) => api.post(`/topik/admin/exams/${id}/generate-listening-audio`),
 };
 
 // Courses

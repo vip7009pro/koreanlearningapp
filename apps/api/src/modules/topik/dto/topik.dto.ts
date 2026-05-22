@@ -57,6 +57,7 @@ export class CreateTopikExamDto {
   @IsOptional()
   @IsEnum(TopikExamStatus)
   status?: TopikExamStatus;
+  @ApiPropertyOptional() @IsOptional() @IsString() listeningAudioUrl?: string;
 }
 
 export class UpdateTopikExamDto {
@@ -73,6 +74,7 @@ export class UpdateTopikExamDto {
   @IsOptional()
   @IsEnum(TopikExamStatus)
   status?: TopikExamStatus;
+  @ApiPropertyOptional() @IsOptional() @IsString() listeningAudioUrl?: string;
 }
 
 export class CreateTopikSectionDto {

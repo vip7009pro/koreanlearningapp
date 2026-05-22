@@ -89,6 +89,24 @@ export default function TopikExamEditorPage() {
   }, [sections]);
 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<string | null>(null);
+  const [isGeneratingConsolidatedAudio, setIsGeneratingConsolidatedAudio] = useState(false);
+
+  const handleGenerateConsolidatedAudio = async () => {
+    if (!examId) return;
+    setIsGeneratingConsolidatedAudio(true);
+    try {
+      const res = await topikAdminApi.generateExamListeningAudio(examId);
+      const url = res.data?.listeningAudioUrl;
+      if (url) {
+        toast.success('Đã tạo file nghe AI toàn bộ thành công!');
+        qc.invalidateQueries({ queryKey: ['topik-exam', examId] });
+      }
+    } catch (err: any) {
+      toast.error('Tạo file nghe AI thất bại: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsGeneratingConsolidatedAudio(false);
+    }
+  };
 
   const handleGenerateAudio = async (qid: string) => {
     const d = dirtyQuestions[qid] || questionIndex[qid];
@@ -274,6 +292,56 @@ export default function TopikExamEditorPage() {
               onChange={(e) => setDirtyExam((p) => ({ ...p, totalQuestions: Number(e.target.value) }))}
             />
           </div>
+
+          {sections.some((s: any) => s.type === 'LISTENING') && (
+            <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+              <label className="label">File nghe toàn bộ (Consolidated Listening Audio)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  className="input flex-1"
+                  placeholder="Đường dẫn file nghe (tự động điền sau khi tạo hoặc tải lên)"
+                  value={String(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : (exam.listeningAudioUrl || ''))}
+                  onChange={(e) => setDirtyExam((p) => ({ ...p, listeningAudioUrl: e.target.value }))}
+                />
+                <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                  <FiUpload size={14} /> Upload Audio
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const res = await uploadApi.uploadAudio(file);
+                        const url = res.data?.url;
+                        if (url) {
+                          setDirtyExam((p) => ({ ...p, listeningAudioUrl: url }));
+                          toast.success('Đã tải lên file nghe thành công!');
+                        }
+                      } catch (err: any) {
+                        toast.error('Upload failed: ' + (err.message || err));
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={isGeneratingConsolidatedAudio}
+                  onClick={handleGenerateConsolidatedAudio}
+                  className="btn-primary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                >
+                  {isGeneratingConsolidatedAudio ? 'Đang tạo...' : 'Tạo file nghe AI toàn bộ'}
+                </button>
+              </div>
+              {(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : exam.listeningAudioUrl) && (
+                <div className="mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100 max-w-md">
+                  <audio src={String(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : exam.listeningAudioUrl)} controls className="w-full h-10" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-4">
@@ -440,49 +508,57 @@ export default function TopikExamEditorPage() {
                           {s.type === 'LISTENING' && (
                             <div className="md:col-span-2">
                               <label className="label">Audio</label>
-                              <div className="flex items-center gap-3">
-                                <input
-                                  className="input flex-1"
-                                  placeholder="Audio URL (auto-filled after upload or AI gen)"
-                                  value={String(d.audioUrl || '')}
-                                  onChange={(e) => setDraft({ audioUrl: e.target.value })}
-                                />
-                                <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
-                                  <FiUpload size={14} /> Upload
-                                  <input
-                                    type="file"
-                                    accept="audio/*"
-                                    className="hidden"
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      try {
-                                        const res = await uploadApi.uploadAudio(file);
-                                        const url = res.data?.url;
-                                        if (url) {
-                                          setDraft({ audioUrl: url });
-                                          toast.success('Audio uploaded!');
-                                        }
-                                      } catch (err: any) {
-                                        toast.error('Upload failed: ' + (err.message || err));
-                                      }
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                </label>
-                                <button
-                                  type="button"
-                                  disabled={isGeneratingAudio === q.id || !d.listeningScript?.trim()}
-                                  onClick={() => handleGenerateAudio(q.id)}
-                                  className="btn-primary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
-                                >
-                                  {isGeneratingAudio === q.id ? 'Generating...' : 'AI Gen'}
-                                </button>
-                              </div>
-                              {d.audioUrl && (
-                                <div className="mt-2">
-                                  <audio src={d.audioUrl} controls className="w-full max-w-md h-10" />
+                              {exam.listeningAudioUrl ? (
+                                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 p-2.5 rounded-lg">
+                                  File nghe riêng lẻ của câu hỏi bị ẩn vì đề thi này đã sử dụng <strong>File nghe toàn bộ (Consolidated Listening Audio)</strong>.
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      className="input flex-1"
+                                      placeholder="Audio URL (auto-filled after upload or AI gen)"
+                                      value={String(d.audioUrl || '')}
+                                      onChange={(e) => setDraft({ audioUrl: e.target.value })}
+                                    />
+                                    <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                                      <FiUpload size={14} /> Upload
+                                      <input
+                                        type="file"
+                                        accept="audio/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          try {
+                                            const res = await uploadApi.uploadAudio(file);
+                                            const url = res.data?.url;
+                                            if (url) {
+                                              setDraft({ audioUrl: url });
+                                              toast.success('Audio uploaded!');
+                                            }
+                                          } catch (err: any) {
+                                            toast.error('Upload failed: ' + (err.message || err));
+                                          }
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      disabled={isGeneratingAudio === q.id || !d.listeningScript?.trim()}
+                                      onClick={() => handleGenerateAudio(q.id)}
+                                      className="btn-primary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                                    >
+                                      {isGeneratingAudio === q.id ? 'Generating...' : 'AI Gen'}
+                                    </button>
+                                  </div>
+                                  {d.audioUrl && (
+                                    <div className="mt-2">
+                                      <audio src={d.audioUrl} controls className="w-full max-w-md h-10" />
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}

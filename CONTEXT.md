@@ -1,6 +1,6 @@
 # CONTEXT
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Persistent Rules
 - Check this file before responding when it exists.
@@ -122,4 +122,17 @@ Last updated: 2026-05-21
   - Isolated the audio player controller state in `topik_take_screen.dart` by wrapping each controller in a `Builder` and scoping the play/pause state, sliders, and timers using `isCurrentPlaying = (_audioQuestionId == qId)` and `isCurrentTts = (_ttsSpeaking && _currentIndex == index)`. This prevents non-active question audio players from reacting when another question's audio is playing.
   - Subscribed to `_audio.onPlayerComplete` in `topik_take_screen.dart` to seek back to `Duration.zero` and transition state to `PlayerState.stopped` (or `completed` resetting slider position to 0) upon completion, and added a safeguard to seek to `Duration.zero` on pressing play if `_audioState == PlayerState.completed`. This resolves the issue where a completed audio could not be replayed or seeked.
   - Fixed audio replay logic in `topik_take_screen.dart` by avoiding early return in `_ensureAudioForQuestion` when the player is in `PlayerState.stopped` or `PlayerState.completed` (thereby forcing a fresh reload of the source url), and ensuring the player seeks to `Duration.zero` on play press for both completed and stopped states.
-- Verified backend and frontend compile with 0 TypeScript/lint warnings and Flutter analyze succeeds with 0 issues.
+- Verified backend and frontend compile with 0 TypeScript/lint warnings.
+- Completed Phase 4 (Mobile App Styling and Playback Adjustments):
+  - Modified [lesson_detail_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/lesson_detail_screen.dart) to adjust dialogue transition delay to a comfortable 1 second.
+  - Prepended alphabetical letters `A.`, `B.`, `C.`, `D.` to MCQ choices in [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart) and [topik_review_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_review_screen.dart).
+  - Redesigned TOPIK exam cards in [topik_exams_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_exams_screen.dart) with modern theme gradient backgrounds, white text, and translucent badges.
+  - Implemented the sticky consolidated audio player in [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart) to play whole-exam audio, hiding individual audio widgets.
+  - Overhauled [topik_review_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_review_screen.dart) with a clean score summary, a 50-dot response matrix (green/red), a collapsible view details toggle, colored question cards (soft green/red), and rich explanations.
+  - Resolved `Undefined class 'AppSettingsNotifierPalette'` compilation error in [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart) and [topik_review_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_review_screen.dart) by utilizing the correct class `AppThemeOption`.
+  - Verified clean Flutter compilation with `flutter analyze` returning 0 errors.
+- Fixed TOPIK Session Expiration Bug (Phase 5):
+  - Root cause: Stale `IN_PROGRESS` sessions with `expiresAt` in the past were returned by `getExamDetail` and resumed by `startSession`. When the user submitted, `requireActiveSession` found the session expired and threw `BadRequestException('Session expired')`, which the mobile app caught as a generic "Không thể nộp bài" error.
+  - Fix: Added proactive auto-expiration logic (`updateMany` with `expiresAt < now()`) in three backend methods in [topik.service.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/src/modules/topik/topik.service.ts): `listExams`, `getExamDetail`, and `startSession`. Any `IN_PROGRESS` session whose `expiresAt` is in the past is automatically marked `EXPIRED` before the query runs, ensuring users never see or resume a dead session.
+  - Improved frontend error handling in [topik_take_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/topik_take_screen.dart): `_onSubmit` now detects `DioException` with status 400 and message containing "expired", showing a clear dialog ("Bài thi đã hết hạn") with a "Quay lại" button instead of the generic snackbar.
+  - Verified: `npx tsc --noEmit` (0 errors), `flutter analyze` (0 errors, 28 pre-existing info-level deprecation warnings).

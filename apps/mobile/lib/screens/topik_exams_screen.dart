@@ -151,69 +151,86 @@ class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen>
                           : (topikLevel == 'TOPIK_I' ? 'TOPIK I' : 'TOPIK');
 
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _openExam(exam),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: palette.gradient),
                             borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: palette.seedColor
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: palette.seedColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              onTap: () => _openExam(exam),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text('📝',
+                                            style: TextStyle(fontSize: 26)),
+                                      ),
                                     ),
-                                    child: const Center(
-                                      child: Text('📝',
-                                          style: TextStyle(fontSize: 26)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          title.isNotEmpty ? title : 'Đề TOPIK',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title.isNotEmpty ? title : 'Đề TOPIK',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: Colors.white,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 6,
-                                          children: [
-                                            _pill(tag),
-                                            if (year != null)
-                                              _pill('Năm $year'),
-                                            if (duration != null)
-                                              _pill('${duration}m'),
-                                            if (myStatus.isNotEmpty)
-                                              _pill(
-                                                myStatus == 'IN_PROGRESS'
-                                                    ? 'Đang làm'
-                                                    : (myStatus == 'COMPLETED'
-                                                        ? 'Đã làm'
-                                                        : 'Chưa làm'),
-                                              ),
-                                            if (myBest != null)
-                                              _pill('Best $myBest'),
-                                          ],
-                                        ),
-                                      ],
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            children: [
+                                              _pill(tag),
+                                              if (year != null)
+                                                _pill('Năm $year'),
+                                              if (duration != null)
+                                                _pill('${duration}m'),
+                                              if (myStatus.isNotEmpty)
+                                                _pill(
+                                                  myStatus == 'IN_PROGRESS'
+                                                      ? 'Đang làm'
+                                                      : (myStatus == 'COMPLETED'
+                                                          ? 'Đã làm'
+                                                          : 'Chưa làm'),
+                                                ),
+                                              if (myBest != null)
+                                                _pill('Best $myBest'),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Icon(Icons.chevron_right,
-                                      color: Colors.grey.shade400),
-                                ],
+                                    const Icon(Icons.chevron_right,
+                                        color: Colors.white),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -229,14 +246,18 @@ class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.20),
+          width: 1,
+        ),
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
-          color: Colors.grey.shade800,
+          color: Colors.white,
           fontWeight: FontWeight.w600,
         ),
       ),

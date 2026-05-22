@@ -83,6 +83,20 @@ export class TopikService {
 
     if (!filters.userId) return exams;
 
+    // Auto-expire any expired in-progress sessions for this user
+    await this.prisma.topikSession.updateMany({
+      where: {
+        userId: filters.userId,
+        status: TopikSessionStatus.IN_PROGRESS,
+        expiresAt: { lt: new Date() },
+      },
+      data: {
+        status: TopikSessionStatus.EXPIRED,
+        submittedAt: new Date(),
+        remainingSeconds: 0,
+      },
+    });
+
     const examIds = exams.map((e) => e.id);
     const sessions = await this.prisma.topikSession.groupBy({
       by: ['examId', 'status'],
@@ -145,6 +159,21 @@ export class TopikService {
 
     let mySession: any = null;
     if (userId) {
+      // Auto-expire any expired in-progress session for this exam and user
+      await this.prisma.topikSession.updateMany({
+        where: {
+          userId,
+          examId,
+          status: TopikSessionStatus.IN_PROGRESS,
+          expiresAt: { lt: new Date() },
+        },
+        data: {
+          status: TopikSessionStatus.EXPIRED,
+          submittedAt: new Date(),
+          remainingSeconds: 0,
+        },
+      });
+
       mySession = await this.prisma.topikSession.findFirst({
         where: {
           userId,
@@ -168,6 +197,21 @@ export class TopikService {
     const normalizedTypes = Array.isArray(sectionTypes)
       ? Array.from(new Set(sectionTypes)).sort()
       : [];
+
+    // Auto-expire any expired in-progress sessions for this user & exam
+    await this.prisma.topikSession.updateMany({
+      where: {
+        userId,
+        examId,
+        status: TopikSessionStatus.IN_PROGRESS,
+        expiresAt: { lt: new Date() },
+      },
+      data: {
+        status: TopikSessionStatus.EXPIRED,
+        submittedAt: new Date(),
+        remainingSeconds: 0,
+      },
+    });
 
     // Resume must match the same practice scope (sectionTypes).
     const existing = await this.prisma.topikSession.findFirst({
@@ -624,6 +668,118 @@ export class TopikService {
       where: { id },
       data: { audioUrl },
       include: { choices: { orderBy: { orderIndex: 'asc' } }, section: true },
+    });
+  }
+
+  async adminGenerateExamListeningAudio(examId: string) {
+    const exam = await this.prisma.topikExam.findUnique({
+      where: { id: examId },
+      include: {
+        sections: {
+          where: { type: TopikSectionType.LISTENING },
+          include: {
+            questions: {
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!exam) {
+      throw new NotFoundException('Exam not found');
+    }
+
+    const questions = exam.sections
+      .flatMap((s) => s.questions)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+    if (questions.length === 0) {
+      throw new BadRequestException('No listening questions found for this exam');
+    }
+
+    const chunks: Buffer[] = [];
+    const silence = Buffer.alloc(144000); // 3 seconds of silence at 24000Hz 16-bit mono
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const scriptText = q.listeningScript?.trim();
+      if (!scriptText) {
+        continue;
+      }
+
+      const instruction = (q.contentHtml || '').replace(/<[^>]*>/g, '').trim();
+      const voiceScript = `제 ${q.orderIndex}번. ${instruction}\n${scriptText}`;
+
+      if (chunks.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      try {
+        const audioWav = await this.aiService.generateTtsAudio(voiceScript);
+        const pcm = audioWav.subarray(44);
+        chunks.push(pcm);
+
+        if (i < questions.length - 1) {
+          chunks.push(silence);
+        }
+      } catch (err: any) {
+        throw new BadRequestException(
+          `Failed to generate TTS for Question ${q.orderIndex}: ${err.message || err}`,
+        );
+      }
+    }
+
+    if (chunks.length === 0) {
+      throw new BadRequestException(
+        'No audio could be generated. Make sure listening questions have listening scripts.',
+      );
+    }
+
+    const totalPcmLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const finalPcm = Buffer.concat(chunks);
+
+    const header = Buffer.alloc(44);
+    const sampleRate = 24000;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const blockAlign = (numChannels * bitsPerSample) / 8;
+    const byteRate = sampleRate * blockAlign;
+    const fileSize = 36 + totalPcmLength;
+
+    header.write('RIFF', 0);
+    header.writeUInt32LE(fileSize, 4);
+    header.write('WAVE', 8);
+
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(numChannels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+
+    header.write('data', 36);
+    header.writeUInt32LE(totalPcmLength, 40);
+
+    const finalWav = Buffer.concat([header, finalPcm]);
+
+    const filename = `exam_${examId}_${uuidv4()}.wav`;
+    const uploadDir = this.uploadService.getUploadDir();
+    const audioPath = path.join(uploadDir, 'audio', filename);
+
+    if (!fs.existsSync(path.dirname(audioPath))) {
+      fs.mkdirSync(path.dirname(audioPath), { recursive: true });
+    }
+
+    fs.writeFileSync(audioPath, finalWav);
+
+    const listeningAudioUrl = this.uploadService.getFileUrl(`audio/${filename}`);
+
+    return this.prisma.topikExam.update({
+      where: { id: examId },
+      data: { listeningAudioUrl },
     });
   }
 

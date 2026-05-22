@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:audioplayers/audioplayers.dart';
 
 import '../core/api_client.dart';
 import '../core/tts_service.dart';
+import '../providers/app_settings_provider.dart';
 
 class TopikTakeScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -426,6 +429,36 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     });
   }
 
+  Future<void> _ensureConsolidatedAudio() async {
+    final url = (_exam?['listeningAudioUrl'] ?? '').toString().trim();
+    if (url.isEmpty) return;
+
+    if (_audioQuestionId == 'EXAM_CONSOLIDATED' &&
+        _audioUrl == url &&
+        _audioState != PlayerState.stopped &&
+        _audioState != PlayerState.completed) {
+      return;
+    }
+
+    await _stopAudio();
+    if (!mounted) return;
+    setState(() {
+      _audioQuestionId = 'EXAM_CONSOLIDATED';
+      _audioUrl = url;
+    });
+
+    try {
+      final api = ref.read(apiClientProvider);
+      final absoluteUrl = api.absoluteUrl(url);
+      await _audio.setSourceUrl(absoluteUrl);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _audioUrl = url;
+      });
+    }
+  }
+
   Future<void> _ensureAudioForQuestion(Map<String, dynamic> q) async {
     final qId = (q['id'] ?? '').toString();
     final url = (q['audioUrl'] ?? '').toString().trim();
@@ -706,12 +739,44 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
       if (!mounted) return;
       final session = res.data as Map<String, dynamic>;
       context.pushReplacement('/topik/session/${session['id']}/review');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       if (!auto) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể nộp bài. Vui lòng thử lại.')),
-        );
+        // Check if the error is a session-expired error from the backend
+        String? serverMsg;
+        if (e is DioException && e.response?.statusCode == 400) {
+          final data = e.response?.data;
+          if (data is Map) {
+            serverMsg = (data['message'] ?? '').toString().toLowerCase();
+          }
+        }
+
+        if (serverMsg != null && serverMsg.contains('expired')) {
+          // Session expired - show a dialog to redirect user
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Bài thi đã hết hạn'),
+              content: const Text(
+                'Phiên làm bài đã hết thời gian. Vui lòng bắt đầu bài thi mới.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    context.pop();
+                  },
+                  child: const Text('Quay lại'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không thể nộp bài. Vui lòng thử lại.')),
+          );
+        }
       }
     }
   }
@@ -965,8 +1030,175 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
     );
   }
 
+  Widget _buildConsolidatedAudioPlayer(AppThemeOption palette) {
+    final isCurrentPlaying = _audioQuestionId == 'EXAM_CONSOLIDATED';
+    final isPlaying = isCurrentPlaying && _audioState == PlayerState.playing;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: palette.gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: palette.seedColor.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.headphones_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Âm thanh nghe toàn bộ đề',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Phát toàn bộ bài thi nghe liên tục',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () async {
+                  await _stopAudio();
+                  await _stopTts();
+                },
+                icon: const Icon(Icons.stop_circle_outlined, color: Colors.white, size: 28),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () async {
+                  await _ensureConsolidatedAudio();
+                  try {
+                    await _stopTts();
+                    if (isCurrentPlaying && _audioState == PlayerState.playing) {
+                      await _audio.pause();
+                    } else {
+                      if (_audioState == PlayerState.completed || _audioState == PlayerState.stopped) {
+                        await _audio.seek(Duration.zero);
+                      }
+                      await _audio.resume();
+                    }
+                  } catch (_) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Không thể phát audio.')),
+                    );
+                  }
+                },
+                icon: Icon(
+                  isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: Colors.white,
+                        inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                        thumbColor: Colors.white,
+                        overlayColor: Colors.white.withValues(alpha: 0.1),
+                        trackHeight: 4,
+                      ),
+                      child: Slider(
+                        value: (isCurrentPlaying ? _audioPosition.inMilliseconds : 0)
+                            .clamp(
+                              0,
+                              (isCurrentPlaying && _audioDuration.inMilliseconds > 0)
+                                  ? _audioDuration.inMilliseconds
+                                  : 0,
+                            )
+                            .toDouble(),
+                        max: ((isCurrentPlaying && _audioDuration.inMilliseconds > 0)
+                                ? _audioDuration.inMilliseconds
+                                : 1)
+                            .toDouble(),
+                        onChanged: isCurrentPlaying
+                            ? (v) async {
+                                try {
+                                  await _audio.seek(Duration(milliseconds: v.toInt()));
+                                } catch (_) {}
+                              }
+                            : null,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatTime(
+                              (isCurrentPlaying ? _audioPosition.inSeconds : 0).clamp(0, 999999),
+                            ),
+                            style: const TextStyle(color: Colors.white, fontSize: 11),
+                          ),
+                          Text(
+                            _formatTime(
+                              (isCurrentPlaying ? _audioDuration.inSeconds : 0).clamp(0, 999999),
+                            ),
+                            style: const TextStyle(color: Colors.white, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingsProvider);
+    final palette = AppSettingsNotifier.themeById(settings.themeId);
     return Scaffold(
       appBar: AppBar(
         title: Text(_exam != null ? (_exam!['title'] ?? 'Làm bài') : 'Làm bài'),
@@ -1009,7 +1241,13 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                 )
               : _questions.isEmpty
                   ? const Center(child: Text('Chưa có câu hỏi'))
-                  : _buildAllQuestions(),
+                  : Column(
+                      children: [
+                        if (_exam?['listeningAudioUrl']?.toString().trim().isNotEmpty ?? false)
+                          _buildConsolidatedAudioPlayer(palette),
+                        Expanded(child: _buildAllQuestions()),
+                      ],
+                    ),
       bottomNavigationBar: _loading || _questions.isEmpty
           ? null
           : SafeArea(
@@ -1251,7 +1489,8 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                 ),
               );
             }),
-            if (audioUrl.isNotEmpty || showTts) ...[
+            if ((audioUrl.isNotEmpty || showTts) &&
+                !(_exam?['listeningAudioUrl']?.toString().trim().isNotEmpty ?? false)) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -1388,10 +1627,12 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
             ],
             const SizedBox(height: 14),
             if (qType == 'MCQ')
-              ...choices.map((c) {
+              ...Iterable<int>.generate(choices.length).map((idx) {
+                final c = choices[idx];
                 final m = (c as Map).cast<String, dynamic>();
                 final id = (m['id'] ?? '').toString();
                 final content = _stripHtml((m['content'] ?? '').toString());
+                final prefix = '${String.fromCharCode(65 + idx)}. ';
                 final selected = d['selectedChoiceId'] == id;
                 final primary = Theme.of(context).colorScheme.primary;
                 return Padding(
@@ -1422,7 +1663,7 @@ class _TopikTakeScreenState extends ConsumerState<TopikTakeScreen> {
                         color: selected ? primary.withValues(alpha: 0.06) : null,
                       ),
                       child: Text(
-                        content,
+                        '$prefix$content',
                         style: TextStyle(
                           fontWeight:
                               selected ? FontWeight.w700 : FontWeight.w500,

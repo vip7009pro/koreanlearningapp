@@ -125,17 +125,18 @@ model PasswordResetCode {
 }
 
 model TopikExam {
-  id              String          @id @default(uuid())
-  title           String
-  year            Int
-  topikLevel      TopikLevel
-  level           String?
-  durationMinutes Int
-  totalQuestions  Int
-  status          TopikExamStatus @default(DRAFT)
-  createdBy       String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                String          @id @default(uuid())
+  title             String
+  year              Int
+  topikLevel        TopikLevel
+  level             String?
+  durationMinutes   Int
+  totalQuestions    Int
+  status            TopikExamStatus @default(DRAFT)
+  createdBy         String?
+  listeningAudioUrl String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   sections  TopikExamSection[]
   sessions  TopikSession[]

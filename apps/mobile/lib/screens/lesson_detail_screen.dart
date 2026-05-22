@@ -194,7 +194,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
         }
 
         if (session != _dialoguePlaySession) return;
-        await Future.delayed(const Duration(milliseconds: 650));
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
     } finally {
       if (mounted && session == _dialoguePlaySession) {
