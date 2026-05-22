@@ -11,6 +11,9 @@ Last updated: 2026-05-22
 - Main areas: apps/admin-web, apps/api, apps/mobile, packages/*
 
 ## Notes
+- Investigated consolidated TOPIK listening audio: backend generates TTS per listening question (not a single prompt), inserts 3s silences, and concatenates audio; one request can trigger many provider calls and hit 429 rate limits.
+- Added batch size control (default 50) for consolidated listening audio generation; backend now batches multiple questions into a single TTS call to reduce request count.
+- Added a "Copy prompt" button to the consolidated listening audio controls in Admin Web to copy the generated prompt text.
 - Mobile offline ONNX TTS uses Sherpa vits-mimic3-ko_KO-kss_low assets (removed)
 - Keep the startup copy behavior as overwrite to avoid stale runtime models.
 - Mobile now uses Google Mobile Ads banner placements on browsing, profile, settings, and result/review screens.

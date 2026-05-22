@@ -671,7 +671,7 @@ export class TopikService {
     });
   }
 
-  async adminGenerateExamListeningAudio(examId: string) {
+  async adminGenerateExamListeningAudio(examId: string, batchSize?: number) {
     const exam = await this.prisma.topikExam.findUnique({
       where: { id: examId },
       include: {
@@ -698,21 +698,49 @@ export class TopikService {
       throw new BadRequestException('No listening questions found for this exam');
     }
 
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(batchSize) || 50)));
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const questionsWithScript = questions.filter((q) => !!q.listeningScript?.trim());
+    if (questionsWithScript.length === 0) {
+      throw new BadRequestException(
+        'No audio could be generated. Make sure listening questions have listening scripts.',
+      );
+    }
+
+    const batches: Array<typeof questionsWithScript> = [];
+    let current: typeof questionsWithScript = [];
+    for (const q of questionsWithScript) {
+      current.push(q);
+      if (current.length >= safeBatchSize) {
+        batches.push(current);
+        current = [];
+      }
+    }
+    if (current.length > 0) {
+      batches.push(current);
+    }
+
     const chunks: Buffer[] = [];
     const silence = Buffer.alloc(144000); // 3 seconds of silence at 24000Hz 16-bit mono
 
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const scriptText = q.listeningScript?.trim();
-      if (!scriptText) {
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      const lines = batch.map((q) => {
+        const scriptText = q.listeningScript?.trim();
+        if (!scriptText) return '';
+        const instruction = (q.contentHtml || '').replace(/<[^>]*>/g, '').trim();
+        const header = `제 ${q.orderIndex}번.${instruction ? ` ${instruction}` : ''}`.trim();
+        return `${header}\n${scriptText}`.trim();
+      }).filter((line) => line.length > 0);
+
+      const voiceScript = lines.join('\n\n').trim();
+      if (!voiceScript) {
         continue;
       }
 
-      const instruction = (q.contentHtml || '').replace(/<[^>]*>/g, '').trim();
-      const voiceScript = `제 ${q.orderIndex}번. ${instruction}\n${scriptText}`;
-
-      if (chunks.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (i > 0) {
+        await wait(1000);
       }
 
       try {
@@ -720,12 +748,12 @@ export class TopikService {
         const pcm = audioWav.subarray(44);
         chunks.push(pcm);
 
-        if (i < questions.length - 1) {
+        if (i < batches.length - 1) {
           chunks.push(silence);
         }
       } catch (err: any) {
         throw new BadRequestException(
-          `Failed to generate TTS for Question ${q.orderIndex}: ${err.message || err}`,
+          `Failed to generate TTS for batch ${i + 1}/${batches.length}: ${err.message || err}`,
         );
       }
     }

@@ -90,12 +90,36 @@ export default function TopikExamEditorPage() {
 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<string | null>(null);
   const [isGeneratingConsolidatedAudio, setIsGeneratingConsolidatedAudio] = useState(false);
+  const [listeningBatchSize, setListeningBatchSize] = useState(50);
+
+  const buildConsolidatedPrompt = () => {
+    const listeningSections = sections.filter((s: any) => s.type === 'LISTENING');
+    const questions = listeningSections
+      .flatMap((s: any) => (Array.isArray(s.questions) ? s.questions : []))
+      .sort((a: any, b: any) => a.orderIndex - b.orderIndex);
+
+    const lines: string[] = [];
+    for (const q of questions) {
+      const draft = dirtyQuestions[q.id] || questionIndex[q.id] || q;
+      const scriptText = String(draft?.listeningScript || '').trim();
+      if (!scriptText) continue;
+
+      const orderIndex = Number.isFinite(Number(draft?.orderIndex)) ? Number(draft.orderIndex) : q.orderIndex;
+      const instruction = stripHtml(draft?.contentHtml ?? q.contentHtml ?? '');
+      const header = `제 ${orderIndex}번. ${instruction}`.trim();
+      const combined = header ? `${header}\n${scriptText}` : scriptText;
+      lines.push(combined);
+    }
+
+    return lines.join('\n\n');
+  };
 
   const handleGenerateConsolidatedAudio = async () => {
     if (!examId) return;
     setIsGeneratingConsolidatedAudio(true);
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(listeningBatchSize) || 50)));
     try {
-      const res = await topikAdminApi.generateExamListeningAudio(examId);
+      const res = await topikAdminApi.generateExamListeningAudio(examId, { batchSize: safeBatchSize });
       const url = res.data?.listeningAudioUrl;
       if (url) {
         toast.success('Đã tạo file nghe AI toàn bộ thành công!');
@@ -296,13 +320,27 @@ export default function TopikExamEditorPage() {
           {sections.some((s: any) => s.type === 'LISTENING') && (
             <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
               <label className="label">File nghe toàn bộ (Consolidated Listening Audio)</label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <input
-                  className="input flex-1"
+                  className="input flex-1 min-w-[220px]"
                   placeholder="Đường dẫn file nghe (tự động điền sau khi tạo hoặc tải lên)"
                   value={String(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : (exam.listeningAudioUrl || ''))}
                   onChange={(e) => setDirtyExam((p) => ({ ...p, listeningAudioUrl: e.target.value }))}
                 />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-semibold whitespace-nowrap">Số câu/batch</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    className="input w-24"
+                    value={listeningBatchSize}
+                    onChange={(e) => {
+                      const next = Math.max(1, Math.min(200, Math.floor(Number(e.target.value) || 1)));
+                      setListeningBatchSize(next);
+                    }}
+                  />
+                </div>
                 <label className="btn-secondary flex items-center gap-2 cursor-pointer whitespace-nowrap">
                   <FiUpload size={14} /> Upload Audio
                   <input
@@ -328,12 +366,30 @@ export default function TopikExamEditorPage() {
                 </label>
                 <button
                   type="button"
+                  className="btn-secondary flex items-center gap-2 whitespace-nowrap"
+                  onClick={async () => {
+                    const prompt = buildConsolidatedPrompt();
+                    if (!prompt.trim()) {
+                      toast.error('Không có prompt để copy.');
+                      return;
+                    }
+                    await navigator.clipboard.writeText(prompt);
+                    toast.success('Đã copy prompt!');
+                  }}
+                >
+                  <FiCopy size={14} /> Copy prompt
+                </button>
+                <button
+                  type="button"
                   disabled={isGeneratingConsolidatedAudio}
                   onClick={handleGenerateConsolidatedAudio}
                   className="btn-primary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
                 >
                   {isGeneratingConsolidatedAudio ? 'Đang tạo...' : 'Tạo file nghe AI toàn bộ'}
                 </button>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Batch càng lớn → ít request hơn; batch nhỏ giúp tránh 429 nhưng tạo lâu hơn.
               </div>
               {(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : exam.listeningAudioUrl) && (
                 <div className="mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100 max-w-md">

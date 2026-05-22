@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '@prisma/client';
@@ -134,8 +134,9 @@ export class AdminTopikController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate consolidated TTS audio for exam listening section (Admin)' })
-  generateExamListeningAudio(@Param('id') id: string) {
-    return this.topikService.adminGenerateExamListeningAudio(id);
+  generateExamListeningAudio(@Param('id') id: string, @Query('batchSize') batchSize?: string) {
+    const parsedBatchSize = batchSize ? Number(batchSize) : undefined;
+    return this.topikService.adminGenerateExamListeningAudio(id, parsedBatchSize);
   }
 
   @Post('import')
