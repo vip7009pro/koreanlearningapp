@@ -14,6 +14,10 @@ Last updated: 2026-05-22
 - Investigated consolidated TOPIK listening audio: backend generates TTS per listening question (not a single prompt), inserts 3s silences, and concatenates audio; one request can trigger many provider calls and hit 429 rate limits.
 - Added batch size control (default 50) for consolidated listening audio generation; backend now batches multiple questions into a single TTS call to reduce request count.
 - Added a "Copy prompt" button to the consolidated listening audio controls in Admin Web to copy the generated prompt text.
+- Switched consolidated listening audio generation to a Bull job with polling status; UI persists job id in localStorage and shows progress/error state.
+- Fixed Nest DI error in TopikQueueProcessor by moving queue constants to a dedicated file to break circular imports.
+- Updated Gemini TTS call to use explicit structured contents and switched back to `gemini-3.1-flash-tts-preview` to avoid "Model tried to generate text" errors.
+- Investigated "fetch failed" during TTS: points to network/transport failure (not model output); consider retries, timeouts, or connectivity checks.
 - Mobile offline ONNX TTS uses Sherpa vits-mimic3-ko_KO-kss_low assets (removed)
 - Keep the startup copy behavior as overwrite to avoid stale runtime models.
 - Mobile now uses Google Mobile Ads banner placements on browsing, profile, settings, and result/review screens.

@@ -1768,8 +1768,7 @@ You MUST respond ONLY with a JSON object matching this structure:
 
   async generateTtsAudio(text: string): Promise<Buffer> {
     const ai = this.getGoogleClient();
-    const model = 'models/gemini-2.5-flash-preview-tts';
-    //const model = 'models/gemini-3.1-flash-tts-preview';
+    const model = 'models/gemini-3.1-flash-tts-preview';
 
     this.logger.log(`[AI Call] Google GenAI (Model: "${model}") for TTS`);
 
@@ -1817,9 +1816,19 @@ You MUST respond ONLY with a JSON object matching this structure:
     }
 
     try {
+      const transcript = String(text || '').trim();
+      if (!transcript) {
+        throw new Error('Empty TTS transcript');
+      }
+
       const response = await ai.models.generateContent({
         model,
-        contents: text,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: transcript }],
+          },
+        ],
         config: {
           responseModalities: ['AUDIO'],
           speechConfig,

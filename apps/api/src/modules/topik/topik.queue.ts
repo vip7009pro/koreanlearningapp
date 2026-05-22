@@ -3,10 +3,13 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiReviewService } from './topik.ai-review.service';
+import { TopikService } from './topik.service';
 import { TopikQuestionType } from '@prisma/client';
-
-export const TOPIK_QUEUE = 'topik';
-export const TOPIK_REVIEW_ESSAY_JOB = 'review_essay';
+import {
+  TOPIK_GENERATE_LISTENING_AUDIO_JOB,
+  TOPIK_QUEUE,
+  TOPIK_REVIEW_ESSAY_JOB,
+} from './topik.queue.constants';
 
 @Processor(TOPIK_QUEUE)
 export class TopikQueueProcessor {
@@ -15,6 +18,7 @@ export class TopikQueueProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiReviewService: AiReviewService,
+    private readonly topikService: TopikService,
   ) {}
 
   @Process(TOPIK_REVIEW_ESSAY_JOB)
@@ -69,5 +73,27 @@ export class TopikQueueProcessor {
     });
 
     this.logger.log({ answerId, essayScore }, 'Essay reviewed');
+  }
+
+  @Process(TOPIK_GENERATE_LISTENING_AUDIO_JOB)
+  async handleGenerateListeningAudio(job: Job<{ examId: string; batchSize?: number }>) {
+    const examId = job.data?.examId;
+    if (!examId) return;
+
+    try {
+      job.progress(0);
+      const exam = await this.topikService.adminGenerateExamListeningAudio(
+        examId,
+        job.data?.batchSize,
+        (progress) => job.progress(progress),
+      );
+      return { listeningAudioUrl: exam.listeningAudioUrl };
+    } catch (err: any) {
+      this.logger.error(
+        { examId, jobId: job.id, err: err?.message || err },
+        'Failed to generate listening audio job',
+      );
+      throw err;
+    }
   }
 }

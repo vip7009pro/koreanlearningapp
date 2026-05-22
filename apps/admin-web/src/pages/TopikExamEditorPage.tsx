@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiSave, FiTrash2, FiEye, FiEyeOff, FiCopy, FiUpload, FiImage, FiChevronDown, FiChevronUp } from 'react-icons/fi';
@@ -91,6 +91,68 @@ export default function TopikExamEditorPage() {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<string | null>(null);
   const [isGeneratingConsolidatedAudio, setIsGeneratingConsolidatedAudio] = useState(false);
   const [listeningBatchSize, setListeningBatchSize] = useState(50);
+  const [listeningJobId, setListeningJobId] = useState<string | null>(null);
+  const [listeningJobStatus, setListeningJobStatus] = useState<{
+    state: string;
+    progress?: number;
+    failedReason?: string;
+  } | null>(null);
+
+  const listeningJobStorageKey = examId ? `topik-listening-audio-job:${examId}` : null;
+
+  useEffect(() => {
+    if (!examId || !listeningJobStorageKey) return;
+    const storedJobId = localStorage.getItem(listeningJobStorageKey);
+    if (storedJobId) {
+      setListeningJobId(storedJobId);
+      setIsGeneratingConsolidatedAudio(true);
+    }
+  }, [examId, listeningJobStorageKey]);
+
+  useEffect(() => {
+    if (!examId || !listeningJobId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await topikAdminApi.getExamListeningAudioJobStatus(examId, listeningJobId);
+        if (cancelled) return;
+        const status = res.data || {};
+        setListeningJobStatus(status);
+
+        const state = String(status.state || '');
+        const isActive = state === 'waiting' || state === 'active' || state === 'delayed';
+        setIsGeneratingConsolidatedAudio(isActive);
+
+        if (state === 'completed') {
+          setListeningJobId(null);
+          if (listeningJobStorageKey) localStorage.removeItem(listeningJobStorageKey);
+          qc.invalidateQueries({ queryKey: ['topik-exam', examId] });
+          toast.success('Đã tạo file nghe AI toàn bộ thành công!');
+        }
+
+        if (state === 'failed') {
+          setListeningJobId(null);
+          if (listeningJobStorageKey) localStorage.removeItem(listeningJobStorageKey);
+          const reason = status.failedReason ? String(status.failedReason) : 'Unknown error';
+          toast.error('Tạo file nghe AI thất bại: ' + reason);
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        setListeningJobId(null);
+        setIsGeneratingConsolidatedAudio(false);
+        if (listeningJobStorageKey) localStorage.removeItem(listeningJobStorageKey);
+        toast.error('Không lấy được trạng thái job: ' + (err.response?.data?.message || err.message));
+      }
+    };
+
+    poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [examId, listeningJobId, listeningJobStorageKey, qc]);
 
   const buildConsolidatedPrompt = () => {
     const listeningSections = sections.filter((s: any) => s.type === 'LISTENING');
@@ -119,15 +181,19 @@ export default function TopikExamEditorPage() {
     setIsGeneratingConsolidatedAudio(true);
     const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(listeningBatchSize) || 50)));
     try {
-      const res = await topikAdminApi.generateExamListeningAudio(examId, { batchSize: safeBatchSize });
-      const url = res.data?.listeningAudioUrl;
-      if (url) {
-        toast.success('Đã tạo file nghe AI toàn bộ thành công!');
-        qc.invalidateQueries({ queryKey: ['topik-exam', examId] });
+      const res = await topikAdminApi.generateExamListeningAudioJob(examId, { batchSize: safeBatchSize });
+      const jobId = res.data?.jobId;
+      if (!jobId) {
+        toast.error('Không tạo được job. Vui lòng thử lại.');
+        setIsGeneratingConsolidatedAudio(false);
+        return;
       }
+      setListeningJobId(String(jobId));
+      setListeningJobStatus({ state: 'waiting', progress: 0 });
+      if (listeningJobStorageKey) localStorage.setItem(listeningJobStorageKey, String(jobId));
+      toast.success('Đã tạo job, đang xử lý...');
     } catch (err: any) {
       toast.error('Tạo file nghe AI thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
       setIsGeneratingConsolidatedAudio(false);
     }
   };
@@ -391,6 +457,26 @@ export default function TopikExamEditorPage() {
               <div className="text-xs text-gray-500 mt-2">
                 Batch càng lớn → ít request hơn; batch nhỏ giúp tránh 429 nhưng tạo lâu hơn.
               </div>
+              {listeningJobStatus && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Trạng thái: {(() => {
+                    const state = String(listeningJobStatus.state || '');
+                    if (state === 'waiting') return 'Đang chờ';
+                    if (state === 'active') return 'Đang xử lý';
+                    if (state === 'completed') return 'Hoàn thành';
+                    if (state === 'failed') return 'Lỗi';
+                    if (state === 'delayed') return 'Đang chờ';
+                    if (state === 'paused') return 'Tạm dừng';
+                    return state || 'Không rõ';
+                  })()}
+                  {typeof listeningJobStatus.progress === 'number' ? ` · ${listeningJobStatus.progress}%` : ''}
+                </div>
+              )}
+              {listeningJobStatus?.state === 'failed' && listeningJobStatus.failedReason && (
+                <div className="text-xs text-red-600 mt-1">
+                  Lỗi: {listeningJobStatus.failedReason}
+                </div>
+              )}
               {(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : exam.listeningAudioUrl) && (
                 <div className="mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100 max-w-md">
                   <audio src={String(dirtyExam.listeningAudioUrl !== undefined ? dirtyExam.listeningAudioUrl : exam.listeningAudioUrl)} controls className="w-full h-10" />

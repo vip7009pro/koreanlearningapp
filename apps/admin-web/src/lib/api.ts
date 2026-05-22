@@ -78,6 +78,10 @@ export const topikAdminApi = {
   generateQuestionAudio: (id: string) => api.post(`/topik/admin/questions/${id}/generate-audio`),
   generateExamListeningAudio: (id: string, params?: { batchSize?: number }) =>
     api.post(`/topik/admin/exams/${id}/generate-listening-audio`, {}, { params }),
+  generateExamListeningAudioJob: (id: string, params?: { batchSize?: number }) =>
+    api.post(`/topik/admin/exams/${id}/generate-listening-audio-job`, {}, { params }),
+  getExamListeningAudioJobStatus: (id: string, jobId: string) =>
+    api.get(`/topik/admin/exams/${id}/generate-listening-audio-job/${jobId}`),
 };
 
 // Courses

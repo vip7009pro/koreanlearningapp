@@ -14,7 +14,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { TOPIK_QUEUE, TOPIK_REVIEW_ESSAY_JOB } from './topik.queue';
+import { TOPIK_GENERATE_LISTENING_AUDIO_JOB, TOPIK_QUEUE, TOPIK_REVIEW_ESSAY_JOB } from './topik.queue.constants';
 import { AIService } from '../ai/ai.service';
 import { UploadService } from '../upload/upload.service';
 import * as fs from 'fs';
@@ -671,7 +671,11 @@ export class TopikService {
     });
   }
 
-  async adminGenerateExamListeningAudio(examId: string, batchSize?: number) {
+  async adminGenerateExamListeningAudio(
+    examId: string,
+    batchSize?: number,
+    onProgress?: (progress: number) => void,
+  ) {
     const exam = await this.prisma.topikExam.findUnique({
       where: { id: examId },
       include: {
@@ -724,6 +728,8 @@ export class TopikService {
     const chunks: Buffer[] = [];
     const silence = Buffer.alloc(144000); // 3 seconds of silence at 24000Hz 16-bit mono
 
+    onProgress?.(0);
+
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const lines = batch.map((q) => {
@@ -747,6 +753,8 @@ export class TopikService {
         const audioWav = await this.aiService.generateTtsAudio(voiceScript);
         const pcm = audioWav.subarray(44);
         chunks.push(pcm);
+
+        onProgress?.(Math.round(((i + 1) / batches.length) * 100));
 
         if (i < batches.length - 1) {
           chunks.push(silence);
@@ -809,6 +817,47 @@ export class TopikService {
       where: { id: examId },
       data: { listeningAudioUrl },
     });
+  }
+
+  async adminEnqueueExamListeningAudio(examId: string, batchSize?: number) {
+    const exam = await this.prisma.topikExam.findUnique({ where: { id: examId }, select: { id: true } });
+    if (!exam) {
+      throw new NotFoundException('Exam not found');
+    }
+
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(batchSize) || 50)));
+    const job = await this.topikQueue.add(
+      TOPIK_GENERATE_LISTENING_AUDIO_JOB,
+      { examId, batchSize: safeBatchSize },
+      { removeOnComplete: 50, removeOnFail: 50 },
+    );
+
+    return { jobId: job.id };
+  }
+
+  async adminGetListeningAudioJobStatus(examId: string, jobId: string) {
+    const job = await this.topikQueue.getJob(jobId);
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    const jobExamId = job.data?.examId;
+    if (jobExamId && jobExamId !== examId) {
+      throw new BadRequestException('Job does not belong to this exam');
+    }
+
+    const state = await job.getState();
+    return {
+      id: job.id,
+      state,
+      progress: job.progress(),
+      failedReason: job.failedReason,
+      result: job.returnvalue,
+      data: job.data,
+      createdAt: job.timestamp,
+      processedOn: job.processedOn,
+      finishedOn: job.finishedOn,
+    };
   }
 
   async adminPublishExam(id: string, published: boolean) {
