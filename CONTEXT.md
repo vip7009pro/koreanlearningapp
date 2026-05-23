@@ -11,9 +11,7 @@ Last updated: 2026-05-23
 - Main areas: apps/admin-web, apps/api, apps/mobile, packages/*
 
 ## Notes
-- Tích hợp giọng nữ thật tiếng Hàn chất lượng cao bằng model `facebook/mms-tts-kss` (Meta) được huấn luyện trên bộ dữ liệu KSS (Korean Single Speaker) cho hệ thống Local TTS, thay thế giọng pitch-shifting ảo trước đây.
-- Cập nhật script `tts_local.py` để tự động phân loại người nói dựa trên từ khóa (여/여성/female/etc. dùng KSS model, nam/mặc định dùng MMS-TTS-KOR), tự động romanize văn bản tiếng Hàn bằng thư viện `uroman` trước khi đưa vào tokenizer của KSS model.
-- Giữ nguyên tần số lấy mẫu 16000Hz đồng bộ giữa KSS (nữ) và MMS-TTS-KOR (nam) giúp việc ghép nối âm thanh hội thoại mượt mà, không méo tiếng hay pitch distortion.
+- Tối ưu hóa Local TTS: Sử dụng duy nhất model tiếng Hàn chuẩn `facebook/mms-tts-kor` (Meta) kết hợp thư viện `torchaudio.functional.pitch_shift` để nâng/hạ tông giọng theo bán âm (semitones) một cách chuyên nghiệp. Giọng nam (trầm ấm, giảm 3 bán âm) và giọng nữ (trong trẻo, tăng 4 bán âm) hoạt động độc lập với tốc độ nói, sửa triệt để lỗi méo tiếng léo nhéo và lỗi tốc độ đọc bất thường của thuật toán cũ.
 - Thêm ô nhập giới hạn số câu hỏi (limit) khi tạo file nghe toàn bộ (Consolidated Listening Audio) trên UI Admin Web và API backend giúp chỉ tạo nghe thử vài câu đầu để test nhanh.
 - Investigated consolidated TOPIK listening audio: backend generates TTS per listening question (not a single prompt), inserts 3s silences, and concatenates audio; one request can trigger many provider calls and hit 429 rate limits.
 - Added batch size control (default 50) for consolidated listening audio generation; backend now batches multiple questions into a single TTS call to reduce request count.

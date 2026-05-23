@@ -6,30 +6,22 @@ import numpy as np
 import torch
 import soundfile as sf
 from transformers import VitsModel, AutoTokenizer
-import uroman
+import torchaudio
 
-loaded_models = {}
-loaded_tokenizers = {}
-uroman_instance = None
-
-def get_uroman():
-    global uroman_instance
-    if uroman_instance is None:
-        uroman_instance = uroman.Uroman()
-    return uroman_instance
+loaded_model = None
+loaded_tokenizer = None
 
 def get_model_and_tokenizer(model_name, device):
-    if model_name not in loaded_models:
+    global loaded_model, loaded_tokenizer
+    if loaded_model is None:
         print(f"Loading model '{model_name}' on device '{device}'...", file=sys.stderr)
         try:
-            model = VitsModel.from_pretrained(model_name).to(device)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            loaded_models[model_name] = model
-            loaded_tokenizers[model_name] = tokenizer
+            loaded_model = VitsModel.from_pretrained(model_name).to(device)
+            loaded_tokenizer = AutoTokenizer.from_pretrained(model_name)
         except Exception as e:
             print(f"Error loading model {model_name}: {e}", file=sys.stderr)
             sys.exit(1)
-    return loaded_models[model_name], loaded_tokenizers[model_name]
+    return loaded_model, loaded_tokenizer
 
 def parse_dialogue(text):
     text = text.strip()
@@ -52,7 +44,7 @@ def parse_dialogue(text):
             
     return segments
 
-def get_speaker_config(speaker_name, index, default_speaker, pitch_female, pitch_male):
+def get_speaker_pitch_steps(speaker_name, index, default_speaker, pitch_female, pitch_male):
     name = speaker_name.lower().strip()
     if name == "default":
         name = default_speaker.lower().strip()
@@ -60,7 +52,6 @@ def get_speaker_config(speaker_name, index, default_speaker, pitch_female, pitch
     is_female = name in ["여", "여성", "여자", "female", "girl", "woman", "여교사", "여학생", "a"]
     is_male = name in ["남", "남성", "남자", "male", "boy", "man", "남교사", "남학생", "b"]
     
-    # Check common prefixes or sub-strings just in case
     if not is_female and not is_male:
         if any(f in name for f in ["여", "female", "woman", "girl"]):
             is_female = True
@@ -73,19 +64,20 @@ def get_speaker_config(speaker_name, index, default_speaker, pitch_female, pitch
         is_male = not is_female
         
     if is_female:
-        # Use mms-tts-kss for high-quality real female voice
-        # Since it is a real female voice, we keep pitch close to 1.0 (no distortion)
-        # If user adjusted pitch_female away from default 0.85, we can adjust it relatively
-        relative_pitch = 1.0
-        if abs(pitch_female - 0.85) > 0.01:
-            relative_pitch = 1.0 + (pitch_female - 0.85)
-        return "facebook/mms-tts-kss", relative_pitch, True
+        # Convert pitch_female to semitones. 
+        # Default pitch_female=0.85 translates to +4.0 semitones.
+        # Smaller pitch_female value translates to higher pitch (more positive semitones).
+        semitones = 4.0 + (0.85 - pitch_female) * 10.0
+        return semitones
     else:
-        # Use mms-tts-kor for male voice (with pitch shifting if configured)
-        return "facebook/mms-tts-kor", pitch_male, False
+        # Convert pitch_male to semitones.
+        # Default pitch_male=1.15 translates to -3.0 semitones.
+        # Larger pitch_male value translates to lower pitch (more negative semitones).
+        semitones = -3.0 + (1.15 - pitch_male) * 10.0
+        return semitones
 
 def main():
-    parser = argparse.ArgumentParser(description="Local Korean TTS synthesis using VITS with KSS real female voice")
+    parser = argparse.ArgumentParser(description="Local Korean TTS synthesis using VITS with high-quality torchaudio pitch-shifting")
     parser.add_argument("--text", type=str, help="Text to synthesize")
     parser.add_argument("--file", type=str, help="Path to file containing text to synthesize")
     parser.add_argument("--output", type=str, required=True, help="Output WAV file path")
@@ -104,63 +96,52 @@ def main():
         print("Error: Either --text or --file must be provided", file=sys.stderr)
         sys.exit(1)
 
+    model_name = "facebook/mms-tts-kor"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}", file=sys.stderr)
 
     segments = parse_dialogue(text)
     audio_chunks = []
     
-    # 0.5 seconds of silence between speakers (both models use 16000Hz sampling rate)
+    # 0.5 seconds of silence between speakers (16000Hz sampling rate)
     sampling_rate = 16000
     silence_len = int(sampling_rate * 0.5)
     silence_chunk = np.zeros(silence_len, dtype=np.float32)
+
+    model, tokenizer = get_model_and_tokenizer(model_name, device)
 
     for idx, seg in enumerate(segments):
         sp = seg["speaker"]
         txt = seg["text"]
         
-        # Resolve speaker config
-        model_name, pitch_ratio, is_kss = get_speaker_config(
+        # Calculate semitone shifts based on speaker configuration
+        n_steps = get_speaker_pitch_steps(
             sp, idx, args.speaker, args.pitch_female, args.pitch_male
         )
         
         try:
-            model, tokenizer = get_model_and_tokenizer(model_name, device)
-            
-            # For mms-tts-kss, we must romanize using uroman before passing to the tokenizer
-            if is_kss:
-                u = get_uroman()
-                processed_text = u.romanize_string(txt)
-            else:
-                processed_text = txt
-                
-            inputs = tokenizer(processed_text, return_tensors="pt")
+            inputs = tokenizer(txt, return_tensors="pt")
             inputs = {k: v.to(device) for k, v in inputs.items()}
             
-            # Combine pitch ratio with user-defined speed factor
-            # speaking_rate = pitch_ratio * speed
-            model.config.speaking_rate = pitch_ratio * args.speed
+            # Apply only speaking speed factor directly to the VITS model configuration
+            model.config.speaking_rate = args.speed
             
             with torch.no_grad():
                 output = model(**inputs)
             
             # Extract waveform tensor and move to CPU
-            waveform = output.waveform[0].cpu()
+            waveform = output.waveform[0].cpu() # shape: [T]
             
-            # If pitch shifting is required (pitch_ratio != 1.0)
-            if abs(pitch_ratio - 1.0) > 0.01:
-                T = len(waveform)
-                new_T = int(T * pitch_ratio)
-                
-                # Perform linear interpolation to pitch shift while restoring speed
-                waveform_3d = waveform.unsqueeze(0).unsqueeze(0)
-                resampled_3d = torch.nn.functional.interpolate(
-                    waveform_3d, 
-                    size=new_T, 
-                    mode='linear', 
-                    align_corners=False
+            # Apply torchaudio high-quality pitch shift
+            if abs(n_steps) > 0.1:
+                # Add channel dimension: [1, T]
+                waveform_2d = waveform.unsqueeze(0)
+                shifted_waveform_2d = torchaudio.functional.pitch_shift(
+                    waveform_2d, 
+                    sample_rate=sampling_rate, 
+                    n_steps=n_steps
                 )
-                chunk = resampled_3d[0, 0].numpy()
+                chunk = shifted_waveform_2d[0].numpy()
             else:
                 chunk = waveform.numpy()
                 
@@ -170,7 +151,7 @@ def main():
             if idx < len(segments) - 1:
                 audio_chunks.append(silence_chunk)
         except Exception as e:
-            print(f"Error synthesizing segment '{txt}' for speaker '{sp}' using model '{model_name}': {e}", file=sys.stderr)
+            print(f"Error synthesizing segment '{txt}' for speaker '{sp}': {e}", file=sys.stderr)
             if idx < len(segments) - 1:
                 audio_chunks.append(silence_chunk)
 
