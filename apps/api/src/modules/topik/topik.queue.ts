@@ -76,7 +76,17 @@ export class TopikQueueProcessor {
   }
 
   @Process(TOPIK_GENERATE_LISTENING_AUDIO_JOB)
-  async handleGenerateListeningAudio(job: Job<{ examId: string; batchSize?: number }>) {
+  async handleGenerateListeningAudio(
+    job: Job<{
+      examId: string;
+      batchSize?: number;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+      silenceSeconds?: number;
+    }>,
+  ) {
     const examId = job.data?.examId;
     if (!examId) return;
 
@@ -84,7 +94,7 @@ export class TopikQueueProcessor {
       job.progress(0);
       const exam = await this.topikService.adminGenerateExamListeningAudio(
         examId,
-        job.data?.batchSize,
+        job.data,
         (progress) => job.progress(progress),
       );
       return { listeningAudioUrl: exam.listeningAudioUrl };

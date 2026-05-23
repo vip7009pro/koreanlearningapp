@@ -125,8 +125,19 @@ export class AdminTopikController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate TTS audio for question (Admin)' })
-  generateQuestionAudio(@Param('id') id: string) {
-    return this.topikService.adminGenerateQuestionAudio(id);
+  generateQuestionAudio(
+    @Param('id') id: string,
+    @Query('provider') provider?: string,
+    @Query('pitchFemale') pitchFemale?: string,
+    @Query('pitchMale') pitchMale?: string,
+    @Query('speed') speed?: string,
+  ) {
+    return this.topikService.adminGenerateQuestionAudio(id, {
+      provider,
+      pitchFemale: pitchFemale ? Number(pitchFemale) : undefined,
+      pitchMale: pitchMale ? Number(pitchMale) : undefined,
+      speed: speed ? Number(speed) : undefined,
+    });
   }
 
   @Post('exams/:id/generate-listening-audio')
@@ -134,9 +145,24 @@ export class AdminTopikController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate consolidated TTS audio for exam listening section (Admin)' })
-  generateExamListeningAudio(@Param('id') id: string, @Query('batchSize') batchSize?: string) {
+  generateExamListeningAudio(
+    @Param('id') id: string,
+    @Query('batchSize') batchSize?: string,
+    @Query('provider') provider?: string,
+    @Query('pitchFemale') pitchFemale?: string,
+    @Query('pitchMale') pitchMale?: string,
+    @Query('speed') speed?: string,
+    @Query('silenceSeconds') silenceSeconds?: string,
+  ) {
     const parsedBatchSize = batchSize ? Number(batchSize) : undefined;
-    return this.topikService.adminGenerateExamListeningAudio(id, parsedBatchSize);
+    return this.topikService.adminGenerateExamListeningAudio(id, {
+      batchSize: parsedBatchSize,
+      provider,
+      pitchFemale: pitchFemale ? Number(pitchFemale) : undefined,
+      pitchMale: pitchMale ? Number(pitchMale) : undefined,
+      speed: speed ? Number(speed) : undefined,
+      silenceSeconds: silenceSeconds ? Number(silenceSeconds) : undefined,
+    });
   }
 
   @Post('exams/:id/generate-listening-audio-job')
@@ -147,9 +173,21 @@ export class AdminTopikController {
   enqueueExamListeningAudio(
     @Param('id') id: string,
     @Query('batchSize') batchSize?: string,
+    @Query('provider') provider?: string,
+    @Query('pitchFemale') pitchFemale?: string,
+    @Query('pitchMale') pitchMale?: string,
+    @Query('speed') speed?: string,
+    @Query('silenceSeconds') silenceSeconds?: string,
   ) {
     const parsedBatchSize = batchSize ? Number(batchSize) : undefined;
-    return this.topikService.adminEnqueueExamListeningAudio(id, parsedBatchSize);
+    return this.topikService.adminEnqueueExamListeningAudio(id, {
+      batchSize: parsedBatchSize,
+      provider,
+      pitchFemale: pitchFemale ? Number(pitchFemale) : undefined,
+      pitchMale: pitchMale ? Number(pitchMale) : undefined,
+      speed: speed ? Number(speed) : undefined,
+      silenceSeconds: silenceSeconds ? Number(silenceSeconds) : undefined,
+    });
   }
 
   @Get('exams/:id/generate-listening-audio-job/:jobId')
@@ -159,6 +197,23 @@ export class AdminTopikController {
   @ApiOperation({ summary: 'Get consolidated TTS audio job status (Admin)' })
   getExamListeningAudioJobStatus(@Param('id') id: string, @Param('jobId') jobId: string) {
     return this.topikService.adminGetListeningAudioJobStatus(id, jobId);
+  }
+
+  @Post('test-tts')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test TTS configuration (Admin)' })
+  testTts(
+    @Body() body: {
+      text: string;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+    }
+  ) {
+    return this.topikService.adminTestTts(body);
   }
 
   @Post('import')

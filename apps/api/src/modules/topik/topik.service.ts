@@ -638,7 +638,7 @@ export class TopikService {
     });
   }
 
-  async adminGenerateQuestionAudio(id: string) {
+  async adminGenerateQuestionAudio(id: string, options?: { provider?: string; pitchFemale?: number; pitchMale?: number; speed?: number }) {
     const question = await this.prisma.topikQuestion.findUnique({
       where: { id },
     });
@@ -650,7 +650,7 @@ export class TopikService {
       throw new BadRequestException('Listening script is empty for this question');
     }
 
-    const audioBuffer = await this.aiService.generateTtsAudio(script);
+    const audioBuffer = await this.aiService.generateTtsAudio(script, options?.provider, options);
 
     const filename = `${uuidv4()}.wav`;
     const uploadDir = this.uploadService.getUploadDir();
@@ -673,7 +673,14 @@ export class TopikService {
 
   async adminGenerateExamListeningAudio(
     examId: string,
-    batchSize?: number,
+    options?: {
+      batchSize?: number;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+      silenceSeconds?: number;
+    },
     onProgress?: (progress: number) => void,
   ) {
     const exam = await this.prisma.topikExam.findUnique({
@@ -702,7 +709,7 @@ export class TopikService {
       throw new BadRequestException('No listening questions found for this exam');
     }
 
-    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(batchSize) || 50)));
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(options?.batchSize) ?? 1)));
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const questionsWithScript = questions.filter((q) => !!q.listeningScript?.trim());
@@ -726,7 +733,9 @@ export class TopikService {
     }
 
     const chunks: Buffer[] = [];
-    const silence = Buffer.alloc(144000); // 3 seconds of silence at 24000Hz 16-bit mono
+    const silenceSecs = typeof options?.silenceSeconds === 'number' ? options.silenceSeconds : 5;
+    let sampleRate = 24000; // default fallback
+    let silence: Buffer | null = null;
 
     onProgress?.(0);
 
@@ -746,17 +755,28 @@ export class TopikService {
       }
 
       if (i > 0) {
-        await wait(1000);
+        const waitTime = options?.provider === 'local' ? 0 : 4000;
+        if (waitTime > 0) {
+          await wait(waitTime);
+        }
       }
 
       try {
-        const audioWav = await this.aiService.generateTtsAudio(voiceScript);
+        const audioWav = await this.aiService.generateTtsAudio(voiceScript, options?.provider, options);
+        
+        // Parse sample rate dynamically from the WAV header of the first chunk
+        if (chunks.length === 0 && audioWav.length >= 44) {
+          sampleRate = audioWav.readUInt32LE(24);
+          const blockAlign = audioWav.readUInt16LE(32);
+          silence = Buffer.alloc(silenceSecs * sampleRate * blockAlign);
+        }
+
         const pcm = audioWav.subarray(44);
         chunks.push(pcm);
 
         onProgress?.(Math.round(((i + 1) / batches.length) * 100));
 
-        if (i < batches.length - 1) {
+        if (i < batches.length - 1 && silence) {
           chunks.push(silence);
         }
       } catch (err: any) {
@@ -776,7 +796,6 @@ export class TopikService {
     const finalPcm = Buffer.concat(chunks);
 
     const header = Buffer.alloc(44);
-    const sampleRate = 24000;
     const numChannels = 1;
     const bitsPerSample = 16;
     const blockAlign = (numChannels * bitsPerSample) / 8;
@@ -819,16 +838,26 @@ export class TopikService {
     });
   }
 
-  async adminEnqueueExamListeningAudio(examId: string, batchSize?: number) {
+  async adminEnqueueExamListeningAudio(
+    examId: string,
+    options?: {
+      batchSize?: number;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+      silenceSeconds?: number;
+    },
+  ) {
     const exam = await this.prisma.topikExam.findUnique({ where: { id: examId }, select: { id: true } });
     if (!exam) {
       throw new NotFoundException('Exam not found');
     }
 
-    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(batchSize) || 50)));
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(options?.batchSize) || 50)));
     const job = await this.topikQueue.add(
       TOPIK_GENERATE_LISTENING_AUDIO_JOB,
-      { examId, batchSize: safeBatchSize },
+      { examId, ...options, batchSize: safeBatchSize },
       { removeOnComplete: 50, removeOnFail: 50 },
     );
 
@@ -972,5 +1001,28 @@ export class TopikService {
 
   async adminRequire(role: UserRole) {
     if (role !== UserRole.ADMIN) throw new ForbiddenException('Admin only');
+  }
+
+  async adminTestTts(body: {
+    text: string;
+    provider?: string;
+    pitchFemale?: number;
+    pitchMale?: number;
+    speed?: number;
+  }) {
+    const text = body.text || '남: 안녕하세요. 여: 반갑습니다.';
+    const buffer = await this.aiService.generateTtsAudio(text, body.provider, body);
+
+    const filename = `test_tts_${uuidv4()}.wav`;
+    const uploadDir = this.uploadService.getUploadDir();
+    const audioPath = path.join(uploadDir, 'audio', filename);
+
+    if (!fs.existsSync(path.dirname(audioPath))) {
+      fs.mkdirSync(path.dirname(audioPath), { recursive: true });
+    }
+    fs.writeFileSync(audioPath, buffer);
+
+    const audioUrl = this.uploadService.getFileUrl(`audio/${filename}`);
+    return { audioUrl };
   }
 }

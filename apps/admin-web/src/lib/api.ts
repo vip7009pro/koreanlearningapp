@@ -75,13 +75,41 @@ export const topikAdminApi = {
   deleteExam: (id: string) => api.delete(`/topik/admin/exams/${id}`),
   updateSection: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/sections/${id}`, data),
   updateQuestion: (id: string, data: Record<string, unknown>) => api.patch(`/topik/admin/questions/${id}`, data),
-  generateQuestionAudio: (id: string) => api.post(`/topik/admin/questions/${id}/generate-audio`),
-  generateExamListeningAudio: (id: string, params?: { batchSize?: number }) =>
-    api.post(`/topik/admin/exams/${id}/generate-listening-audio`, {}, { params }),
-  generateExamListeningAudioJob: (id: string, params?: { batchSize?: number }) =>
-    api.post(`/topik/admin/exams/${id}/generate-listening-audio-job`, {}, { params }),
+  generateQuestionAudio: (
+    id: string,
+    params?: { provider?: string; pitchFemale?: number; pitchMale?: number; speed?: number },
+  ) => api.post(`/topik/admin/questions/${id}/generate-audio`, {}, { params }),
+  generateExamListeningAudio: (
+    id: string,
+    params?: {
+      batchSize?: number;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+      silenceSeconds?: number;
+    },
+  ) => api.post(`/topik/admin/exams/${id}/generate-listening-audio`, {}, { params }),
+  generateExamListeningAudioJob: (
+    id: string,
+    params?: {
+      batchSize?: number;
+      provider?: string;
+      pitchFemale?: number;
+      pitchMale?: number;
+      speed?: number;
+      silenceSeconds?: number;
+    },
+  ) => api.post(`/topik/admin/exams/${id}/generate-listening-audio-job`, {}, { params }),
   getExamListeningAudioJobStatus: (id: string, jobId: string) =>
     api.get(`/topik/admin/exams/${id}/generate-listening-audio-job/${jobId}`),
+  testTts: (data: {
+    text: string;
+    provider?: string;
+    pitchFemale?: number;
+    pitchMale?: number;
+    speed?: number;
+  }) => api.post('/topik/admin/test-tts', data),
 };
 
 // Courses

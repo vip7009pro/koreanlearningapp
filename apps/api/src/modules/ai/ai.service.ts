@@ -8,6 +8,11 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
 import { GoogleGenAI } from '@google/genai';
+import * as child_process from 'child_process';
+import * as util from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface WritingCorrectionResult {
   correctedText: string;
@@ -1766,7 +1771,16 @@ You MUST respond ONLY with a JSON object matching this structure:
     }
   }
 
-  async generateTtsAudio(text: string): Promise<Buffer> {
+  async generateTtsAudio(
+    text: string,
+    provider?: string,
+    options?: { pitchFemale?: number; pitchMale?: number; speed?: number },
+  ): Promise<Buffer> {
+    const normProvider = String(provider || '').trim().toLowerCase();
+    if (normProvider === 'local') {
+      return this.generateLocalTtsAudio(text, options);
+    }
+
     const ai = this.getGoogleClient();
     const model = 'models/gemini-3.1-flash-tts-preview';
 
@@ -1875,6 +1889,94 @@ You MUST respond ONLY with a JSON object matching this structure:
         'Failed to generate TTS audio: ' + (error instanceof Error ? error.message : error),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  private findMonorepoRoot(startDir: string): string {
+    let dir = startDir;
+    while (true) {
+      if (fs.existsSync(path.join(dir, 'turbo.json'))) {
+        return dir;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) {
+        break;
+      }
+      dir = parent;
+    }
+    return process.cwd();
+  }
+
+  private async generateLocalTtsAudio(
+    text: string,
+    options?: { pitchFemale?: number; pitchMale?: number; speed?: number },
+  ): Promise<Buffer> {
+    const execFile = util.promisify(child_process.execFile);
+    const rootDir = this.findMonorepoRoot(__dirname);
+
+    let pythonPath = path.join(rootDir, '.venv', 'Scripts', 'python.exe');
+    if (!fs.existsSync(pythonPath)) {
+      pythonPath = path.join(rootDir, '.venv', 'bin', 'python');
+    }
+    if (!fs.existsSync(pythonPath)) {
+      pythonPath = 'python';
+    }
+
+    const scriptPath = path.join(
+      rootDir,
+      'apps',
+      'api',
+      'src',
+      'modules',
+      'tts',
+      'tts_local.py',
+    );
+    const tempDir = path.join(rootDir, 'uploads', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const txtPath = path.join(tempDir, `${uuidv4()}.txt`);
+    const wavPath = path.join(tempDir, `${uuidv4()}.wav`);
+
+    const pitchFemale = typeof options?.pitchFemale === 'number' ? options.pitchFemale : 0.85;
+    const pitchMale = typeof options?.pitchMale === 'number' ? options.pitchMale : 1.15;
+    const speed = typeof options?.speed === 'number' ? options.speed : 1.0;
+
+    try {
+      fs.writeFileSync(txtPath, text, 'utf8');
+
+      this.logger.log(
+        `[Local TTS] Spawning subprocess: "${pythonPath}" "${scriptPath}" --file "${txtPath}" --output "${wavPath}" --pitch_female ${pitchFemale} --pitch_male ${pitchMale} --speed ${speed}`,
+      );
+      await execFile(pythonPath, [
+        scriptPath,
+        '--file', txtPath,
+        '--output', wavPath,
+        '--pitch_female', String(pitchFemale),
+        '--pitch_male', String(pitchMale),
+        '--speed', String(speed),
+      ]);
+
+      if (!fs.existsSync(wavPath)) {
+        throw new Error('Local TTS script completed but output file does not exist');
+      }
+
+      const audioBuffer = fs.readFileSync(wavPath);
+      return audioBuffer;
+    } catch (err: any) {
+      this.logger.error('Failed to generate local TTS audio', err);
+      throw new HttpException(
+        'Failed to generate local TTS audio: ' + (err.message || err),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      try {
+        if (fs.existsSync(txtPath)) fs.unlinkSync(txtPath);
+        if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+      } catch (e) {
+        // ignore cleanup errors
+      }
     }
   }
 }

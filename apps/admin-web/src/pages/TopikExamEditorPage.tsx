@@ -90,13 +90,56 @@ export default function TopikExamEditorPage() {
 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<string | null>(null);
   const [isGeneratingConsolidatedAudio, setIsGeneratingConsolidatedAudio] = useState(false);
-  const [listeningBatchSize, setListeningBatchSize] = useState(50);
+  const [listeningBatchSize, setListeningBatchSize] = useState(1);
   const [listeningJobId, setListeningJobId] = useState<string | null>(null);
   const [listeningJobStatus, setListeningJobStatus] = useState<{
     state: string;
     progress?: number;
     failedReason?: string;
   } | null>(null);
+  const [ttsProvider, setTtsProvider] = useState<string>(() => {
+    return localStorage.getItem('topik-tts-provider') || 'google';
+  });
+  const [pitchFemale, setPitchFemale] = useState<number>(() => {
+    const v = localStorage.getItem('topik-tts-pitch-female');
+    return v ? Number(v) : 0.85;
+  });
+  const [pitchMale, setPitchMale] = useState<number>(() => {
+    const v = localStorage.getItem('topik-tts-pitch-male');
+    return v ? Number(v) : 1.15;
+  });
+  const [ttsSpeed, setTtsSpeed] = useState<number>(() => {
+    const v = localStorage.getItem('topik-tts-speed');
+    return v ? Number(v) : 1.0;
+  });
+  const [silenceSeconds, setSilenceSeconds] = useState<number>(() => {
+    const v = localStorage.getItem('topik-tts-silence-seconds');
+    return v ? Number(v) : 5;
+  });
+
+  const [testText, setTestText] = useState('남: 안녕하세요. 여: 반갑습니다. 오늘 날씨가 정말 화창하고 좋네요.');
+  const [testAudioUrl, setTestAudioUrl] = useState<string | null>(null);
+  const [isTestingTts, setIsTestingTts] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-provider', ttsProvider);
+  }, [ttsProvider]);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-pitch-female', String(pitchFemale));
+  }, [pitchFemale]);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-pitch-male', String(pitchMale));
+  }, [pitchMale]);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-speed', String(ttsSpeed));
+  }, [ttsSpeed]);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-silence-seconds', String(silenceSeconds));
+  }, [silenceSeconds]);
 
   const listeningJobStorageKey = examId ? `topik-listening-audio-job:${examId}` : null;
 
@@ -179,9 +222,16 @@ export default function TopikExamEditorPage() {
   const handleGenerateConsolidatedAudio = async () => {
     if (!examId) return;
     setIsGeneratingConsolidatedAudio(true);
-    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(listeningBatchSize) || 50)));
+    const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(listeningBatchSize) || 1)));
     try {
-      const res = await topikAdminApi.generateExamListeningAudioJob(examId, { batchSize: safeBatchSize });
+      const res = await topikAdminApi.generateExamListeningAudioJob(examId, { 
+        batchSize: safeBatchSize,
+        provider: ttsProvider,
+        pitchFemale,
+        pitchMale,
+        speed: ttsSpeed,
+        silenceSeconds,
+      });
       const jobId = res.data?.jobId;
       if (!jobId) {
         toast.error('Không tạo được job. Vui lòng thử lại.');
@@ -206,7 +256,12 @@ export default function TopikExamEditorPage() {
     }
     setIsGeneratingAudio(qid);
     try {
-      const res = await topikAdminApi.generateQuestionAudio(qid);
+      const res = await topikAdminApi.generateQuestionAudio(qid, {
+        provider: ttsProvider,
+        pitchFemale,
+        pitchMale,
+        speed: ttsSpeed,
+      });
       const url = res.data?.audioUrl;
       if (url) {
         setDirtyQuestions((prev) => ({
@@ -223,6 +278,35 @@ export default function TopikExamEditorPage() {
       toast.error('AI Gen failed: ' + (err.response?.data?.message || err.message));
     } finally {
       setIsGeneratingAudio(null);
+    }
+  };
+
+  const handleTestTts = async () => {
+    if (!testText.trim()) {
+      toast.error('Vui lòng nhập văn bản thử nghiệm');
+      return;
+    }
+    setIsTestingTts(true);
+    setTestAudioUrl(null);
+    try {
+      const res = await topikAdminApi.testTts({
+        text: testText,
+        provider: ttsProvider,
+        pitchFemale,
+        pitchMale,
+        speed: ttsSpeed,
+      });
+      const url = res.data?.audioUrl;
+      if (url) {
+        setTestAudioUrl(url);
+        toast.success('Đã sinh giọng thử thành công!');
+      } else {
+        toast.error('Không nhận được URL âm thanh.');
+      }
+    } catch (err: any) {
+      toast.error('Sinh giọng thử thất bại: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsTestingTts(false);
     }
   };
 
@@ -394,12 +478,23 @@ export default function TopikExamEditorPage() {
                   onChange={(e) => setDirtyExam((p) => ({ ...p, listeningAudioUrl: e.target.value }))}
                 />
                 <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-semibold whitespace-nowrap">TTS Provider</span>
+                  <select
+                    className="input w-36 py-1 px-2 text-sm bg-white"
+                    value={ttsProvider}
+                    onChange={(e) => setTtsProvider(e.target.value)}
+                  >
+                    <option value="google">Google TTS</option>
+                    <option value="local">Local TTS</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 font-semibold whitespace-nowrap">Số câu/batch</span>
                   <input
                     type="number"
                     min={1}
                     max={200}
-                    className="input w-24"
+                    className="input w-20"
                     value={listeningBatchSize}
                     onChange={(e) => {
                       const next = Math.max(1, Math.min(200, Math.floor(Number(e.target.value) || 1)));
@@ -454,8 +549,121 @@ export default function TopikExamEditorPage() {
                   {isGeneratingConsolidatedAudio ? 'Đang tạo...' : 'Tạo file nghe AI toàn bộ'}
                 </button>
               </div>
+
+              {/* Cấu hình Giọng đọc & Tốc độ */}
+              <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-gray-700">Cấu hình giọng đọc (TTS Settings)</h4>
+                  
+                  {/* Silence gap slider, visible for both providers */}
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Khoảng nghỉ giữa các câu: <strong>{silenceSeconds} giây</strong></span>
+                      <span className="text-gray-400">Khuyên dùng: 5s</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={15}
+                      step={1}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                      value={silenceSeconds}
+                      onChange={(e) => setSilenceSeconds(Number(e.target.value))}
+                    />
+                  </div>
+
+                  {/* Local TTS only settings */}
+                  {ttsProvider === 'local' ? (
+                    <>
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Độ trầm bổng giọng Nữ: <strong>{pitchFemale}</strong></span>
+                          <span className="text-gray-400">Nhỏ hơn = cao hơn (Mặc định: 0.85)</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={1.5}
+                          step={0.05}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                          value={pitchFemale}
+                          onChange={(e) => setPitchFemale(Number(e.target.value))}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Độ trầm bổng giọng Nam: <strong>{pitchMale}</strong></span>
+                          <span className="text-gray-400">Lớn hơn = trầm hơn (Mặc định: 1.15)</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.8}
+                          max={1.8}
+                          step={0.05}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                          value={pitchMale}
+                          onChange={(e) => setPitchMale(Number(e.target.value))}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Tốc độ nói: <strong>{ttsSpeed}x</strong></span>
+                          <span className="text-gray-400">Nhỏ hơn = chậm hơn (Mặc định: 1.0)</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={1.5}
+                          step={0.05}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                          value={ttsSpeed}
+                          onChange={(e) => setTtsSpeed(Number(e.target.value))}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-gray-400 bg-white p-3 rounded-lg border border-gray-100">
+                      Google TTS (Gemini) sử dụng giọng đọc đa người nói tự động dựa trên script (Kore/Puck) và chưa hỗ trợ chỉnh độ trầm bổng/tốc độ nói thủ công. Chọn <strong>Local TTS</strong> để chỉnh các tùy chọn này.
+                    </div>
+                  )}
+                </div>
+
+                {/* Test TTS Console */}
+                <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6 space-y-3 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Thử nghiệm cấu hình giọng AI (Test TTS Console)</h4>
+                    <textarea
+                      className="input min-h-[70px] text-xs font-mono"
+                      value={testText}
+                      onChange={(e) => setTestText(e.target.value)}
+                      placeholder="Nhập kịch bản để sinh thử giọng..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      disabled={isTestingTts}
+                      onClick={handleTestTts}
+                      className="btn-secondary w-full py-1.5 flex items-center justify-center gap-2 text-xs"
+                    >
+                      {isTestingTts ? 'Đang sinh giọng...' : 'Sinh giọng thử'}
+                    </button>
+
+                    {testAudioUrl && (
+                      <div className="bg-white p-2 rounded-lg border border-gray-100 flex flex-col gap-1">
+                        <span className="text-[10px] text-gray-400 font-semibold">Kết quả thử nghiệm:</span>
+                        <audio src={testAudioUrl} controls className="w-full h-8" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="text-xs text-gray-500 mt-2">
-                Batch càng lớn → ít request hơn; batch nhỏ giúp tránh 429 nhưng tạo lâu hơn.
+                Batch = 1 khuyên dùng cho File nghe toàn bộ để có khoảng nghỉ 5s chính xác giữa mỗi câu hỏi.
               </div>
               {listeningJobStatus && (
                 <div className="text-xs text-gray-600 mt-1">
