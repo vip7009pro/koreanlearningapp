@@ -87,6 +87,14 @@ def parse_dialogue(text):
         return [{"speaker": "default", "text": text}]
         
     segments = []
+    
+    # Extract any instruction or introductory text before the first speaker tag (e.g. 제 1번. 다음을 듣고...)
+    first_match_start = matches[0].start()
+    if first_match_start > 0:
+        intro_text = text[0:first_match_start].strip()
+        if intro_text:
+            segments.append({"speaker": "default", "text": intro_text})
+            
     for i in range(len(matches)):
         start_idx = matches[i].end()
         end_idx = matches[i+1].start() if i + 1 < len(matches) else len(text)
