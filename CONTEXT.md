@@ -11,7 +11,7 @@ Last updated: 2026-05-23
 - Main areas: apps/admin-web, apps/api, apps/mobile, packages/*
 
 ## Notes
-- Tối ưu hóa Local TTS: Sử dụng duy nhất model tiếng Hàn chuẩn `facebook/mms-tts-kor` (Meta) kết hợp thư viện `torchaudio.functional.pitch_shift` để nâng/hạ tông giọng theo bán âm (semitones) một cách chuyên nghiệp. Giọng nam (trầm ấm, giảm 3 bán âm) và giọng nữ (trong trẻo, tăng 4 bán âm) hoạt động độc lập với tốc độ nói, sửa triệt để lỗi méo tiếng léo nhéo và lỗi tốc độ đọc bất thường của thuật toán cũ.
+- Tối ưu hóa Local TTS bằng kiến trúc Hybrid Neural TTS: Tích hợp thư viện `edge-tts` nạp các giọng Neural chuẩn cao của Microsoft Edge (`ko-KR-SunHiNeural` cho giọng nữ thật và `ko-KR-InJoonNeural` cho giọng nam thật) miễn phí và tự nhiên 100% khi trực tuyến. Đồng thời tự động fallback về pipeline offline (Meta MMS-TTS nam / Sherpa KSS nữ) khi mất mạng, resample đồng loạt âm thanh về tần số 16000Hz để ghép nối mượt mà cho đề thi TOPIK.
 - Thêm ô nhập giới hạn số câu hỏi (limit) khi tạo file nghe toàn bộ (Consolidated Listening Audio) trên UI Admin Web và API backend giúp chỉ tạo nghe thử vài câu đầu để test nhanh.
 - Investigated consolidated TOPIK listening audio: backend generates TTS per listening question (not a single prompt), inserts 3s silences, and concatenates audio; one request can trigger many provider calls and hit 429 rate limits.
 - Added batch size control (default 50) for consolidated listening audio generation; backend now batches multiple questions into a single TTS call to reduce request count.
