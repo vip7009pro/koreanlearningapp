@@ -116,6 +116,10 @@ export default function TopikExamEditorPage() {
     const v = localStorage.getItem('topik-tts-silence-seconds');
     return v ? Number(v) : 5;
   });
+  const [listeningLimit, setListeningLimit] = useState<number>(() => {
+    const v = localStorage.getItem('topik-tts-limit');
+    return v ? Number(v) : 0;
+  });
 
   const [testText, setTestText] = useState('남: 안녕하세요. 여: 반갑습니다. 오늘 날씨가 정말 화창하고 좋네요.');
   const [testAudioUrl, setTestAudioUrl] = useState<string | null>(null);
@@ -140,6 +144,10 @@ export default function TopikExamEditorPage() {
   useEffect(() => {
     localStorage.setItem('topik-tts-silence-seconds', String(silenceSeconds));
   }, [silenceSeconds]);
+
+  useEffect(() => {
+    localStorage.setItem('topik-tts-limit', String(listeningLimit));
+  }, [listeningLimit]);
 
   const listeningJobStorageKey = examId ? `topik-listening-audio-job:${examId}` : null;
 
@@ -216,7 +224,8 @@ export default function TopikExamEditorPage() {
       lines.push(combined);
     }
 
-    return lines.join('\n\n');
+    const finalLines = listeningLimit > 0 ? lines.slice(0, listeningLimit) : lines;
+    return finalLines.join('\n\n');
   };
 
   const handleGenerateConsolidatedAudio = async () => {
@@ -231,6 +240,7 @@ export default function TopikExamEditorPage() {
         pitchMale,
         speed: ttsSpeed,
         silenceSeconds,
+        limit: listeningLimit > 0 ? listeningLimit : undefined,
       });
       const jobId = res.data?.jobId;
       if (!jobId) {
@@ -499,6 +509,20 @@ export default function TopikExamEditorPage() {
                     onChange={(e) => {
                       const next = Math.max(1, Math.min(200, Math.floor(Number(e.target.value) || 1)));
                       setListeningBatchSize(next);
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-semibold whitespace-nowrap">Giới hạn số câu</span>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Tất cả"
+                    className="input w-24"
+                    value={listeningLimit === 0 ? '' : listeningLimit}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value) || 0));
+                      setListeningLimit(val);
                     }}
                   />
                 </div>

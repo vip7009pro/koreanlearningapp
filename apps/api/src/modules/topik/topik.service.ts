@@ -680,6 +680,7 @@ export class TopikService {
       pitchMale?: number;
       speed?: number;
       silenceSeconds?: number;
+      limit?: number;
     },
     onProgress?: (progress: number) => void,
   ) {
@@ -712,7 +713,10 @@ export class TopikService {
     const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(options?.batchSize) ?? 1)));
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const questionsWithScript = questions.filter((q) => !!q.listeningScript?.trim());
+    let questionsWithScript = questions.filter((q) => !!q.listeningScript?.trim());
+    if (options?.limit && options.limit > 0) {
+      questionsWithScript = questionsWithScript.slice(0, options.limit);
+    }
     if (questionsWithScript.length === 0) {
       throw new BadRequestException(
         'No audio could be generated. Make sure listening questions have listening scripts.',
@@ -847,6 +851,7 @@ export class TopikService {
       pitchMale?: number;
       speed?: number;
       silenceSeconds?: number;
+      limit?: number;
     },
   ) {
     const exam = await this.prisma.topikExam.findUnique({ where: { id: examId }, select: { id: true } });

@@ -178,6 +178,7 @@ export class AdminTopikController {
     @Query('pitchMale') pitchMale?: string,
     @Query('speed') speed?: string,
     @Query('silenceSeconds') silenceSeconds?: string,
+    @Query('limit') limit?: string,
   ) {
     const parsedBatchSize = batchSize ? Number(batchSize) : undefined;
     return this.topikService.adminEnqueueExamListeningAudio(id, {
@@ -187,6 +188,7 @@ export class AdminTopikController {
       pitchMale: pitchMale ? Number(pitchMale) : undefined,
       speed: speed ? Number(speed) : undefined,
       silenceSeconds: silenceSeconds ? Number(silenceSeconds) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 

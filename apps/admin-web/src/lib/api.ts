@@ -88,6 +88,7 @@ export const topikAdminApi = {
       pitchMale?: number;
       speed?: number;
       silenceSeconds?: number;
+      limit?: number;
     },
   ) => api.post(`/topik/admin/exams/${id}/generate-listening-audio`, {}, { params }),
   generateExamListeningAudioJob: (
@@ -99,6 +100,7 @@ export const topikAdminApi = {
       pitchMale?: number;
       speed?: number;
       silenceSeconds?: number;
+      limit?: number;
     },
   ) => api.post(`/topik/admin/exams/${id}/generate-listening-audio-job`, {}, { params }),
   getExamListeningAudioJobStatus: (id: string, jobId: string) =>
