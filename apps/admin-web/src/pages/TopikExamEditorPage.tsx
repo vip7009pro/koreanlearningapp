@@ -12,6 +12,59 @@ function stripHtml(html: string) {
     .trim();
 }
 
+function extractSentenceFromHtml(html: string, orderIndex: number): string | null {
+  if (!html) return null;
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const getMarkers = (idx: number) => {
+    const circled1 = String.fromCharCode(9311 + idx); // ①, ②
+    const circled2 = String.fromCharCode(10111 + idx); // ➀, ➁
+    return [
+      `(${idx})`,
+      `[${idx}]`,
+      `${idx}.`,
+      circled1,
+      circled2,
+      `( ${circled1} )`,
+      `( ${circled2} )`,
+      `(${circled1})`,
+      `(${circled2})`,
+      idx === 1 ? '(ㄱ)' : idx === 2 ? '(ㄴ)' : idx === 3 ? '(ㄷ)' : idx === 4 ? '(ㄹ)' : '',
+      idx === 1 ? 'ㄱ' : idx === 2 ? 'ㄴ' : idx === 3 ? 'ㄷ' : idx === 4 ? 'ㄹ' : '',
+    ].filter(Boolean);
+  };
+
+  const markersCurrent = getMarkers(orderIndex);
+  const markersNext = getMarkers(orderIndex + 1);
+
+  let startIdx = -1;
+  for (const marker of markersCurrent) {
+    const pos = text.indexOf(marker);
+    if (pos !== -1) {
+      startIdx = pos + marker.length;
+      break;
+    }
+  }
+
+  if (startIdx === -1) return null;
+
+  let endIdx = text.length;
+  for (const marker of markersNext) {
+    const pos = text.indexOf(marker, startIdx);
+    if (pos !== -1) {
+      endIdx = pos;
+      break;
+    }
+  }
+
+  let sentence = text.slice(startIdx, endIdx).trim();
+  sentence = sentence.replace(/^\s*\)\s*/, '').replace(/\s*\(\s*$/, '');
+  sentence = sentence.replace(/^\s*\]\s*/, '').replace(/\s*\[\s*$/, '');
+  sentence = sentence.replace(/^[:.-\s]+/, '').replace(/[:.-\s]+$/, '').trim();
+
+  return sentence || null;
+}
+
 type ChoiceDraft = { orderIndex: number; content: string; isCorrect: boolean };
 
 type QuestionDraft = {
@@ -77,10 +130,10 @@ export default function TopikExamEditorPage() {
           imagePrompt: q.imagePrompt,
           choices: Array.isArray(q.choices)
             ? q.choices.map((c: any) => ({
-                orderIndex: c.orderIndex,
-                content: c.content,
-                isCorrect: !!c.isCorrect,
-              }))
+              orderIndex: c.orderIndex,
+              content: c.content,
+              isCorrect: !!c.isCorrect,
+            }))
             : undefined,
         };
       }
@@ -233,7 +286,7 @@ export default function TopikExamEditorPage() {
     setIsGeneratingConsolidatedAudio(true);
     const safeBatchSize = Math.max(1, Math.min(200, Math.floor(Number(listeningBatchSize) || 1)));
     try {
-      const res = await topikAdminApi.generateExamListeningAudioJob(examId, { 
+      const res = await topikAdminApi.generateExamListeningAudioJob(examId, {
         batchSize: safeBatchSize,
         provider: ttsProvider,
         pitchFemale,
@@ -578,7 +631,7 @@ export default function TopikExamEditorPage() {
               <div className="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h4 className="text-sm font-semibold text-gray-700">Cấu hình giọng đọc (TTS Settings)</h4>
-                  
+
                   {/* Silence gap slider, visible for both providers */}
                   <div>
                     <div className="flex justify-between text-xs text-gray-600 mb-1">
@@ -665,7 +718,7 @@ export default function TopikExamEditorPage() {
                       placeholder="Nhập kịch bản để sinh thử giọng..."
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <button
                       type="button"
@@ -828,9 +881,27 @@ export default function TopikExamEditorPage() {
                     return (
                       <div key={q.id} className="border border-gray-100 rounded-xl p-4 hover:border-gray-200 transition-colors">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
+                          <div className="flex-1">
                             <div className="text-sm font-semibold text-gray-800">Q{s.orderIndex}.{q.orderIndex} ({q.questionType})</div>
-                            <div className="text-xs text-gray-500 mt-1">{stripHtml(d.contentHtml).slice(0, 160)}</div>
+                            <div className="text-xs text-gray-500 mt-1">{stripHtml(d.contentHtml).slice(0, 160)}...</div>
+                            {q.questionType === 'MCQ' && d.choices && (
+                              <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-xs text-gray-600 bg-gray-50/50 p-2.5 rounded-lg border border-gray-100/80 max-w-4xl">
+                                {d.choices.map((c: any) => {
+                                  const extracted = extractSentenceFromHtml(d.contentHtml, c.orderIndex);
+                                  return (
+                                    <span key={c.orderIndex} className={`flex items-center gap-1.5 ${c.isCorrect ? "text-green-700 font-semibold bg-green-50 px-2 py-0.5 rounded border border-green-100" : ""}`}>
+                                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${c.isCorrect ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600"}`}>
+                                        {c.orderIndex}
+                                      </span>
+                                      <span>
+                                        {c.content || '(Trống)'}
+                                        {extracted && extracted !== c.content ? ` (${extracted})` : ''}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                           <button
                             className="btn-primary flex items-center gap-2"
@@ -1031,40 +1102,68 @@ export default function TopikExamEditorPage() {
                           <div className="mt-4">
                             <div className="text-sm font-semibold text-gray-800 mb-2">Choices</div>
                             <div className="space-y-2">
-                              {(d.choices || []).map((c, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <input
-                                    type="number"
-                                    className="input w-20"
-                                    value={c.orderIndex}
-                                    onChange={(e) => {
-                                      const next = [...(d.choices || [])];
-                                      next[idx] = { ...next[idx], orderIndex: Number(e.target.value) };
-                                      setDraft({ choices: next });
-                                    }}
-                                  />
-                                  <input
-                                    className="input flex-1"
-                                    value={c.content}
-                                    onChange={(e) => {
-                                      const next = [...(d.choices || [])];
-                                      next[idx] = { ...next[idx], content: e.target.value };
-                                      setDraft({ choices: next });
-                                    }}
-                                  />
-                                  <label className="text-xs text-gray-600 flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={c.isCorrect}
-                                      onChange={(e) => {
-                                        const next = [...(d.choices || [])].map((x, i) => ({ ...x, isCorrect: i === idx ? e.target.checked : false }));
-                                        setDraft({ choices: next });
-                                      }}
-                                    />
-                                    Correct
-                                  </label>
-                                </div>
-                              ))}
+                              {(d.choices || []).map((c, idx) => {
+                                const extracted = extractSentenceFromHtml(d.contentHtml, c.orderIndex);
+                                return (
+                                  <div key={idx} className="flex flex-col gap-1.5 p-2 rounded-lg bg-gray-50/40 border border-gray-100/50 hover:bg-gray-50/80 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        className="input w-20"
+                                        value={c.orderIndex}
+                                        onChange={(e) => {
+                                          const next = [...(d.choices || [])];
+                                          next[idx] = { ...next[idx], orderIndex: Number(e.target.value) };
+                                          setDraft({ choices: next });
+                                        }}
+                                      />
+                                      <input
+                                        className="input flex-1"
+                                        value={c.content}
+                                        placeholder={`Lựa chọn ${c.orderIndex}`}
+                                        onChange={(e) => {
+                                          const next = [...(d.choices || [])];
+                                          next[idx] = { ...next[idx], content: e.target.value };
+                                          setDraft({ choices: next });
+                                        }}
+                                      />
+                                      <label className="text-xs text-gray-600 flex items-center gap-2 select-none cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={c.isCorrect}
+                                          onChange={(e) => {
+                                            const next = [...(d.choices || [])].map((x, i) => ({ ...x, isCorrect: i === idx ? e.target.checked : false }));
+                                            setDraft({ choices: next });
+                                          }}
+                                        />
+                                        Correct
+                                      </label>
+                                    </div>
+                                    {extracted && (
+                                      <div className="text-xs text-primary-600 font-medium ml-[88px] flex flex-wrap items-center gap-2 bg-primary-50/50 py-1 px-2.5 rounded mt-0.5 max-w-4xl border border-primary-100/30">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+                                        <span className="flex-1 text-gray-700">
+                                          Nội dung câu tương ứng trong đề: <span className="font-semibold text-gray-900 font-sans">"{extracted}"</span>
+                                        </span>
+                                        {c.content !== extracted && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const next = [...(d.choices || [])];
+                                              next[idx] = { ...next[idx], content: extracted };
+                                              setDraft({ choices: next });
+                                              toast.success(`Đã lấy nội dung câu vào Lựa chọn ${c.orderIndex}!`);
+                                            }}
+                                            className="text-[10px] bg-white hover:bg-primary-50 text-primary-600 hover:text-primary-800 font-semibold px-2 py-0.5 rounded border border-primary-200 transition-all shrink-0 shadow-sm"
+                                          >
+                                            Sử dụng câu này
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                             {(!d.choices || d.choices.length === 0) && (
                               <div className="text-xs text-gray-400">No choices</div>
