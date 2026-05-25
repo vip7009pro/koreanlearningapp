@@ -178,7 +178,11 @@ QUY TẮC BẮT BUỘC:
 5) Với WRITING:
    - SHORT_TEXT: có correctTextAnswer (một đáp án mẫu ngắn).
    - ESSAY: không cần correctTextAnswer.
-6) Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn.
+6) Không tạo nội dung nhạy cảm/vi phạm pháp luật. Ngôn ngữ: tiếng Hàn cho câu hỏi/nội dung nghe; có thể thêm tiếng Việt cho hướng dẫn nếu cần, nhưng ưu tiên giống đề TOPIK (chủ yếu tiếng Hàn).
+7) Hỗ trợ hình ảnh/sơ đồ: Nếu câu hỏi thuộc dạng cần tranh/ảnh/biểu đồ (ví dụ: TOPIK I câu nghe nhìn tranh chọn đáp án, TOPIK II câu 53 viết phân tích biểu đồ, hoặc câu đọc/nghe mà đề có hình minh họa), thì:
+   - imageUrl = null (Admin sẽ upload ảnh sau).
+   - imagePrompt = Mô tả CHI TIẾT nội dung hình ảnh/biểu đồ bằng tiếng Việt. Mô tả phải đủ cụ thể để một người dùng AI image generator (như Midjourney, DALL-E) có thể tạo ảnh chính xác. Ví dụ: "Biểu đồ cột thể hiện tỷ lệ sử dụng điện thoại thông minh theo độ tuổi (10대: 85%, 20대: 95%, 30대: 90%, 40대: 75%, 50대 이상: 55%). Trục X: độ tuổi, Trục Y: phần trăm (%)".
+   - Nếu câu hỏi KHÔNG cần ảnh, để imageUrl = null và imagePrompt = null.
 
 Hãy tạo đề thi ${lvl} năm ${year}.
 Cấu trúc: ${bp.sections}
@@ -205,12 +209,14 @@ Trả về JSON theo format sau:
         {
           "questionType": "MCQ",
           "orderIndex": 1,
-          "contentHtml": "Nội dung câu hỏi",
+          "contentHtml": "Nội dung câu hỏi nghe",
           "audioUrl": null,
           "listeningScript": "대화/음성 내용 (tiếng Hàn)",
           "correctTextAnswer": null,
-          "scoreWeight": 1,
-          "explanation": "Giải thích đáp án",
+          "scoreWeight": 2,
+          "explanation": "Giải thích đáp án bằng tiếng Việt",
+          "imageUrl": null,
+          "imagePrompt": null,
           "choices": [
             {"orderIndex": 1, "content": "Đáp án 1", "isCorrect": false},
             {"orderIndex": 2, "content": "Đáp án 2", "isCorrect": true},
@@ -225,7 +231,26 @@ Trả về JSON theo format sau:
       "orderIndex": ${topikLevel === 'TOPIK_I' ? 2 : 3},
       "durationMinutes": ${topikLevel === 'TOPIK_I' ? 60 : 70},
       "maxScore": 100,
-      "questions": [ ... tương tự MCQ ... ]
+      "questions": [
+        {
+          "questionType": "MCQ",
+          "orderIndex": 1,
+          "contentHtml": "Nội dung câu hỏi đọc",
+          "audioUrl": null,
+          "listeningScript": null,
+          "correctTextAnswer": null,
+          "scoreWeight": 2,
+          "explanation": "Giải thích đáp án bằng tiếng Việt",
+          "imageUrl": null,
+          "imagePrompt": null,
+          "choices": [
+            {"orderIndex": 1, "content": "Đáp án 1", "isCorrect": false},
+            {"orderIndex": 2, "content": "Đáp án 2", "isCorrect": true},
+            {"orderIndex": 3, "content": "Đáp án 3", "isCorrect": false},
+            {"orderIndex": 4, "content": "Đáp án 4", "isCorrect": false}
+          ]
+        }
+      ]
     }${topikLevel === 'TOPIK_II' ? `,
     {
       "type": "WRITING",
@@ -235,16 +260,27 @@ Trả về JSON theo format sau:
       "questions": [
         {
           "questionType": "SHORT_TEXT",
-          "orderIndex": 1,
-          "contentHtml": "Đề viết ngắn",
-          "correctTextAnswer": "Đáp án mẫu",
-          "scoreWeight": 1
+          "orderIndex": 51,
+          "contentHtml": "Đề viết ngắn điền từ (ví dụ câu 51, 52)",
+          "audioUrl": null,
+          "listeningScript": null,
+          "correctTextAnswer": "Đáp án mẫu ngắn",
+          "scoreWeight": 10,
+          "explanation": "Giải thích cấu trúc ngữ pháp cần điền",
+          "imageUrl": null,
+          "imagePrompt": null
         },
         {
           "questionType": "ESSAY",
-          "orderIndex": 4,
-          "contentHtml": "Hãy viết bài luận 200-300 chữ về chủ đề...",
-          "scoreWeight": 4
+          "orderIndex": 53,
+          "contentHtml": "Hãy viết bài luận phân tích biểu đồ...",
+          "audioUrl": null,
+          "listeningScript": null,
+          "correctTextAnswer": null,
+          "scoreWeight": 30,
+          "explanation": "Dàn ý và từ vựng gợi ý",
+          "imageUrl": null,
+          "imagePrompt": "Biểu đồ cột thể hiện..."
         }
       ]
     }` : ''}
