@@ -32,6 +32,14 @@ Last updated: 2026-05-23
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Fixed Choices textbox sequence mapping in Admin Web:
+  - Replaced the regex sequence checker in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) with a robust, simple helper function `isSequenceNumber`.
+  - This helper avoids transpilation/encoding bugs for circled numbers (like ①, ➀, etc.) by using `String.fromCharCode` and matching orderIndex-based strings directly.
+  - On page load, choice textbox inputs automatically show the actual Korean sentences extracted from the question body if the database holds sequence placeholders, with zero additional complexity.
+  - Verified DB state via Prisma inspection scripts: 99% of the questions in the database (e.g. Q1-Q5, Q15, Q17 in LISTENING, Q15 in READING of Đề 4) already store full Korean sentences in `TopikChoice.content`, while only 7 questions total (e.g. Q17 of Đề 4, Q37 of Đề 2) store raw sequence numbers.
+  - Confirmed the NestJS API returns full Korean sentences for these choices.
+  - Fixed Choices textbox display bug in Admin Web by explicitly setting `type="text"` on the textboxes. This resolves a browser-level input-type inference issue where the textboxes were treated as `type="number"`, which discarded non-numeric Korean sentence string values and rendered them as empty.
+  - Resolved choices input layout squeezing issue by adding `style={{ width: '60px', minWidth: '60px', flexShrink: 0 }}` inline styling on the order index inputs, preventing the `.input` global CSS style (`width: 100%`) from stretching the order index textbox and squeezing the main content textbox into a tiny capsule box. Recommended a hard refresh (Ctrl + F5) of the editor page to clear browser cache and ensure Vite loads the updated React code.
 - Google Play Store Billing Integration:
   - Modified [store_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/store_screen.dart) to only consume/complete purchases via `_inAppPurchase.completePurchase` once the backend returns `verified: true`.
   - Added the `<uses-permission android:name="com.android.vending.BILLING"/>` permission in [AndroidManifest.xml](file:///g:/NODEJS/koreanlearningapp/apps/mobile/android/app/src/main/AndroidManifest.xml).
@@ -175,3 +183,6 @@ Last updated: 2026-05-23
   - Enhanced the choice editor in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) to always run the sentence extractor based on `c.orderIndex` regardless of whether the choice text is currently numeric.
   - Added a "Sử dụng câu này" (Use this sentence) button in the choice input rows that allows the admin to instantly copy and fill the extracted sentence content directly into the choice text field, accelerating content editing and formatting.
   - Verified compilation success with zero TypeScript errors.
+- Fixed Choices display and editing in Admin Web:
+  - Modified the question index initial state mapper in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) to automatically resolve numeric or empty choice contents to their corresponding extracted sentences parsed from the question HTML content on page load.
+  - This ensures that if the database holds numeric sequence placeholders (e.g. "1", "2", "①", etc.), the choices textboxes immediately display the actual parsed sentences, allowing admins to easily view, edit, and save full choice content directly.

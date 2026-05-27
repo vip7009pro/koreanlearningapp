@@ -65,6 +65,25 @@ function extractSentenceFromHtml(html: string, orderIndex: number): string | nul
   return sentence || null;
 }
 
+function isSequenceNumber(content: any, orderIndex: number): boolean {
+  if (!content) return true;
+  const trimmed = String(content).trim();
+  if (trimmed === '') return true;
+
+  if (trimmed === String(orderIndex)) return true;
+  if (trimmed === `(${orderIndex})` || trimmed === `[${orderIndex}]` || trimmed === `${orderIndex}.`) return true;
+
+  const circled1 = String.fromCharCode(9311 + orderIndex);
+  const circled2 = String.fromCharCode(10111 + orderIndex);
+  if (trimmed === circled1 || trimmed === circled2) return true;
+  if (trimmed === `(${circled1})` || trimmed === `(${circled2})`) return true;
+
+  const koSymbol = orderIndex === 1 ? 'ㄱ' : orderIndex === 2 ? 'ㄴ' : orderIndex === 3 ? 'ㄷ' : orderIndex === 4 ? 'ㄹ' : '';
+  if (koSymbol && (trimmed === koSymbol || trimmed === `(${koSymbol})`)) return true;
+
+  return false;
+}
+
 type ChoiceDraft = { orderIndex: number; content: string; isCorrect: boolean };
 
 type QuestionDraft = {
@@ -129,11 +148,16 @@ export default function TopikExamEditorPage() {
           imageUrl: q.imageUrl,
           imagePrompt: q.imagePrompt,
           choices: Array.isArray(q.choices)
-            ? q.choices.map((c: any) => ({
-              orderIndex: c.orderIndex,
-              content: c.content,
-              isCorrect: !!c.isCorrect,
-            }))
+            ? q.choices.map((c: any) => {
+              const extracted = extractSentenceFromHtml(q.contentHtml, c.orderIndex);
+              const content = isSequenceNumber(c.content, c.orderIndex) ? (extracted || c.content) : c.content;
+              console.log(`[TopikEditor] mapping question ${q.id} choice ${c.orderIndex}: db_content="${c.content}" mapped_content="${content}"`);
+              return {
+                orderIndex: c.orderIndex,
+                content: content,
+                isCorrect: !!c.isCorrect,
+              };
+            })
             : undefined,
         };
       }
@@ -1100,7 +1124,9 @@ export default function TopikExamEditorPage() {
 
                         {d.questionType === 'MCQ' && (
                           <div className="mt-4">
-                            <div className="text-sm font-semibold text-gray-800 mb-2">Choices</div>
+                            <div className="text-sm font-semibold text-gray-800 mb-2">
+                              Choices {/* (Debug State: {JSON.stringify(d.choices?.map(x => x.content))}) */}
+                            </div>
                             <div className="space-y-2">
                               {(d.choices || []).map((c, idx) => {
                                 const extracted = extractSentenceFromHtml(d.contentHtml, c.orderIndex);
@@ -1109,7 +1135,8 @@ export default function TopikExamEditorPage() {
                                     <div className="flex items-center gap-2">
                                       <input
                                         type="number"
-                                        className="input w-20"
+                                        className="input"
+                                        style={{ width: '60px', minWidth: '60px', flexShrink: 0 }}
                                         value={c.orderIndex}
                                         onChange={(e) => {
                                           const next = [...(d.choices || [])];
@@ -1118,6 +1145,7 @@ export default function TopikExamEditorPage() {
                                         }}
                                       />
                                       <input
+                                        type="text"
                                         className="input flex-1"
                                         value={c.content}
                                         placeholder={`Lựa chọn ${c.orderIndex}`}
