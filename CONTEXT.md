@@ -1,6 +1,6 @@
 # CONTEXT
 
-Last updated: 2026-05-23
+Last updated: 2026-05-28
 
 ## Persistent Rules
 - Check this file before responding when it exists.
@@ -81,7 +81,17 @@ Last updated: 2026-05-23
   - Added dedicated console logs (`[AI Call]`) printing the active model name and clearly highlighting if it was forced.
 - Fixed AI Writing analysis language to enforce Vietnamese responses:
   - Updated `SYSTEM_PROMPT` in `AIService` to strictly require that overall feedback, explanations, and instructions must be returned in Vietnamese, reserving Korean exclusively for corrections and grammar examples.
-- Implemented AI Dialogue ticket decrementing and client-side balance controls:
+- Implemented AI Dialogue ticket decrementing and client-side balance- General Queries:
+  - Answered user introduction requests, confirming the model version is Gemini 3.5 Flash.
+  - Advised the user on how to complete the Google Play Console Content Ratings questionnaire for the app's monetization, AI features, and leaderboard.
+  - Advised the user on completing the Google Play Data Safety questionnaire based on Firebase, AdMob, IAP, and AI speech features.
+  - Advised the user on the Google Play Financial Features declaration (declaring No Financial Features since it only uses standard Play Billing).
+- Google Play Store Preparation:
+  - Created [privacy.html](file:///g:/NODEJS/koreanlearningapp/privacy.html) in project root: a complete, beautiful, responsive, and professional Vietnamese privacy policy page for Google Play Console submission.
+  - Created [google_play_store_metadata.md](file:///g:/NODEJS/koreanlearningapp/google_play_store_metadata.md) in project root: contains ASO-optimized Short Description and Full Description in Vietnamese.
+  - Generated premium store graphics inside `store_assets/` folder:
+    - [app_icon.png](file:///g:/NODEJS/koreanlearningapp/store_assets/app_icon.png) (512x512 pixels app logo combining Taegeukgi, AI node, and FDI lettering).
+    - [feature_graphic.png](file:///g:/NODEJS/koreanlearningapp/store_assets/feature_graphic.png) (1024x500 pixels landscape promo graphic showing dark blue gradient and glassmorphism elements).
   - Added user ticket check and ticket decrement logic in `submitTurn` inside `AIDialoguesService` on backend.
   - Added out-of-tickets dialog and checks to `_startPractice` and `_sendTurn` in `DialoguePracticeScreen` on mobile app.
   - Added `refreshProfile` trigger in `ProfileScreen`'s data load to ensure ticket balance is fetched correctly when user navigates to the page.
@@ -186,3 +196,15 @@ Last updated: 2026-05-23
 - Fixed Choices display and editing in Admin Web:
   - Modified the question index initial state mapper in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) to automatically resolve numeric or empty choice contents to their corresponding extracted sentences parsed from the question HTML content on page load.
   - This ensures that if the database holds numeric sequence placeholders (e.g. "1", "2", "①", etc.), the choices textboxes immediately display the actual parsed sentences, allowing admins to easily view, edit, and save full choice content directly.
+- Google Play Store Preparation:
+  - Created [privacy.html](file:///g:/NODEJS/koreanlearningapp/privacy.html) in project root: a complete, beautiful, responsive, and professional Vietnamese privacy policy page for Google Play Console submission.
+  - Created [google_play_store_metadata.md](file:///g:/NODEJS/koreanlearningapp/google_play_store_metadata.md) in project root: contains ASO-optimized Short Description and Full Description in Vietnamese.
+  - Generated premium store graphics inside `store_assets/` folder:
+    - [app_icon.png](file:///g:/NODEJS/koreanlearningapp/store_assets/app_icon.png) (512x512 pixels app logo combining Taegeukgi, AI node, and FDI lettering).
+    - [feature_graphic.png](file:///g:/NODEJS/koreanlearningapp/store_assets/feature_graphic.png) (1024x500 pixels landscape promo graphic showing dark blue gradient and glassmorphism elements).
+- User Account Deactivation (Soft Delete):
+  - Added `isActive` column (Boolean, default `true`) to the `User` model in `schema.prisma` and pushed changes to database.
+  - Exposed `DELETE /auth/profile` in `AuthController` to call `deactivateAccount(userId)` in backend, setting `isActive` to `false` without deleting user data.
+  - Added verification in all authentication gateways (email/password, Google, and Phone login) to reject deactivated accounts with a clear message: "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận hỗ trợ để khôi phục."
+  - Updated mobile app [api_client.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/api_client.dart) and [auth_provider.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/providers/auth_provider.dart) to implement `deactivateMyAccount()` and `deactivateAccount()` methods.
+  - Added a styled "Xóa tài khoản (Vô hiệu hóa)" warning button and a confirmation dialog explaining the soft-delete policy in [settings_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/settings_screen.dart). Upon confirmation, it hits the API and logs out the user.

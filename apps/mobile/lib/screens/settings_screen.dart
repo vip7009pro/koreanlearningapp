@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/biometric_auth.dart';
 import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/app_banner_ad.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -137,12 +138,99 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: () => _showDeleteAccountDialog(context, ref),
+              icon: const Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
+              label: const Text(
+                'Xóa tài khoản (Vô hiệu hóa)',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: AppBannerAd(),
           ),
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Xóa tài khoản?'),
+          ],
+        ),
+        content: const Text(
+          'Tài khoản của bạn sẽ bị vô hiệu hóa và bạn sẽ bị đăng xuất khỏi ứng dụng. '
+          'Toàn bộ tiến trình học tập của bạn sẽ được tạm ẩn. '
+          'Nếu muốn khôi phục lại tài khoản trong tương lai, bạn có thể liên hệ bộ phận hỗ trợ qua email support@tienghanfdi.com.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              try {
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                await ref.read(authProvider.notifier).deactivateAccount();
+
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loading indicator
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tài khoản của bạn đã được vô hiệu hóa.'),
+                    ),
+                  );
+                  context.go('/');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loading indicator
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Không thể vô hiệu hóa tài khoản: $e'),
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa tài khoản'),
+          ),
         ],
       ),
     );

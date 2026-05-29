@@ -499,10 +499,14 @@ class ApiClient {
   Future<Response> deleteQuizzesBulk(List<String> ids) =>
       _dio.post('/quizzes/bulk-delete', data: {'ids': ids});
 
+
   // Profile
   Future<Response> updateMyProfile({String? displayName, String? avatarUrl}) =>
       _dio.patch('/auth/profile',
           data: {'displayName': displayName, 'avatarUrl': avatarUrl});
+
+  Future<Response> deactivateMyAccount() =>
+      _dio.delete('/auth/profile');
 
   Future<Response> uploadAvatar(String filePath) async {
     final form = FormData.fromMap({

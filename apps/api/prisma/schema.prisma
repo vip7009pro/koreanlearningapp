@@ -94,6 +94,7 @@ model User {
   streakDays   Int      @default(0)
   aiTicketsBalance Int  @default(0)
   lastActiveAt DateTime @default(now())
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

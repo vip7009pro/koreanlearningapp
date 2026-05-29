@@ -269,6 +269,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.isActive) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận hỗ trợ để khôi phục.');
+    }
+
     if (!user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -375,6 +379,10 @@ export class AuthService {
       }
     }
 
+    if (!user.isActive) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận hỗ trợ để khôi phục.');
+    }
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastActiveAt: new Date() },
@@ -455,6 +463,10 @@ export class AuthService {
           },
         });
       }
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận hỗ trợ để khôi phục.');
     }
 
     await this.prisma.user.update({
@@ -713,6 +725,20 @@ export class AuthService {
       streakDays: user.streakDays,
       aiTicketsBalance: user.aiTicketsBalance,
     };
+  }
+
+  async deactivateAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+    });
+    return { message: 'Tài khoản đã được vô hiệu hóa thành công.' };
   }
 
   private async generateTokens(userId: string, email: string, role: string) {

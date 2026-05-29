@@ -115,7 +115,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = AuthState(isLoading: true);
     try {
-      final res = await _api.loginWithPhone(firebaseIdToken, displayName: displayName);
+      final res =
+          await _api.loginWithPhone(firebaseIdToken, displayName: displayName);
       final token = res.data['accessToken'] as String;
       _api.setToken(token);
 
@@ -188,6 +189,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     state = AuthState();
+  }
+
+  Future<void> deactivateAccount() async {
+    if (!state.isAuthenticated) return;
+    state = AuthState(
+      isAuthenticated: true,
+      isLoading: true,
+      user: state.user,
+      needsPassword: state.needsPassword,
+    );
+    try {
+      await _api.deactivateMyAccount();
+      _api.setToken(null);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      await prefs.remove('last_login_email');
+      await prefs.remove('last_login_password');
+      state = AuthState();
+    } catch (e) {
+      state = AuthState(
+        isAuthenticated: true,
+        isLoading: false,
+        user: state.user,
+        needsPassword: state.needsPassword,
+        error: 'Deactivate account failed',
+      );
+      rethrow;
+    }
   }
 
   Future<void> refreshProfile() async {
