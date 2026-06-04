@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
 
@@ -1233,8 +1234,54 @@ class _DialoguePracticeScreenState extends ConsumerState<DialoguePracticeScreen>
             },
             child: Text('Đến Cửa Hàng', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            icon: const Icon(Icons.video_library, size: 16),
+            label: Text('Xem QC nhận 1 lượt', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _watchRewardAd();
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _watchRewardAd() async {
+    final ads = ref.read(adsManagerProvider);
+    await ads.showRewardedAdWithLoadingDialog(
+      context: context,
+      onRewardEarned: () async {
+        setState(() => _isSending = true);
+        try {
+          final api = ref.read(apiClientProvider);
+          final res = await api.claimRewardAdTicket();
+          if (res.data['success'] == true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎉 Nhận thành công 1 vé thoại AI miễn phí!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+            ref.read(authProvider.notifier).refreshProfile();
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Lỗi nhận vé: $e')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isSending = false);
+        }
+      },
     );
   }
 }

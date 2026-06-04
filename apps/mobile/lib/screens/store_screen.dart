@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
 
@@ -259,6 +260,39 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     );
   }
 
+  Future<void> _watchRewardAd() async {
+    final ads = ref.read(adsManagerProvider);
+    await ads.showRewardedAdWithLoadingDialog(
+      context: context,
+      onRewardEarned: () async {
+        setState(() => _isLoading = true);
+        try {
+          final api = ref.read(apiClientProvider);
+          final res = await api.claimRewardAdTicket();
+          if (res.data['success'] == true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎉 Nhận thành công 1 vé chấm AI miễn phí!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+            await ref.read(authProvider.notifier).refreshProfile();
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Lỗi nhận vé: $e')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -404,6 +438,97 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        // Reward Ad Free Ticket Card
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          color: const Color(0xFF13132B),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(18.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.video_library,
+                                    color: Color(0xFF34D399),
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Vé Miễn Phí (Xem QC)',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Xem một video quảng cáo ngắn để nhận ngay 1 vé chấm AI miễn phí.',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white60,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Miễn Phí',
+                                      style: GoogleFonts.outfit(
+                                        color: const Color(0xFF34D399),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF10B981),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      onPressed: _isLoading ? null : _watchRewardAd,
+                                      child: Text(
+                                        'Xem QC',
+                                        style: GoogleFonts.outfit(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         ..._ticketPackages.map((package) {
                           final productId = package['id'] as String;
                           final details = _products[productId];

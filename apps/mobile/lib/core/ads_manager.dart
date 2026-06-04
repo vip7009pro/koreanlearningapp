@@ -1,19 +1,26 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../providers/monetization_provider.dart';
 
 const String _defaultAppOpenAdUnitId = String.fromEnvironment(
   'ADMOB_APP_OPEN_UNIT_ID',
-  defaultValue: 'ca-app-pub-3940256099942544/9257395921',
+  defaultValue: 'ca-app-pub-2107597634368760/6272283933',
 );
 
 const String _defaultInterstitialAdUnitId = String.fromEnvironment(
   'ADMOB_INTERSTITIAL_UNIT_ID',
-  defaultValue: 'ca-app-pub-3940256099942544/1033173712',
+  defaultValue: 'ca-app-pub-2107597634368760/4451250042',
+);
+
+const String _defaultRewardedAdUnitId = String.fromEnvironment(
+  'ADMOB_REWARDED_UNIT_ID',
+  defaultValue: 'ca-app-pub-2107597634368760/3712883445',
 );
 
 const Duration _adFreshnessTimeout = Duration(hours: 4);
@@ -29,9 +36,11 @@ class AdsManager {
 
   AppOpenAd? _appOpenAd;
   InterstitialAd? _interstitialAd;
+  RewardedAd? _rewardedAd;
 
   DateTime? _appOpenLoadedAt;
   DateTime? _interstitialLoadedAt;
+  DateTime? _rewardedAdLoadedAt;
   DateTime? _lastAppOpenShownAt;
   DateTime? _lastInterstitialShownAt;
 
@@ -40,6 +49,7 @@ class AdsManager {
   bool _appOpenShouldShowWhenLoaded = false;
   bool _interstitialLoading = false;
   bool _interstitialShowing = false;
+  bool _rewardedAdLoading = false;
 
   bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;
 
@@ -60,6 +70,7 @@ class AdsManager {
     if (!_isAndroid) return;
     unawaited(_loadAppOpenAd());
     unawaited(_loadInterstitialAd());
+    unawaited(_loadRewardedAd());
   }
 
   Future<void> handleAppResumed() async {
@@ -248,5 +259,157 @@ class AdsManager {
 
     ad.show();
     return completer.future;
+  }
+
+  Future<void> _loadRewardedAd() async {
+    if (!_isAndroid || _rewardedAdLoading) return;
+    _rewardedAdLoading = true;
+
+    try {
+      await RewardedAd.load(
+        adUnitId: _defaultRewardedAdUnitId,
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            _rewardedAdLoading = false;
+            _rewardedAd = ad;
+            _rewardedAdLoadedAt = DateTime.now();
+          },
+          onAdFailedToLoad: (error) {
+            _rewardedAdLoading = false;
+            _rewardedAd = null;
+            _rewardedAdLoadedAt = null;
+          },
+        ),
+      );
+    } catch (_) {
+      _rewardedAdLoading = false;
+      _rewardedAd = null;
+      _rewardedAdLoadedAt = null;
+    }
+  }
+
+  Future<void> showRewardedAdWithLoadingDialog({
+    required BuildContext context,
+    required VoidCallback onRewardEarned,
+  }) async {
+    if (!_isAndroid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Quảng cáo chỉ khả dụng trên thiết bị Android.')),
+      );
+      return;
+    }
+
+    // Show a premium loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E2F),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF334155), width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF6366F1)),
+              const SizedBox(height: 16),
+              Text(
+                'Đang chuẩn bị video quảng cáo...',
+                style: GoogleFonts.outfit(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Check if preloaded
+    if (_rewardedAd != null && _isFresh(_rewardedAdLoadedAt)) {
+      Navigator.pop(context); // Close loading dialog
+      await _presentRewardedAd(context, _rewardedAd!, onRewardEarned);
+      return;
+    }
+
+    // Load on-the-fly with 8-second timeout
+    bool loadSucceeded = false;
+    final completer = Completer<void>();
+
+    try {
+      RewardedAd.load(
+        adUnitId: _defaultRewardedAdUnitId,
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            loadSucceeded = true;
+            _rewardedAd = ad;
+            _rewardedAdLoadedAt = DateTime.now();
+            if (!completer.isCompleted) completer.complete();
+          },
+          onAdFailedToLoad: (error) {
+            if (!completer.isCompleted) completer.complete();
+          },
+        ),
+      );
+    } catch (_) {
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    await completer.future.timeout(const Duration(seconds: 8), onTimeout: () {
+      if (!completer.isCompleted) completer.complete();
+    });
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    if (loadSucceeded && _rewardedAd != null) {
+      await _presentRewardedAd(context, _rewardedAd!, onRewardEarned);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Không thể tải quảng cáo lúc này. Vui lòng thử lại sau!')),
+      );
+      unawaited(_loadRewardedAd());
+    }
+  }
+
+  Future<void> _presentRewardedAd(
+    BuildContext context,
+    RewardedAd ad,
+    VoidCallback onRewardEarned,
+  ) async {
+    final completer = Completer<void>();
+    _rewardedAd = null; // consume
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        if (!completer.isCompleted) completer.complete();
+        unawaited(_loadRewardedAd());
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi hiển thị quảng cáo: ${error.message}')),
+        );
+        if (!completer.isCompleted) completer.complete();
+        unawaited(_loadRewardedAd());
+      },
+    );
+
+    await ad.show(onUserEarnedReward: (adWithoutView, reward) {
+      onRewardEarned();
+    });
+
+    await completer.future;
   }
 }

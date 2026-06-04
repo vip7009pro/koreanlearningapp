@@ -126,7 +126,7 @@ type QuotaInfo = {
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
-  private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemini-3.5-flash';
+  private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemini-2.5-flash';
   //private static readonly DEFAULT_GOOGLE_MODEL = 'models/gemma-4-31b-it'; 
   constructor(private prisma: PrismaService) { }
 

@@ -88,4 +88,11 @@ export class SubscriptionsController {
   checkPremium(@CurrentUser('id') userId: string) {
     return this.subscriptionsService.checkPremium(userId).then((isPremium) => ({ isPremium }));
   }
+
+  @Post('claim-reward-ad')
+  @UseGuards(AuthGuard('jwt')) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Claim 1 AI Ticket by watching a reward ad' })
+  claimRewardAdTicket(@CurrentUser('id') userId: string) {
+    return this.subscriptionsService.claimRewardAdTicket(userId);
+  }
 }

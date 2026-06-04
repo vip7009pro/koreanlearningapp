@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'backend_config.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient();
@@ -14,8 +15,7 @@ class ApiClient {
   ApiClient() {
     _dio = Dio(
       BaseOptions(
-        //baseUrl: 'http://10.0.2.2:3000/api', // Android emulator -> host
-        baseUrl: 'http://14.160.33.94:3000/api', // Android emulator -> host
+        baseUrl: BackendConfig.currentUrl,
         connectTimeout: const Duration(seconds: 100),
         receiveTimeout: const Duration(seconds: 100),
         headers: {'Content-Type': 'application/json'},
@@ -32,6 +32,18 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  void updateBaseUrl(String newBaseUrl) {
+    String formattedUrl = newBaseUrl.trim();
+    if (!formattedUrl.endsWith('/api')) {
+      if (formattedUrl.endsWith('/')) {
+        formattedUrl = '${formattedUrl}api';
+      } else {
+        formattedUrl = '$formattedUrl/api';
+      }
+    }
+    _dio.options.baseUrl = formattedUrl;
   }
 
   void setToken(String? token) => _token = token;
@@ -373,6 +385,8 @@ class ApiClient {
       _dio.post('/subscriptions/google/verify', data: data);
   Future<Response> verifyConsumablePurchase(Map<String, dynamic> data) =>
       _dio.post('/subscriptions/google/verify-consumable', data: data);
+  Future<Response> claimRewardAdTicket() =>
+      _dio.post('/subscriptions/claim-reward-ad');
   Future<Response> checkPremiumStatus() =>
       _dio.get('/subscriptions/check-premium');
 

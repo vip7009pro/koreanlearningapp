@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'core/router.dart';
 import 'core/ads_manager.dart';
+import 'core/backend_config.dart';
 import 'core/theme.dart';
 import 'providers/app_settings_provider.dart';
 
@@ -13,6 +14,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await MobileAds.instance.initialize();
+  await BackendConfig.init();
   runApp(const ProviderScope(child: KoreanLearningApp()));
 }
 

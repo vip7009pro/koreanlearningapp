@@ -7,7 +7,7 @@ import '../providers/monetization_provider.dart';
 
 const String _defaultBannerAdUnitId = String.fromEnvironment(
   'ADMOB_BANNER_UNIT_ID',
-  defaultValue: 'ca-app-pub-3940256099942544/6300978111',
+  defaultValue: 'ca-app-pub-2107597634368760/2359594700',
 );
 
 class AppBannerAd extends ConsumerStatefulWidget {

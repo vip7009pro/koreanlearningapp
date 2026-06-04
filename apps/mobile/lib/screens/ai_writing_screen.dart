@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_banner_ad.dart';
@@ -95,8 +96,53 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
             },
             child: const Text('Đến Cửa Hàng'),
           ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.video_library, size: 16),
+            label: const Text('Xem QC nhận 1 lượt'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _watchRewardAd();
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _watchRewardAd() async {
+    final ads = ref.read(adsManagerProvider);
+    await ads.showRewardedAdWithLoadingDialog(
+      context: context,
+      onRewardEarned: () async {
+        setState(() => _isLoading = true);
+        try {
+          final api = ref.read(apiClientProvider);
+          final res = await api.claimRewardAdTicket();
+          if (res.data['success'] == true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎉 Nhận thành công 1 vé chấm AI miễn phí!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+            await ref.read(authProvider.notifier).refreshProfile();
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Lỗi nhận vé: $e')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      },
     );
   }
 

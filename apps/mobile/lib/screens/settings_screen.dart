@@ -2,17 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/api_client.dart';
+import '../core/backend_config.dart';
 import '../core/biometric_auth.dart';
 import '../core/tts_service.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_banner_ad.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
     final theme = AppSettingsNotifier.themeById(settings.themeId);
     final deviceVoiceStatus = ref.watch(deviceKoreanVoiceAvailableProvider);
@@ -37,6 +44,13 @@ class SettingsScreen extends ConsumerWidget {
                 Text(AppSettingsNotifier.themeById(settings.themeId).name),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/theme'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dns_outlined),
+            title: const Text('Địa chỉ máy chủ (API)'),
+            subtitle: Text(BackendConfig.currentUrl),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _showEditServerDialog(context),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -230,6 +244,61 @@ class SettingsScreen extends ConsumerWidget {
               foregroundColor: Colors.white,
             ),
             child: const Text('Xóa tài khoản'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditServerDialog(BuildContext context) {
+    final controller = TextEditingController(text: BackendConfig.currentUrl);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cấu hình Địa chỉ máy chủ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Nhập URL API backend mới:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'http://14.160.33.94:3000/api',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '* Ứng dụng sẽ tự động thêm hậu tố "/api" nếu thiếu.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                await BackendConfig.setManualUrl(newUrl);
+                // Update ApiClient instance's baseUrl
+                ref.read(apiClientProvider).updateBaseUrl(BackendConfig.currentUrl);
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  setState(() {}); // Refresh screen to show new URL
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Đã cập nhật máy chủ: ${BackendConfig.currentUrl}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Lưu'),
           ),
         ],
       ),

@@ -364,4 +364,20 @@ export class SubscriptionsService {
       newBalance: updatedUser.aiTicketsBalance,
     };
   }
+
+  async claimRewardAdTicket(userId: string) {
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        aiTicketsBalance: {
+          increment: 1,
+        },
+      },
+    });
+    return {
+      success: true,
+      ticketsAdded: 1,
+      newBalance: updatedUser.aiTicketsBalance,
+    };
+  }
 }

@@ -32,6 +32,16 @@ Last updated: 2026-05-28
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Cấu hình địa chỉ máy chủ API động (Dynamic API baseUrl):
+  - Tạo [backend_config.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/backend_config.dart) thực hiện tự động tải URL API từ xa (GitHub raw file URL, tự động chèn thêm tham số cache buster timestamp `?t=epoch` để loại bỏ hoàn toàn độ trễ cache CDN 5-10 phút của GitHub) khi app khởi động, hỗ trợ lưu cache qua `SharedPreferences` và tự động fallback về IP máy chủ mặc định (`http://14.160.33.94:3000/api`) nếu mất mạng.
+  - Tích hợp cấu hình máy chủ động vào [main.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/main.dart) và [api_client.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/api_client.dart).
+  - Thêm hàng cấu hình địa chỉ máy chủ thủ công trực quan trong [settings_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/settings_screen.dart) cho phép người dùng hoặc lập trình viên tùy ý đổi URL máy chủ trực tiếp ngay trên giao diện mà không cần build lại ứng dụng.
+- Tích hợp Quảng cáo phần thưởng (AdMob Reward Ads) để xem quảng cáo nhận vé chấm AI miễn phí:
+  - Thêm endpoint `POST /subscriptions/claim-reward-ad` ở backend API để cộng 1 vé vào tài khoản người dùng (`aiTicketsBalance` tăng thêm 1).
+  - Tích hợp `RewardedAd` tải trước và quản lý thông qua `AdsManager` ở mobile app Flutter. Hỗ trợ hiển thị đi kèm dialog tải quảng cáo thông minh để tăng trải nghiệm người dùng khi kết nối mạng chậm.
+  - Thêm dialog và nút bấm xem quảng cáo phần thưởng khi người dùng hết lượt dùng ở màn hình Luyện viết AI (`ai_writing_screen.dart`) và Hội thoại AI (`dialogue_practice_screen.dart`).
+  - Thêm gói "Vé Miễn Phí (Xem QC)" trong màn hình cửa hàng (`store_screen.dart`) với giao diện màu xanh Emerald (ngọc lục bảo) sang trọng.
+  - Cập nhật ID ứng dụng thực tế của người dùng (`ca-app-pub-2107597634368760~9487954301`) trong `AndroidManifest.xml` và liệt kê các vị trí thay thế ID AdMob thực tế khác.
 - Fixed Choices textbox sequence mapping in Admin Web:
   - Replaced the regex sequence checker in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) with a robust, simple helper function `isSequenceNumber`.
   - This helper avoids transpilation/encoding bugs for circled numbers (like ①, ➀, etc.) by using `String.fromCharCode` and matching orderIndex-based strings directly.
