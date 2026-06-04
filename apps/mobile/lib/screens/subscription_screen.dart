@@ -52,7 +52,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       case 'PREMIUM':
         return 'Hàng tháng';
       case 'LIFETIME':
-        return 'Hàng năm';
+        return 'Xóa quảng cáo';
       default:
         return 'Miễn phí';
     }
@@ -109,8 +109,16 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
             .where((id) => id.isNotEmpty)
             .toSet();
 
+        debugPrint('[Google Play Billing] Querying product IDs: $productIds');
+
         if (productIds.isNotEmpty) {
           final response = await _inAppPurchase.queryProductDetails(productIds);
+          
+          debugPrint('[Google Play Billing] Found products: ${response.productDetails.map((p) => p.id).toList()}');
+          if (response.notFoundIDs.isNotEmpty) {
+            debugPrint('[Google Play Billing] WARNING: Products NOT found: ${response.notFoundIDs}');
+          }
+
           for (final product in response.productDetails) {
             productDetailsById[product.id] = product;
           }
@@ -127,7 +135,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           ..addAll(productDetailsById);
         _isLoadingPlans = false;
       });
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[Google Play Billing] Error loading plans: $e\n$stack');
       if (mounted) {
         setState(() => _isLoadingPlans = false);
       }
@@ -305,7 +314,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               icon: const Icon(Icons.restore, color: Colors.white),
               label: const Text(
                 'Khôi phục',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
         ],
@@ -330,7 +340,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Mua và gia hạn trực tiếp qua Google Play Store để tắt hoàn toàn quảng cáo và mở khóa mọi tính năng.',
+                        'Đăng ký gói hàng tháng hoặc mua đứt một lần qua Google Play Store để tắt hoàn toàn quảng cáo và mở khóa mọi tính năng.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(
                           color: Colors.grey.shade600,
@@ -350,7 +360,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             defaultTargetPlatform == TargetPlatform.android
                                 ? 'Thiết bị chưa sẵn sàng cho Google Play Billing. Hãy chạy bản release / internal test đã cài từ Play Store.'
                                 : 'Google Play Billing chỉ hoạt động trên thiết bị Android.',
-                            style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                color: Colors.orange.shade900,
+                                fontWeight: FontWeight.w500),
                           ),
                         ),
                       if (_isAdFree) ...[
@@ -364,7 +376,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF10B981).withOpacity(0.3),
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.3),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -372,7 +385,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.verified, color: Colors.white, size: 28),
+                              Icon(Icons.verified,
+                                  color: Colors.white, size: 28),
                               SizedBox(width: 12),
                               Expanded(
                                 child: Text(
@@ -395,19 +409,26 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         final map = plan is Map<String, dynamic>
                             ? plan
                             : Map<String, dynamic>.from(plan as Map);
-                        final isAnnual = map['type'] == 'LIFETIME';
+                        final isLifetime = map['type'] == 'LIFETIME';
                         final title = _planLabel(map['type']?.toString() ?? '');
                         final productId = _planProductId(map);
 
                         // Premium colors
-                        final cardGradient = isAnnual
+                        final cardGradient = isLifetime
                             ? const LinearGradient(
-                                colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
+                                colors: [
+                                  Color(0xFFF59E0B),
+                                  Color(0xFFD97706),
+                                  Color(0xFFB45309)
+                                ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               )
                             : LinearGradient(
-                                colors: [theme.seedColor.withOpacity(0.85), theme.seedColor],
+                                colors: [
+                                  theme.seedColor.withValues(alpha: 0.85),
+                                  theme.seedColor
+                                ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               );
@@ -419,8 +440,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: (isAnnual ? const Color(0xFFD97706) : theme.seedColor)
-                                    .withOpacity(0.35),
+                                color: (isLifetime
+                                        ? const Color(0xFFD97706)
+                                        : theme.seedColor)
+                                    .withValues(alpha: 0.35),
                                 blurRadius: 16,
                                 offset: const Offset(0, 8),
                               ),
@@ -438,7 +461,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                     width: 150,
                                     height: 150,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.08),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.08),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -446,10 +470,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                 Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             title,
@@ -459,22 +485,25 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                               color: Colors.white,
                                             ),
                                           ),
-                                          if (isAnnual)
+                                          if (isLifetime)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 horizontal: 10,
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
                                                 color: Colors.white,
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                               child: Text(
                                                 'KHUYÊN DÙNG ⭐',
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
-                                                  color: const Color(0xFFD97706),
+                                                  color:
+                                                      const Color(0xFFD97706),
                                                 ),
                                               ),
                                             ),
@@ -493,7 +522,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                       Text(
                                         map['duration'] ?? '',
                                         style: GoogleFonts.outfit(
-                                          color: Colors.white.withOpacity(0.85),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.85),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -502,18 +532,22 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                         Text(
                                           'ID: $productId',
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.6),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.6),
                                             fontSize: 11,
                                           ),
                                         ),
                                       ],
                                       const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Divider(color: Colors.white24, height: 1),
+                                        padding:
+                                            EdgeInsets.symmetric(vertical: 16),
+                                        child: Divider(
+                                            color: Colors.white24, height: 1),
                                       ),
                                       ...(map['features'] as List).map(
                                         (feature) => Padding(
-                                          padding: const EdgeInsets.only(bottom: 8),
+                                          padding:
+                                              const EdgeInsets.only(bottom: 8),
                                           child: Row(
                                             children: [
                                               const Icon(
@@ -542,17 +576,19 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                         child: ElevatedButton(
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.white,
-                                            foregroundColor: isAnnual
+                                            foregroundColor: isLifetime
                                                 ? const Color(0xFFB45309)
                                                 : theme.seedColor,
                                             padding: const EdgeInsets.symmetric(
                                               vertical: 16,
                                             ),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(16),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
                                             elevation: 2,
-                                            shadowColor: Colors.black.withOpacity(0.2),
+                                            shadowColor: Colors.black
+                                                .withValues(alpha: 0.2),
                                           ),
                                           onPressed: _isLoading || _isAdFree
                                               ? null
@@ -561,9 +597,11 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                                               ? SizedBox(
                                                   width: 20,
                                                   height: 20,
-                                                  child: CircularProgressIndicator(
-                                                    color: isAnnual
-                                                        ? const Color(0xFFB45309)
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    color: isLifetime
+                                                        ? const Color(
+                                                            0xFFB45309)
                                                         : theme.seedColor,
                                                     strokeWidth: 2,
                                                   ),

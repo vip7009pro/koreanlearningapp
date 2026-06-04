@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/ads_manager.dart';
 import '../core/api_client.dart';
 import '../providers/auth_provider.dart';
@@ -79,37 +80,131 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   void _showOutOfTicketsDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hết lượt chấm AI 🤖'),
-        content: const Text(
-          'Bạn đã sử dụng hết lượt chấm điểm AI miễn phí. Hãy mua thêm vé chấm điểm hoặc đăng ký Premium để tiếp tục học tập không giới hạn.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Để sau'),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF1E1E2C) : Colors.white;
+        final textColor = isDark ? Colors.white : Colors.black87;
+        final subtitleColor = isDark ? Colors.white70 : Colors.black54;
+
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.push('/store');
-            },
-            child: const Text('Đến Cửa Hàng'),
+          titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+          contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: Colors.amber,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hết lượt chấm AI 🤖',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ],
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-            ),
-            icon: const Icon(Icons.video_library, size: 16),
-            label: const Text('Xem QC nhận 1 lượt'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _watchRewardAd();
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Bạn đã sử dụng hết lượt chấm điểm AI miễn phí. Hãy mua thêm vé chấm điểm hoặc đăng ký Premium để tiếp tục học tập không giới hạn.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: subtitleColor,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Button stack
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981), // Emerald green
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.video_library, size: 18),
+                  label: Text(
+                    'Xem QC nhận 1 lượt',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _watchRewardAd();
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1), // Indigo
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.shopping_bag, size: 18),
+                  label: Text(
+                    'Đến Cửa Hàng',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/store');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white54 : Colors.black45,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Để sau',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -157,12 +252,12 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
     }
 
     final user = ref.read(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' ||
+    final hasUnlimitedAi = user?['role'] == 'ADMIN' ||
         (user?['subscription'] != null &&
-            user?['subscription']?['planType'] != 'FREE');
+            user?['subscription']?['planType'] == 'PREMIUM');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
-    if (!isPremium && currentTickets <= 0) {
+    if (!hasUnlimitedAi && currentTickets <= 0) {
       _showOutOfTicketsDialog();
       return;
     }
@@ -207,9 +302,9 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' ||
+    final hasUnlimitedAi = user?['role'] == 'ADMIN' ||
         (user?['subscription'] != null &&
-            user?['subscription']?['planType'] != 'FREE');
+            user?['subscription']?['planType'] == 'PREMIUM');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
     return Scaffold(
@@ -357,7 +452,7 @@ class _AiWritingScreenState extends ConsumerState<AiWritingScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            if (!isPremium) ...[
+            if (!hasUnlimitedAi) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

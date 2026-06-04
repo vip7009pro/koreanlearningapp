@@ -67,7 +67,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   AppSettingsNotifier()
       : super(const AppSettingsState(
           themeId: 'ocean_blue',
-          themeMode: ThemeMode.system,
+          themeMode: ThemeMode.light,
           biometricLoginEnabled: false,
           adminAiProvider: 'openrouter',
           adminAiModel: '',
@@ -82,8 +82,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
         return ThemeMode.light;
       case 'dark':
         return ThemeMode.dark;
-      default:
+      case 'system':
         return ThemeMode.system;
+      default:
+        return ThemeMode.light;
     }
   }
 

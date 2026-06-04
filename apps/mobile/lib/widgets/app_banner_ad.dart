@@ -26,6 +26,7 @@ class AppBannerAd extends ConsumerStatefulWidget {
 
 class _AppBannerAdState extends ConsumerState<AppBannerAd> {
   BannerAd? _bannerAd;
+  bool _isLoaded = false;
   bool _loadStarted = false;
   bool _loadFailed = false;
 
@@ -47,6 +48,7 @@ class _AppBannerAdState extends ConsumerState<AppBannerAd> {
   void _disposeBannerAd() {
     _bannerAd?.dispose();
     _bannerAd = null;
+    _isLoaded = false;
     _loadStarted = false;
     _loadFailed = false;
   }
@@ -60,31 +62,33 @@ class _AppBannerAdState extends ConsumerState<AppBannerAd> {
     }
 
     _loadStarted = true;
-    final ad = BannerAd(
+    _bannerAd = BannerAd(
       size: widget.adSize,
       adUnitId: widget.adUnitId,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (loadedAd) {
+        onAdLoaded: (ad) {
           if (!mounted) {
-            loadedAd.dispose();
+            ad.dispose();
             return;
           }
           setState(() {
-            _bannerAd = loadedAd as BannerAd;
+            _isLoaded = true;
           });
         },
-        onAdFailedToLoad: (failedAd, _) {
-          failedAd.dispose();
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
           if (!mounted) return;
           setState(() {
+            _bannerAd = null;
+            _isLoaded = false;
             _loadFailed = true;
             _loadStarted = false;
           });
         },
       ),
     );
-    ad.load();
+    _bannerAd!.load();
   }
 
   @override
@@ -110,7 +114,7 @@ class _AppBannerAdState extends ConsumerState<AppBannerAd> {
 
     _ensureAdLoaded();
 
-    if (_bannerAd == null) {
+    if (_bannerAd == null || !_isLoaded) {
       return _AdLoadingPlaceholder(adSize: widget.adSize);
     }
 

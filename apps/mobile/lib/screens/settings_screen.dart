@@ -23,6 +23,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settings = ref.watch(appSettingsProvider);
     final theme = AppSettingsNotifier.themeById(settings.themeId);
     final deviceVoiceStatus = ref.watch(deviceKoreanVoiceAvailableProvider);
+    final user = ref.watch(authProvider).user;
+    final isAdmin = user?['role'] == 'ADMIN';
 
     return Scaffold(
       appBar: AppBar(
@@ -45,13 +47,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/theme'),
           ),
-          ListTile(
-            leading: const Icon(Icons.dns_outlined),
-            title: const Text('Địa chỉ máy chủ (API)'),
-            subtitle: Text(BackendConfig.currentUrl),
-            trailing: const Icon(Icons.edit_outlined),
-            onTap: () => _showEditServerDialog(context),
-          ),
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.dns_outlined),
+              title: const Text('Địa chỉ máy chủ (API)'),
+              subtitle: Text(BackendConfig.currentUrl),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () => _showEditServerDialog(context),
+            ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
             child: Text(

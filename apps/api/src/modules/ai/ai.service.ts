@@ -1515,7 +1515,7 @@ QUY TẮC BẮT BUỘC:
         subscriptions: {
           where: {
             status: 'ACTIVE',
-            planType: { in: ['PREMIUM', 'LIFETIME'] },
+            planType: 'PREMIUM',
           },
         },
       },
@@ -1525,8 +1525,8 @@ QUY TẮC BẮT BUỘC:
       throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
     }
 
-    const isPremium = user.role === 'ADMIN' || user.subscriptions.length > 0;
-    if (!isPremium) {
+    const hasUnlimitedAi = user.role === 'ADMIN' || user.subscriptions.length > 0;
+    if (!hasUnlimitedAi) {
       if (user.aiTicketsBalance <= 0) {
         throw new HttpException('Bạn đã dùng hết lượt chấm AI miễn phí. Vui lòng đăng ký Premium hoặc mua thêm vé chấm điểm!', HttpStatus.FORBIDDEN);
       }
@@ -1578,7 +1578,7 @@ QUY TẮC BẮT BUỘC:
       },
     });
 
-    if (!isPremium) {
+    if (!hasUnlimitedAi) {
       await this.prisma.user.update({
         where: { id: userId },
         data: {

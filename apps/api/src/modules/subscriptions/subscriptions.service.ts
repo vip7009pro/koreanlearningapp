@@ -29,7 +29,7 @@ export class SubscriptionsService {
   }
 
   private get annualProductId(): string {
-    return process.env.GOOGLE_PLAY_ANNUAL_PRODUCT_ID || 'premium_annual2';
+    return process.env.GOOGLE_PLAY_ANNUAL_PRODUCT_ID || 'premium_lifetime';
   }
 
   private get packageName(): string {
@@ -78,7 +78,7 @@ export class SubscriptionsService {
   private getPlanDurationMs(planType: PlanType): number {
     return planType === 'PREMIUM'
       ? 30 * 24 * 60 * 60 * 1000
-      : 365 * 24 * 60 * 60 * 1000;
+      : 100 * 365 * 24 * 60 * 60 * 1000; // 100 years for lifetime purchase
   }
 
   private async getGooglePlayAccessToken(): Promise<string> {
@@ -128,6 +128,32 @@ export class SubscriptionsService {
         'Google Play subscription verification failed',
       );
       throw new BadRequestException('Không thể xác minh giao dịch Google Play');
+    }
+  }
+
+  private async verifyGooglePlayProduct(packageName: string, productId: string, purchaseToken: string): Promise<any> {
+    const accessToken = await this.getGooglePlayAccessToken();
+    const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}`;
+
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        timeout: 30000,
+      });
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        {
+          packageName,
+          productId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Google Play product verification failed',
+      );
+      throw new BadRequestException('Không thể xác minh giao dịch sản phẩm Google Play');
     }
   }
 
@@ -193,16 +219,73 @@ export class SubscriptionsService {
     }
 
     const productId = String(input.productId || '').trim();
-    const verifiedResponse = await this.verifyGooglePlayPurchase(packageName, purchaseToken);
-    const lineItem = verifiedResponse?.lineItems?.[0] || {};
-    const expectedProductId = input.planType ? this.resolveProductIdFromPlanType(input.planType) : '';
-    const verifiedProductId = String(lineItem.productId || productId || expectedProductId).trim();
-    const planType = input.planType || this.resolvePlanTypeFromProductId(verifiedProductId);
-    const expirySource = lineItem.expiryTime || verifiedResponse?.expiryTime || null;
-    const expiryDate = expirySource ? new Date(expirySource) : null;
-    const endDate = expiryDate && !Number.isNaN(expiryDate.getTime())
-      ? expiryDate
-      : new Date(Date.now() + this.getPlanDurationMs(planType));
+    let planType = input.planType;
+    if (!planType && productId) {
+      try {
+        planType = this.resolvePlanTypeFromProductId(productId);
+      } catch (_) {}
+    }
+    if (!planType) {
+      planType = 'PREMIUM';
+    }
+
+    const isLifetime = planType === 'LIFETIME';
+    const activeProductId = productId || this.resolveProductIdFromPlanType(planType);
+
+    let verifiedResponse: any = null;
+    let isVerified = false;
+    let orderId: string | null = input.orderId || null;
+
+    try {
+      if (isLifetime) {
+        verifiedResponse = await this.verifyGooglePlayProduct(packageName, activeProductId, purchaseToken);
+        if (verifiedResponse && verifiedResponse.purchaseState === 0) {
+          isVerified = true;
+          orderId = verifiedResponse.orderId || orderId;
+        }
+      } else {
+        verifiedResponse = await this.verifyGooglePlayPurchase(packageName, purchaseToken);
+        if (verifiedResponse) {
+          isVerified = true;
+          orderId = verifiedResponse.latestOrderId || orderId;
+        }
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.warn(
+          { productId: activeProductId, planType, error: error instanceof Error ? error.message : String(error) },
+          'Google Play verification failed, using mock verification in non-production mode'
+        );
+        isVerified = true;
+        orderId = orderId || `MOCK_SUB_${Date.now()}`;
+        verifiedResponse = {
+          lineItems: [{ productId: activeProductId }],
+          latestOrderId: orderId,
+        };
+      } else {
+        throw error;
+      }
+    }
+
+    if (!isVerified) {
+      throw new BadRequestException('Xác minh giao dịch thất bại');
+    }
+
+    const verifiedProductId = isLifetime
+      ? activeProductId
+      : String(verifiedResponse?.lineItems?.[0]?.productId || activeProductId).trim();
+
+    let endDate: Date;
+    if (isLifetime) {
+      endDate = new Date(Date.now() + this.getPlanDurationMs('LIFETIME'));
+    } else {
+      const lineItem = verifiedResponse?.lineItems?.[0] || {};
+      const expirySource = lineItem.expiryTime || verifiedResponse?.expiryTime || null;
+      const expiryDate = expirySource ? new Date(expirySource) : null;
+      endDate = expiryDate && !Number.isNaN(expiryDate.getTime())
+        ? expiryDate
+        : new Date(Date.now() + this.getPlanDurationMs(planType));
+    }
 
     await this.prisma.subscription.updateMany({
       where: { userId, status: 'ACTIVE' },
@@ -224,7 +307,7 @@ export class SubscriptionsService {
       provider: 'google_play',
       packageName,
       productId: verifiedProductId,
-      orderId: verifiedResponse?.latestOrderId || input.orderId || null,
+      orderId,
       expiryDate: endDate.toISOString(),
       subscription,
     };
@@ -260,15 +343,15 @@ export class SubscriptionsService {
         currency: 'VND',
         duration: '30 ngày',
         androidProductId: this.monthlyProductId,
-        features: ['Không quảng cáo trên toàn app', 'AI Writing Practice', 'Không giới hạn bài kiểm tra', 'Ôn tập SRS', 'Tải về học offline'],
+        features: ['Không quảng cáo trên toàn app', 'AI Writing Practice', 'Không giới hạn bài kiểm tra', 'Ôn tập SRS'],
       },
       {
         type: 'LIFETIME',
-        price: 1990000,
+        price: 500000,
         currency: 'VND',
-        duration: '12 tháng',
+        duration: 'Trọn đời',
         androidProductId: this.annualProductId,
-        features: ['Không quảng cáo trên toàn app', 'Cập nhật nội dung miễn phí trong thời hạn gói', 'Ưu tiên hỗ trợ'],
+        features: ['Không quảng cáo trên toàn app', 'Mua một lần, dùng mãi mãi', 'Ưu tiên hỗ trợ'],
       },
     ];
   }
@@ -277,7 +360,7 @@ export class SubscriptionsService {
     switch (planType) {
       case 'FREE': return 0;
       case 'PREMIUM': return 199000;
-      case 'LIFETIME': return 1990000;
+      case 'LIFETIME': return 500000;
       default: return 0;
     }
   }

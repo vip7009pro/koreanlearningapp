@@ -116,7 +116,7 @@ export class AIDialoguesService {
         subscriptions: {
           where: {
             status: 'ACTIVE',
-            planType: { in: ['PREMIUM', 'LIFETIME'] },
+            planType: 'PREMIUM',
           },
         },
       },
@@ -126,8 +126,8 @@ export class AIDialoguesService {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    const isPremium = user.role === 'ADMIN' || user.subscriptions.length > 0;
-    if (!isPremium) {
+    const hasUnlimitedAi = user.role === 'ADMIN' || user.subscriptions.length > 0;
+    if (!hasUnlimitedAi) {
       if (user.aiTicketsBalance <= 0) {
         throw new ForbiddenException(
           'Bạn đã dùng hết lượt dùng AI miễn phí. Vui lòng đăng ký Premium hoặc mua thêm vé để tiếp tục hội thoại!',
@@ -245,7 +245,7 @@ Hãy đánh giá câu nói cuối cùng của User và đưa ra phản hồi ti�
       },
     });
 
-    if (!isPremium) {
+    if (!hasUnlimitedAi) {
       await this.prisma.user.update({
         where: { id: userId },
         data: {

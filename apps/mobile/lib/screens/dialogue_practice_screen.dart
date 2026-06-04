@@ -126,12 +126,12 @@ class _DialoguePracticeScreenState extends ConsumerState<DialoguePracticeScreen>
 
   Future<void> _startPractice() async {
     final user = ref.read(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' ||
+    final hasUnlimitedAi = user?['role'] == 'ADMIN' ||
         (user?['subscription'] != null &&
-            user?['subscription']?['planType'] != 'FREE');
+            user?['subscription']?['planType'] == 'PREMIUM');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
-    if (!isPremium && currentTickets <= 0) {
+    if (!hasUnlimitedAi && currentTickets <= 0) {
       _showOutOfTicketsDialog();
       return;
     }
@@ -357,12 +357,12 @@ class _DialoguePracticeScreenState extends ConsumerState<DialoguePracticeScreen>
     if (text.isEmpty) return;
 
     final user = ref.read(authProvider).user;
-    final isPremium = user?['role'] == 'ADMIN' ||
+    final hasUnlimitedAi = user?['role'] == 'ADMIN' ||
         (user?['subscription'] != null &&
-            user?['subscription']?['planType'] != 'FREE');
+            user?['subscription']?['planType'] == 'PREMIUM');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
-    if (!isPremium && currentTickets <= 0) {
+    if (!hasUnlimitedAi && currentTickets <= 0) {
       _showOutOfTicketsDialog();
       return;
     }
@@ -1207,48 +1207,131 @@ class _DialoguePracticeScreenState extends ConsumerState<DialoguePracticeScreen>
   void _showOutOfTicketsDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161624),
-        title: Text(
-          'Hết lượt dùng AI 🤖',
-          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Bạn đã sử dụng hết lượt dùng AI miễn phí. Hãy mua thêm vé hoặc đăng ký Premium để tiếp tục hội thoại không giới hạn.',
-          style: GoogleFonts.outfit(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Để sau', style: GoogleFonts.outfit(color: Colors.white54)),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final dialogBg = isDark ? const Color(0xFF161624) : Colors.white;
+        final textColor = isDark ? Colors.white : Colors.black87;
+        final subtitleColor = isDark ? Colors.white70 : Colors.black54;
+
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.push('/store');
-            },
-            child: Text('Đến Cửa Hàng', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          titlePadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+          contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: Colors.amber,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hết lượt dùng AI 🤖',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ],
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            icon: const Icon(Icons.video_library, size: 16),
-            label: Text('Xem QC nhận 1 lượt', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _watchRewardAd();
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Bạn đã sử dụng hết lượt dùng AI miễn phí. Hãy mua thêm vé hoặc đăng ký Premium để tiếp tục hội thoại không giới hạn.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: subtitleColor,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Button stack
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981), // Emerald green
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.video_library, size: 18),
+                  label: Text(
+                    'Xem QC nhận 1 lượt',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _watchRewardAd();
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1), // Indigo
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.shopping_bag, size: 18),
+                  label: Text(
+                    'Đến Cửa Hàng',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/store');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white54 : Colors.black45,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Để sau',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

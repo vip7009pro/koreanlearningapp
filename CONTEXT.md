@@ -32,16 +32,34 @@ Last updated: 2026-05-28
 - Upgraded `firebase_core` to `^3.0.0` and `firebase_auth` to `^5.0.0` to maintain compatibility with updated dependency requirements.
 
 ## Current Task
+- Sửa lỗi AdWidget:
+  - Sửa lỗi crash "AdWidget requires Ad.load to be called before AdWidget is inserted into the tree" tại [app_banner_ad.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/widgets/app_banner_ad.dart).
+  - Đã refactor quy trình tải banner quảng cáo: Khởi tạo đối tượng `BannerAd` và gán ngay cho biến trạng thái `_bannerAd` đồng thời gọi `.load()` tức thì. Theo dõi trạng thái tải xong bằng biến cờ `_isLoaded` trước khi đưa `AdWidget` vào tree để hiển thị.
+- Gói Mua Đứt Không Quảng Cáo (Lifetime Purchase):
+  - Ẩn gói mua hàng năm cũ đi ở cả Backend API ([subscriptions.service.ts](file:///g:/NODEJS/koreanlearningapp/apps/api/src/modules/subscriptions/subscriptions.service.ts)) và Mobile App ([subscription_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/subscription_screen.dart)).
+  - Thay thế bằng gói Mua đứt trọn đời (`LIFETIME`) với giá cố định là 500,000 VNĐ, thời gian sử dụng giả lập 100 năm.
+  - Sửa đổi xác minh giao dịch phía backend: sử dụng endpoint xác minh sản phẩm một lần (`/purchases/products/...`) đối với loại `LIFETIME` thay vì endpoint xác minh thuê bao đăng ký định kỳ (`/purchases/subscriptionsv2/...`).
+  - Phân tách rõ ràng quyền lợi: gói `LIFETIME` chỉ tắt quảng cáo (Ad-Free) và KHÔNG đi kèm tính năng sử dụng AI vô hạn. Đã cấu hình cả Backend (`ai.service.ts`, `ai-dialogues.service.ts`) và Mobile App (`home_screen.dart`, `store_screen.dart`, `dialogue_practice_screen.dart`, `ai_writing_screen.dart`) để yêu cầu vé AI đối với tài khoản sở hữu gói `LIFETIME` (chỉ `ADMIN` hoặc gói `PREMIUM` tháng mới được vô hạn AI).
+  - Cập nhật label UI trên Mobile App hiển thị thành 'Xóa quảng cáo' (hoặc 'Mua đứt trọn đời'), cập nhật mô tả màn hình mua gói và sửa đổi các biến (`isAnnual` sang `isLifetime`).
+  - Dọn dẹp cảnh báo deprecation của `.withOpacity` sang `.withValues(alpha: ...)` trên màn hình mua gói.
 - Cấu hình địa chỉ máy chủ API động (Dynamic API baseUrl):
   - Tạo [backend_config.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/backend_config.dart) thực hiện tự động tải URL API từ xa (GitHub raw file URL, tự động chèn thêm tham số cache buster timestamp `?t=epoch` để loại bỏ hoàn toàn độ trễ cache CDN 5-10 phút của GitHub) khi app khởi động, hỗ trợ lưu cache qua `SharedPreferences` và tự động fallback về IP máy chủ mặc định (`http://14.160.33.94:3000/api`) nếu mất mạng.
   - Tích hợp cấu hình máy chủ động vào [main.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/main.dart) và [api_client.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/api_client.dart).
-  - Thêm hàng cấu hình địa chỉ máy chủ thủ công trực quan trong [settings_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/settings_screen.dart) cho phép người dùng hoặc lập trình viên tùy ý đổi URL máy chủ trực tiếp ngay trên giao diện mà không cần build lại ứng dụng.
+  - Thêm hàng cấu hình địa chỉ máy chủ thủ công trực quan trong [settings_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/settings_screen.dart) (chỉ hiển thị đối với tài khoản có role là `ADMIN`) cho phép người dùng hoặc lập trình viên tùy ý đổi URL máy chủ trực tiếp ngay trên giao diện mà không cần build lại ứng dụng.
 - Tích hợp Quảng cáo phần thưởng (AdMob Reward Ads) để xem quảng cáo nhận vé chấm AI miễn phí:
   - Thêm endpoint `POST /subscriptions/claim-reward-ad` ở backend API để cộng 1 vé vào tài khoản người dùng (`aiTicketsBalance` tăng thêm 1).
   - Tích hợp `RewardedAd` tải trước và quản lý thông qua `AdsManager` ở mobile app Flutter. Hỗ trợ hiển thị đi kèm dialog tải quảng cáo thông minh để tăng trải nghiệm người dùng khi kết nối mạng chậm.
   - Thêm dialog và nút bấm xem quảng cáo phần thưởng khi người dùng hết lượt dùng ở màn hình Luyện viết AI (`ai_writing_screen.dart`) và Hội thoại AI (`dialogue_practice_screen.dart`).
   - Thêm gói "Vé Miễn Phí (Xem QC)" trong màn hình cửa hàng (`store_screen.dart`) với giao diện màu xanh Emerald (ngọc lục bảo) sang trọng.
   - Cập nhật ID ứng dụng thực tế của người dùng (`ca-app-pub-2107597634368760~9487954301`) trong `AndroidManifest.xml` và liệt kê các vị trí thay thế ID AdMob thực tế khác.
+- Tối ưu hóa UI/UX dialog Hết lượt chấm/dùng AI (Out of tickets dialog):
+  - Khắc phục tình trạng các nút hành động (Để sau, Đến cửa hàng, Xem QC nhận 1 lượt) bị xếp chồng lệch lạc hoặc tràn chữ do cách render mặc định của `AlertDialog.actions`.
+  - Tách biệt và dựng một layout dọc hoàn chỉnh bên trong `content` của `AlertDialog` thay vì sử dụng `actions`.
+  - Dựng các nút hành động dạng full-width (`double.infinity`), chiều cao đồng bộ `50px` (hoặc `44px` với nút phụ), sử dụng bo góc mượt mà `16px` cùng tông màu Premium (màu Emerald `#10B981` cho xem quảng cáo và màu Indigo `#6366F1` cho Cửa hàng).
+  - Tích hợp phông chữ `GoogleFonts.outfit` đồng bộ giao diện cho cả 2 dialog tại màn hình Luyện viết AI (`ai_writing_screen.dart`) và Hội thoại AI (`dialogue_practice_screen.dart`).
+- Cấu hình theme mặc định là Light Mode thay vì System Mode:
+  - Cập nhật default state của `AppSettingsNotifier` trong [app_settings_provider.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/providers/app_settings_provider.dart) thành `ThemeMode.light`.
+  - Điều chỉnh `_themeModeFromString` để tự động trả về `ThemeMode.light` làm fallback mặc định (nếu giá trị SharedPreferences chưa được khởi tạo/bằng `null`), đảm bảo thiết bị của người dùng mới hoặc ứng dụng mới cài đặt luôn luôn bắt đầu ở chế độ sáng (Light Mode).
 - Fixed Choices textbox sequence mapping in Admin Web:
   - Replaced the regex sequence checker in [TopikExamEditorPage.tsx](file:///g:/NODEJS/koreanlearningapp/apps/admin-web/src/pages/TopikExamEditorPage.tsx) with a robust, simple helper function `isSequenceNumber`.
   - This helper avoids transpilation/encoding bugs for circled numbers (like ①, ➀, etc.) by using `String.fromCharCode` and matching orderIndex-based strings directly.

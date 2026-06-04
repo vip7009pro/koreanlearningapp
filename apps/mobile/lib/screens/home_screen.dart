@@ -331,7 +331,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   icon: Icons.auto_awesome,
                                                   label: (user?['role'] == 'ADMIN' ||
                                                           (user?['subscription'] != null &&
-                                                              user?['subscription']?['planType'] != 'FREE'))
+                                                              user?['subscription']?['planType'] == 'PREMIUM'))
                                                       ? 'Vô hạn AI'
                                                       : '${user?['aiTicketsBalance'] ?? 0} vé AI',
                                                   color: Colors.cyanAccent,

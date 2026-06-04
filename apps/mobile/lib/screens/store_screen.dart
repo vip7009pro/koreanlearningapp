@@ -297,9 +297,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final isPremium = user?['role'] == 'ADMIN' ||
+    final hasUnlimitedAi = user?['role'] == 'ADMIN' ||
         (user?['subscription'] != null &&
-            user?['subscription']?['planType'] != 'FREE');
+            user?['subscription']?['planType'] == 'PREMIUM');
     final currentTickets = user?['aiTicketsBalance'] ?? 0;
 
     return Scaffold(
@@ -406,7 +406,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                isPremium ? 'Premium Vô Hạn' : '$currentTickets Vé Chấm AI',
+                                hasUnlimitedAi ? 'Premium Vô Hạn' : '$currentTickets Vé Chấm AI',
                                 style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontSize: 28,
@@ -415,7 +415,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                isPremium
+                                hasUnlimitedAi
                                     ? 'Gói VIP Premium đang kích hoạt. Bạn có thể sử dụng tất cả tính năng AI mà không giới hạn số lượng.'
                                     : 'Sử dụng vé này để chấm bài viết TOPIK (câu 53 & 54) hoặc các bài luận tự do. Nhận sửa lỗi chi tiết, gợi ý từ vựng và chấm điểm từ AI.',
                                 textAlign: TextAlign.center,
