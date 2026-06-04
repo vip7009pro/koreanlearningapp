@@ -157,7 +157,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextButton.icon(
               onPressed: () => _showDeleteAccountDialog(context, ref),
-              icon: const Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_forever_outlined,
+                  color: Colors.redAccent),
               label: const Text(
                 'Xóa tài khoản (Vô hiệu hóa)',
                 style: TextStyle(
@@ -196,8 +197,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         content: const Text(
           'Tài khoản của bạn sẽ bị vô hiệu hóa và bạn sẽ bị đăng xuất khỏi ứng dụng. '
-          'Toàn bộ tiến trình học tập của bạn sẽ được tạm ẩn. '
-          'Nếu muốn khôi phục lại tài khoản trong tương lai, bạn có thể liên hệ bộ phận hỗ trợ qua email support@tienghanfdi.com.',
+          'Toàn bộ tiến trình học tập của bạn sẽ được xóa. '
+          'Nếu muốn khôi phục lại tài khoản trong tương lai, bạn có thể liên hệ bộ phận hỗ trợ qua email pagehungnguyen@gmail.com.',
         ),
         actions: [
           TextButton(
@@ -287,13 +288,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (newUrl.isNotEmpty) {
                 await BackendConfig.setManualUrl(newUrl);
                 // Update ApiClient instance's baseUrl
-                ref.read(apiClientProvider).updateBaseUrl(BackendConfig.currentUrl);
+                ref
+                    .read(apiClientProvider)
+                    .updateBaseUrl(BackendConfig.currentUrl);
 
                 if (context.mounted) {
                   Navigator.pop(context);
                   setState(() {}); // Refresh screen to show new URL
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Đã cập nhật máy chủ: ${BackendConfig.currentUrl}')),
+                    SnackBar(
+                        content: Text(
+                            'Đã cập nhật máy chủ: ${BackendConfig.currentUrl}')),
                   );
                 }
               }

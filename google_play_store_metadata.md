@@ -73,7 +73,7 @@ Học tiếng Hàn chưa bao giờ dễ dàng và trực quan đến thế. Tả
 
 ---
 📬 THÔNG TIN LIÊN HỆ & HỖ TRỢ:
-• Email: support@tienghanfdi.com
+• Email: pagehungnguyen@gmail.com
 • Địa chỉ: Hà Nội, Việt Nam
 ```
 
