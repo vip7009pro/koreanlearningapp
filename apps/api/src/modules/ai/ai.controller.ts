@@ -16,6 +16,28 @@ class WritingCorrectionDto {
   @IsOptional()
   @IsString()
   provider?: string;
+
+  @ApiPropertyOptional({ enum: ['51', '52', '53', '54'], example: '51' })
+  @IsOptional()
+  @IsString()
+  questionType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sampleAnswer?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  explanation?: string;
+}
+
+class GenerateWritingQuestionDto {
+  @ApiProperty({ enum: ['51', '52', '53', '54'], example: '51' })
+  @IsString()
+  @IsNotEmpty()
+  questionType: string;
 }
 
 class GenerateQuizDto {
@@ -75,7 +97,21 @@ export class AIController {
   @Post('writing-correction')
   @ApiOperation({ summary: 'Submit writing for AI correction' })
   correctWriting(@CurrentUser('id') userId: string, @Body() dto: WritingCorrectionDto) {
-    return this.aiService.correctWriting(userId, dto.prompt, dto.userAnswer, dto.provider);
+    return this.aiService.correctWriting(
+      userId,
+      dto.prompt,
+      dto.userAnswer,
+      dto.provider,
+      dto.questionType,
+      dto.sampleAnswer,
+      dto.explanation,
+    );
+  }
+
+  @Post('generate-writing-question')
+  @ApiOperation({ summary: 'Generate TOPIK writing question using AI' })
+  generateWritingQuestion(@Body() dto: GenerateWritingQuestionDto) {
+    return this.aiService.generateWritingQuestion(dto.questionType);
   }
 
   @Post('generate-quiz')

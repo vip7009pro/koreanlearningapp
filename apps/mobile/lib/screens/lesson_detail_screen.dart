@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -208,6 +209,7 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
 
   Future<void> _loadData() async {
     final api = ref.read(apiClientProvider);
+    final box = Hive.box('offline_box');
     try {
       final lessonRes = await api.getLesson(widget.lessonId);
       final lessonData = lessonRes.data as Map<String, dynamic>;
@@ -217,6 +219,10 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       _grammar = _lesson?['grammars'] ?? [];
       _dialogues = _lesson?['dialogues'] ?? [];
       _quizzes = _lesson?['quizzes'] ?? [];
+      
+      // Auto-cache the lesson details
+      await box.put('lesson_${widget.lessonId}', lessonData);
+      
       _dialogueItemKeys = List.generate(_dialogues.length, (_) => GlobalKey());
       _vocabListView = true;
       _showMeaning = false;
@@ -226,7 +232,29 @@ class _LessonDetailScreenState extends ConsumerState<LessonDetailScreen>
       // Track progress: mark lesson as visited and add XP
       _trackProgress();
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      final cachedLesson = box.get('lesson_${widget.lessonId}');
+      if (cachedLesson != null) {
+        _lesson = Map<String, dynamic>.from(cachedLesson);
+        _vocab = _lesson?['vocabularies'] ?? [];
+        _grammar = _lesson?['grammars'] ?? [];
+        _dialogues = _lesson?['dialogues'] ?? [];
+        _quizzes = _lesson?['quizzes'] ?? [];
+        _dialogueItemKeys = List.generate(_dialogues.length, (_) => GlobalKey());
+        _vocabListView = true;
+        _showMeaning = false;
+        _currentVocabIndex = 0;
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đang hiển thị nội dung offline của bài học 🌐'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
     }
   }
 

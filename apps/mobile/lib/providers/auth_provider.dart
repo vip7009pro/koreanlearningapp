@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_client.dart';
@@ -32,11 +34,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _api.setToken(token);
       try {
         final res = await _api.getProfile();
+        await prefs.setString('cached_user_profile', jsonEncode(res.data));
         state = AuthState(isAuthenticated: true, user: res.data);
-      } catch (_) {
-        await prefs.remove('auth_token');
-        _api.setToken(null);
-        state = AuthState();
+      } catch (e) {
+        bool isNetworkError = true;
+        if (e is DioException) {
+          if (e.response != null &&
+              (e.response!.statusCode == 401 || e.response!.statusCode == 403)) {
+            isNetworkError = false;
+          }
+        }
+        if (isNetworkError) {
+          final cachedUserJson = prefs.getString('cached_user_profile');
+          if (cachedUserJson != null) {
+            try {
+              final userMap = jsonDecode(cachedUserJson);
+              state = AuthState(isAuthenticated: true, user: userMap);
+              return;
+            } catch (_) {}
+          }
+          // Default fallback profile if offline but no cached profile exists
+          state = AuthState(
+            isAuthenticated: true,
+            user: {
+              'id': 'offline_user',
+              'email': prefs.getString('last_login_email') ?? 'offline@app.local',
+              'displayName': 'Người học Offline',
+              'role': 'PREMIUM',
+              'subscription': {'planType': 'PREMIUM'},
+              'aiTicketsBalance': 0,
+            },
+          );
+        } else {
+          await prefs.remove('auth_token');
+          _api.setToken(null);
+          state = AuthState();
+        }
       }
     }
   }
@@ -52,6 +85,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setString('auth_token', token);
       await prefs.setString('last_login_email', email);
       await prefs.setString('last_login_password', password);
+      await prefs.setString('cached_user_profile', jsonEncode(res.data['user']));
 
       state = AuthState(
         isAuthenticated: true,
@@ -78,6 +112,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setString('auth_token', token);
       await prefs.setString('last_login_email', email);
       await prefs.setString('last_login_password', password);
+      await prefs.setString('cached_user_profile', jsonEncode(res.data['user']));
 
       state = AuthState(
         isAuthenticated: true,
@@ -98,6 +133,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
+      await prefs.setString('cached_user_profile', jsonEncode(res.data['user']));
 
       state = AuthState(
         isAuthenticated: true,
@@ -122,6 +158,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
+      await prefs.setString('cached_user_profile', jsonEncode(res.data['user']));
 
       state = AuthState(
         isAuthenticated: true,
@@ -175,6 +212,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
+    await prefs.setString('cached_user_profile', jsonEncode(res.data['user']));
 
     state = AuthState(
       isAuthenticated: true,
@@ -188,6 +226,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _api.setToken(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    await prefs.remove('cached_user_profile');
     state = AuthState();
   }
 
@@ -204,6 +243,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _api.setToken(null);
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
+      await prefs.remove('cached_user_profile');
       await prefs.remove('last_login_email');
       await prefs.remove('last_login_password');
       state = AuthState();
@@ -222,6 +262,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> refreshProfile() async {
     if (!state.isAuthenticated) return;
     final res = await _api.getProfile();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cached_user_profile', jsonEncode(res.data));
     state = AuthState(
       isAuthenticated: true,
       user: res.data,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import '../core/api_client.dart';
 import '../providers/app_settings_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/app_banner_ad.dart';
 
 class CourseDetailScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
   Map<String, dynamic>? _progress;
   Map<String, bool> _lessonCompleted = {};
   bool _loading = true;
+  bool _isDownloaded = false;
 
   @override
   void initState() {
@@ -28,9 +31,22 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
 
   Future<void> _loadData() async {
     final api = ref.read(apiClientProvider);
+    final box = Hive.box('offline_box');
+
+    // Check download status first
+    final downloadedList = (box.get('downloaded_courses') as List?)?.map((e) => e.toString()).toList() ?? [];
+    final downloaded = downloadedList.contains(widget.courseId);
+
     try {
       final courseRes = await api.getCourse(widget.courseId);
       final sectionsRes = await api.getSections(widget.courseId);
+
+      // If course details are updated online and it's marked downloaded, update the cache
+      if (downloaded) {
+        await box.put('course_${widget.courseId}', courseRes.data);
+        await box.put('sections_${widget.courseId}', sectionsRes.data);
+      }
+
       final progressRes = await api.getCourseProgress(widget.courseId);
       final userProgressRes = await api.getUserProgress();
 
@@ -51,11 +67,38 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           _sections = sectionsRes.data ?? [];
           _progress = progressRes.data;
           _lessonCompleted = completedMap;
+          _isDownloaded = downloaded;
           _loading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      // Offline fallback
+      final cachedCourse = box.get('course_${widget.courseId}');
+      final cachedSections = box.get('sections_${widget.courseId}');
+      if (cachedCourse != null && cachedSections != null) {
+        if (mounted) {
+          setState(() {
+            _course = Map<String, dynamic>.from(cachedCourse);
+            _sections = List<dynamic>.from(cachedSections);
+            _progress = {
+              'completedLessons': 0,
+              'totalLessons': 0,
+              'percentage': 0,
+            };
+            _lessonCompleted = {};
+            _isDownloaded = true;
+            _loading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đang hiển thị nội dung offline của khóa học 🌐'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
     }
   }
 
@@ -86,6 +129,110 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
     }
   }
 
+  Future<void> _downloadCourseOffline() async {
+    final user = ref.read(authProvider).user;
+    final isPremium = user?['role'] == 'ADMIN' ||
+        (user?['subscription'] != null &&
+            user?['subscription']?['planType'] != 'FREE');
+
+    if (!isPremium) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Tính năng Premium 👑'),
+          content: const Text(
+            'Tải bài học offline là tính năng dành riêng cho tài khoản Premium. Vui lòng nâng cấp để sử dụng.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Để sau'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.push('/subscription');
+              },
+              child: const Text('Đến Cửa Hàng'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Đang tải bài học offline...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final api = ref.read(apiClientProvider);
+      final box = Hive.box('offline_box');
+
+      // Fetch and cache course details
+      final courseRes = await api.getCourse(widget.courseId);
+      await box.put('course_${widget.courseId}', courseRes.data);
+
+      // Fetch and cache sections & lessons list
+      final sectionsRes = await api.getSections(widget.courseId);
+      await box.put('sections_${widget.courseId}', sectionsRes.data);
+
+      // Fetch and cache each lesson
+      final sectionsList = sectionsRes.data as List? ?? [];
+      for (final section in sectionsList) {
+        final lessons = section['lessons'] as List? ?? [];
+        for (final lesson in lessons) {
+          final lessonId = lesson['id']?.toString() ?? '';
+          if (lessonId.isNotEmpty) {
+            final lessonRes = await api.getLesson(lessonId);
+            await box.put('lesson_$lessonId', lessonRes.data);
+          }
+        }
+      }
+
+      // Mark as downloaded
+      final downloadedList = List<String>.from(box.get('downloaded_courses') as List? ?? []);
+      if (!downloadedList.contains(widget.courseId)) {
+        downloadedList.add(widget.courseId);
+        await box.put('downloaded_courses', downloadedList);
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close progress dialog
+        setState(() {
+          _isDownloaded = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Đã tải khóa học offline thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close progress dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tải offline: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -101,6 +248,16 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
+            actions: [
+              IconButton(
+                tooltip: _isDownloaded ? 'Đã tải khóa học offline' : 'Tải khóa học offline',
+                icon: Icon(
+                  _isDownloaded ? Icons.cloud_done : Icons.cloud_download_outlined,
+                  color: Colors.white,
+                ),
+                onPressed: _isDownloaded ? null : () => _downloadCourseOffline(),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(

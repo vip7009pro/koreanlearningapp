@@ -431,6 +431,8 @@ model AIWritingPractice {
   score         Int?
   correctedText String?
   errors        Json?
+  sampleAnswer  String?
+  explanation   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

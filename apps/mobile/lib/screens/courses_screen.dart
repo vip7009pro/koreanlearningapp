@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hive/hive.dart';
 
 import '../core/ads_manager.dart';
 import '../core/api_client.dart';
@@ -27,16 +28,33 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
 
   Future<void> _load() async {
     final api = ref.read(apiClientProvider);
+    final box = Hive.box('offline_box');
     try {
       final res = await api.getCourses();
       if (!mounted) return;
+      final coursesList = res.data?['data'] ?? [];
       setState(() {
-        _courses = res.data?['data'] ?? [];
+        _courses = coursesList;
         _loading = false;
       });
+      await box.put('courses_list', coursesList);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      final cachedList = box.get('courses_list') as List?;
+      if (cachedList != null) {
+        setState(() {
+          _courses = cachedList;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đang hiển thị danh sách khóa học offline 🌐'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        setState(() => _loading = false);
+      }
     }
   }
 

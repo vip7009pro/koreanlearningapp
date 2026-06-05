@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/ads_manager.dart';
@@ -31,6 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _loadData() async {
     final api = ref.read(apiClientProvider);
+    final box = Hive.box('offline_box');
     try {
       final coursesRes = await api.getCourses();
       final topikRes = await api.getTopikExams();
@@ -38,18 +40,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       try {
         await ref.read(authProvider.notifier).refreshProfile();
       } catch (_) {}
+
+      final coursesList = coursesRes.data?['data'] ?? [];
+      final topikList = (topikRes.data as List?) ?? [];
+      final dailyGoal = goalRes.data;
+
       if (mounted) {
         setState(() {
-          _courses = coursesRes.data?['data'] ?? [];
-          _topikExams = (topikRes.data as List?) ?? [];
-          _dailyGoal = goalRes.data;
+          _courses = coursesList;
+          _topikExams = topikList;
+          _dailyGoal = dailyGoal;
           _loading = false;
         });
         _checkAndShowTrialNotice();
       }
+
+      await box.put('home_courses', coursesList);
+      await box.put('home_topik_exams', topikList);
+      await box.put('home_daily_goal', dailyGoal);
     } catch (_) {
       if (mounted) {
-        setState(() => _loading = false);
+        final cachedCourses = box.get('home_courses') as List?;
+        final cachedTopik = box.get('home_topik_exams') as List?;
+        final cachedGoal = box.get('home_daily_goal') as Map?;
+        setState(() {
+          if (cachedCourses != null) {
+            _courses = cachedCourses;
+          }
+          if (cachedTopik != null) {
+            _topikExams = cachedTopik;
+          }
+          if (cachedGoal != null) {
+            _dailyGoal = Map<String, dynamic>.from(cachedGoal);
+          }
+          _loading = false;
+        });
       }
     }
   }

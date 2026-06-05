@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 
 import '../core/ads_manager.dart';
 import '../core/api_client.dart';
@@ -52,19 +53,36 @@ class _TopikExamsScreenState extends ConsumerState<TopikExamsScreen>
     });
 
     final api = ref.read(apiClientProvider);
+    final box = Hive.box('offline_box');
     try {
       final res = await api.getTopikExams();
       if (!mounted) return;
+      final examsList = (res.data as List?) ?? [];
       setState(() {
-        _exams = (res.data as List?) ?? [];
+        _exams = examsList;
         _loading = false;
       });
+      await box.put('topik_exams_list', examsList);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'Không tải được danh sách đề. Vui lòng thử lại.';
-      });
+      final cachedList = box.get('topik_exams_list') as List?;
+      if (cachedList != null) {
+        setState(() {
+          _exams = cachedList;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đang hiển thị danh sách đề TOPIK offline 🌐'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        setState(() {
+          _loading = false;
+          _error = 'Không tải được danh sách đề. Vui lòng thử lại.';
+        });
+      }
     }
   }
 

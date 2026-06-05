@@ -395,6 +395,9 @@ class ApiClient {
     String prompt,
     String userAnswer, {
     String? provider,
+    String? questionType,
+    String? sampleAnswer,
+    String? explanation,
   }) =>
       _dio.post(
         '/ai/writing-correction',
@@ -402,8 +405,18 @@ class ApiClient {
           'prompt': prompt,
           'userAnswer': userAnswer,
           if (provider != null) 'provider': provider,
+          if (questionType != null) 'questionType': questionType,
+          if (sampleAnswer != null) 'sampleAnswer': sampleAnswer,
+          if (explanation != null) 'explanation': explanation,
         },
       );
+
+  Future<Response> generateWritingQuestion(String questionType) =>
+      _dio.post(
+        '/ai/generate-writing-question',
+        data: {'questionType': questionType},
+      );
+
   Future<Response> getWritingHistory({int page = 1, int limit = 20}) =>
       _dio.get('/ai/writing-history',
           queryParameters: {'page': page, 'limit': limit});

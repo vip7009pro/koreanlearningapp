@@ -1,7 +1,7 @@
 name: korean_learning_app
 description: "Korean Learning App - Mobile"
 publish_to: 'none'
-version: 1.0.0+9
+version: 1.0.0+10
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -18,6 +18,7 @@ dependencies:
   json_annotation: ^4.8.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  flutter_markdown: ^0.7.3
   cached_network_image: ^3.3.1
   google_fonts: ^6.1.0
   shimmer: ^3.0.0

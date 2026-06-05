@@ -42,9 +42,10 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
     }
   }
 
-  Color _scoreColor(int score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 50) return Colors.orange;
+  Color _scoreColor(int score, int maxScore) {
+    final ratio = score / maxScore;
+    if (ratio >= 0.8) return Colors.green;
+    if (ratio >= 0.5) return Colors.orange;
     return Colors.red;
   }
 
@@ -119,13 +120,22 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
                           }
 
                           final item = _items[index];
-                          final score = item['score'] ?? 0;
                           final prompt = item['prompt'] ?? '';
                           final answer = item['userAnswer'] ?? '';
                           final createdAt = item['createdAt'] != null
                               ? DateFormat('dd/MM/yyyy HH:mm').format(
                                   DateTime.parse(item['createdAt']).toLocal())
                               : '';
+
+                          int maxScore = 100;
+                          if (prompt.startsWith('Câu 51') || prompt.startsWith('Câu 52')) {
+                            maxScore = 10;
+                          } else if (prompt.startsWith('Câu 53')) {
+                            maxScore = 30;
+                          } else if (prompt.startsWith('Câu 54')) {
+                            maxScore = 50;
+                          }
+                          final score = item['score'] ?? 0;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -142,17 +152,31 @@ class _WritingHistoryScreenState extends ConsumerState<WritingHistoryScreen> {
                                       height: 50,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: _scoreColor(score)
+                                        color: _scoreColor(score, maxScore)
                                             .withValues(alpha: 0.15),
                                       ),
                                       child: Center(
-                                        child: Text(
-                                          '$score',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: _scoreColor(score),
-                                          ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              '$score',
+                                              style: TextStyle(
+                                                fontSize: maxScore == 100 ? 18 : 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: _scoreColor(score, maxScore),
+                                              ),
+                                            ),
+                                            if (maxScore != 100)
+                                              Text(
+                                                '/$maxScore',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _scoreColor(score, maxScore).withValues(alpha: 0.7),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                     ),

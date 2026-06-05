@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'core/router.dart';
 import 'core/ads_manager.dart';
 import 'core/backend_config.dart';
@@ -15,6 +16,8 @@ Future<void> main() async {
   await Firebase.initializeApp();
   await MobileAds.instance.initialize();
   await BackendConfig.init();
+  await Hive.initFlutter();
+  await Hive.openBox('offline_box');
   runApp(const ProviderScope(child: KoreanLearningApp()));
 }
 

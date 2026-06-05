@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_settings_provider.dart';
@@ -8,9 +9,10 @@ class WritingDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> item;
   const WritingDetailScreen({super.key, required this.item});
 
-  Color _scoreColor(int score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 50) return Colors.orange;
+  Color _scoreColor(int score, int maxScore) {
+    final ratio = score / maxScore;
+    if (ratio >= 0.8) return Colors.green;
+    if (ratio >= 0.5) return Colors.orange;
     return Colors.red;
   }
 
@@ -19,8 +21,16 @@ class WritingDetailScreen extends ConsumerWidget {
     final themeId = ref.watch(appSettingsProvider).themeId;
     final theme = AppSettingsNotifier.themeById(themeId);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final score = item['score'] ?? 0;
     final prompt = item['prompt'] ?? '';
+    int maxScore = 100;
+    if (prompt.startsWith('Câu 51') || prompt.startsWith('Câu 52')) {
+      maxScore = 10;
+    } else if (prompt.startsWith('Câu 53')) {
+      maxScore = 30;
+    } else if (prompt.startsWith('Câu 54')) {
+      maxScore = 50;
+    }
+    final score = item['score'] ?? 0;
     final answer = item['userAnswer'] ?? '';
     final feedback = item['aiFeedback'] ?? '';
     final createdAt = item['createdAt'] != null
@@ -57,27 +67,29 @@ class WritingDetailScreen extends ConsumerWidget {
                     width: 100,
                     height: 100,
                     child: CircularProgressIndicator(
-                      value: score / 100,
+                      value: (score / maxScore).clamp(0.0, 1.0),
                       strokeWidth: 10,
                       backgroundColor:
-                          _scoreColor(score).withValues(alpha: 0.2),
-                      valueColor: AlwaysStoppedAnimation(_scoreColor(score)),
+                          _scoreColor(score, maxScore).withValues(alpha: 0.2),
+                      valueColor: AlwaysStoppedAnimation(_scoreColor(score, maxScore)),
                     ),
                   ),
                   Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         '$score',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: _scoreColor(score),
+                          color: _scoreColor(score, maxScore),
                         ),
                       ),
                       Text(
-                        'điểm',
+                        '/$maxScore điểm',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
                           color: isDark
                               ? Colors.grey.shade400
                               : Colors.grey.shade500,
@@ -116,7 +128,13 @@ class WritingDetailScreen extends ConsumerWidget {
               icon: Icons.lightbulb,
               title: 'Nhận xét của AI',
               color: Colors.green,
-              child: Text(feedback, style: const TextStyle(fontSize: 15)),
+              child: MarkdownBody(
+                data: feedback,
+                selectable: true,
+                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                  p: const TextStyle(fontSize: 15),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             if (item['correctedText'] != null &&
@@ -126,7 +144,47 @@ class WritingDetailScreen extends ConsumerWidget {
                 icon: Icons.auto_fix_high,
                 title: 'Bài viết đã sửa',
                 color: Colors.blue,
-                child: Text(item['correctedText'], style: const TextStyle(fontSize: 15)),
+                child: MarkdownBody(
+                  data: item['correctedText'],
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                    p: const TextStyle(fontSize: 15),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (item['sampleAnswer'] != null &&
+                item['sampleAnswer'].toString().trim().isNotEmpty) ...[
+              _buildSection(
+                context,
+                icon: Icons.check_circle_outline,
+                title: 'Đáp án mẫu đạt điểm tối đa',
+                color: Colors.teal,
+                child: MarkdownBody(
+                  data: item['sampleAnswer'],
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                    p: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (item['explanation'] != null &&
+                item['explanation'].toString().trim().isNotEmpty) ...[
+              _buildSection(
+                context,
+                icon: Icons.info_outline,
+                title: 'Giải nghĩa & Ngữ pháp cốt lõi',
+                color: Colors.amber.shade800,
+                child: MarkdownBody(
+                  data: item['explanation'],
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                    p: const TextStyle(fontSize: 14, height: 1.45),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
             ],

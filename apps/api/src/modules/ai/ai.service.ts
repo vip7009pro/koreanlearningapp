@@ -19,6 +19,8 @@ export interface WritingCorrectionResult {
   feedback: string;
   score: number;
   errors: { original: string; corrected: string; explanation: string }[];
+  sampleAnswer?: string;
+  explanation?: string;
 }
 
 export interface GeneratedQuiz {
@@ -1508,6 +1510,9 @@ QUY TẮC BẮT BUỘC:
     prompt: string,
     userAnswer: string,
     preferredProvider?: string,
+    questionType?: string,
+    sampleAnswer?: string,
+    explanation?: string,
   ): Promise<WritingCorrectionResult> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -1548,9 +1553,9 @@ QUY TẮC BẮT BUỘC:
     for (const provider of providerOrder) {
       try {
         if (provider === 'google') {
-          result = await this.callGoogleWriting(prompt, userAnswer);
+          result = await this.callGoogleWriting(prompt, userAnswer, questionType);
         } else {
-          result = await this.callOpenRouter(prompt, userAnswer);
+          result = await this.callOpenRouter(prompt, userAnswer, questionType);
         }
         break;
       } catch (error) {
@@ -1575,6 +1580,8 @@ QUY TẮC BẮT BUỘC:
         score: result.score,
         correctedText: result.correctedText,
         errors: result.errors as any,
+        sampleAnswer: sampleAnswer || result.sampleAnswer || null,
+        explanation: explanation || result.explanation || null,
       },
     });
 
@@ -1592,7 +1599,7 @@ QUY TẮC BẮT BUỘC:
     return result;
   }
 
-  private async callOpenRouter(prompt: string, userAnswer: string): Promise<WritingCorrectionResult> {
+  private async callOpenRouter(prompt: string, userAnswer: string, questionType?: string): Promise<WritingCorrectionResult> {
     let model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
     if (process.env.FORCE_AI_MODEL === 'true' && process.env.DEFAULT_AI_MODEL) {
       model = process.env.DEFAULT_AI_MODEL;
@@ -1601,12 +1608,14 @@ QUY TẮC BẮT BUỘC:
       this.logger.log(`[AI Call] OpenRouter Writing Correction (Model: "${model}")`);
     }
 
+    const systemPrompt = this.getAdjustedSystemPrompt(questionType);
+
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         model,
         messages: [
-          { role: 'system', content: this.SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: `Chủ đề viết: "${prompt}"\n\nBài viết của học viên:\n"${userAnswer}"\n\nHãy chấm điểm và sửa bài. Trả lời bằng JSON theo đúng cấu trúc đã quy định.`,
@@ -1640,6 +1649,8 @@ QUY TẮC BẮT BUỘC:
         feedback: parsed.feedback || 'Không có nhận xét',
         score: typeof parsed.score === 'number' ? parsed.score : 70,
         errors: Array.isArray(parsed.errors) ? parsed.errors : [],
+        sampleAnswer: parsed.sampleAnswer || undefined,
+        explanation: parsed.explanation || undefined,
       };
     } catch {
       // If JSON parsing fails, return the raw text as feedback
@@ -1658,13 +1669,16 @@ QUY TẮC BẮT BUỘC:
       feedback: raw?.feedback || 'Không có nhận xét',
       score: typeof raw?.score === 'number' ? raw.score : 70,
       errors: Array.isArray(raw?.errors) ? raw.errors : [],
+      sampleAnswer: raw?.sampleAnswer || undefined,
+      explanation: raw?.explanation || undefined,
     };
   }
 
-  private async callGoogleWriting(prompt: string, userAnswer: string): Promise<WritingCorrectionResult> {
+  private async callGoogleWriting(prompt: string, userAnswer: string, questionType?: string): Promise<WritingCorrectionResult> {
+    const systemPrompt = this.getAdjustedSystemPrompt(questionType);
     const raw = await this.callAiJson(
       'google',
-      this.SYSTEM_PROMPT,
+      systemPrompt,
       `Chủ đề viết: "${prompt}"\n\nBài viết của học viên:\n"${userAnswer}"\n\nHãy chấm điểm và sửa bài. Trả lời bằng JSON theo đúng cấu trúc đã quy định.`,
       undefined,
       2000,
@@ -1977,6 +1991,66 @@ You MUST respond ONLY with a JSON object matching this structure:
       } catch (e) {
         // ignore cleanup errors
       }
+    }
+  }
+
+  private getAdjustedSystemPrompt(questionType?: string): string {
+    if (!questionType) {
+      return this.SYSTEM_PROMPT;
+    }
+    const maxScore = questionType === '51' || questionType === '52' ? 10 : (questionType === '53' ? 30 : 50);
+    let typeSpecificRules = '';
+    if (questionType === '51' || questionType === '52') {
+      typeSpecificRules = `\nĐối với Câu ${questionType}, học viên chỉ nhập câu trả lời điền vào chỗ trống ㉠ và ㉡ theo định dạng:
+"㉠: [câu trả lời cho ㉠]
+㉡: [câu trả lời cho ㉡]"
+Hãy chấm điểm dựa trên độ chính xác ngữ pháp, từ vựng và sự phù hợp ngữ cảnh của từng câu trả lời trong chỗ trống. Trả về bài sửa (correctedText) dưới dạng đoạn văn hoàn chỉnh đã điền hai đáp án này vào vị trí tương ứng.`;
+    }
+    return `Bạn là giám khảo chấm thi viết TOPIK II xuất sắc. Nhiệm vụ của bạn là chấm điểm bài viết tiếng Hàn của học viên và trả về kết quả dưới dạng JSON.
+BẮT BUỘC dùng tiếng Việt cho tất cả lời nhận xét (feedback), hướng dẫn, diễn giải lỗi (explanation), và phần giải nghĩa ngữ pháp (explanation). TUYỆT ĐỐI KHÔNG dùng tiếng Hàn cho các đoạn diễn giải, nhận xét hay giải thích này. Chỉ có các câu tiếng Hàn được sửa, đáp án mẫu tiếng Hàn hoặc các từ/câu ví dụ tiếng Hàn thì mới được viết bằng tiếng Hàn.
+
+Phản hồi của bạn BẮT BUỘC phải ở dạng JSON hợp lệ với cấu trúc sau:
+{
+  "correctedText": "bài viết đã sửa hoàn chỉnh bằng tiếng Hàn (đối với Câu 51/52 là cả đoạn văn hoàn chỉnh đã điền)",
+  "feedback": "nhận xét tổng thể và hướng dẫn chi tiết BẰNG TIẾNG VIỆT",
+  "score": <số nguyên từ 0 đến ${maxScore}>,
+  "errors": [{"original": "lỗi gốc trong bài viết của học viên", "corrected": "cách viết đã sửa bằng tiếng Hàn", "explanation": "giải thích chi tiết lý do sai và cách dùng BẰNG TIẾNG VIỆT"}],
+  "sampleAnswer": "đáp án mẫu tiếng Hàn đạt điểm tối đa cho đề bài này (đối với Câu 51/52 hãy chỉ ra đáp án mẫu điền chuẩn cho ㉠ và ㉡)",
+  "explanation": "dịch nghĩa tiếng Việt của đáp án mẫu và giải thích chi tiết các cấu trúc ngữ pháp/từ vựng cốt lõi cần nhớ bằng tiếng Việt"
+}
+
+LƯU Ý ĐẶC BIỆT: Đây là bài viết Câu ${questionType} của đề thi viết TOPIK II. Hãy chấm điểm nghiêm khắc theo khung điểm của Câu ${questionType} (thang điểm tối đa là ${maxScore} điểm). Thuộc tính "score" trong phản hồi JSON BẮT BUỘC phải là một số nguyên từ 0 đến ${maxScore}.${typeSpecificRules}`;
+  }
+
+  async generateWritingQuestion(questionType: string) {
+    const maxScore = questionType === '51' || questionType === '52' ? 10 : (questionType === '53' ? 30 : 50);
+    const systemPrompt = `Bạn là chuyên gia thiết kế đề thi TOPIK II Hàn ngữ xuất sắc. Vai trò duy nhất của bạn là biên soạn một đề thi mẫu ngẫu nhiên mô phỏng đúng định dạng và bối cảnh các câu viết TOPIK II.
+Phản hồi của bạn BẮT BUỘC phải ở dạng JSON hợp lệ với cấu trúc sau:
+{
+  "question": "nội dung đề bài bằng tiếng Hàn hoàn chỉnh",
+  "instructions": "hướng dẫn làm bài và các chú ý bằng tiếng Việt",
+  "sampleAnswer": "đáp án mẫu viết bằng tiếng Hàn đạt điểm tối đa",
+  "explanation": "phần dịch nghĩa tiếng Việt và giải thích chi tiết các ngữ pháp/từ vựng cốt lõi trong đáp án mẫu bằng tiếng Việt"
+}`;
+
+    const userPrompt = `Hãy tạo một đề thi mẫu ngẫu nhiên cho Câu số ${questionType} của kỳ thi TOPIK II (thang điểm tối đa là ${maxScore} điểm). Hãy đảm bảo đề thi có tính thực tế cao và theo sát format của các kỳ thi TOPIK II gần đây.`;
+
+    const provider = 'google';
+    try {
+      const result = await this.callAiJson(provider, systemPrompt, userPrompt);
+      return {
+        success: true,
+        question: result.question || '',
+        instructions: result.instructions || '',
+        sampleAnswer: result.sampleAnswer || '',
+        explanation: result.explanation || '',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to generate writing question for type ${questionType}`, error);
+      throw new HttpException(
+        'Không thể tạo đề bài thi viết: ' + (error instanceof Error ? error.message : error),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
