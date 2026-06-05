@@ -5,7 +5,7 @@
     "scripts": {
         "build": "nest build",
         "dev": "nest start --watch",
-        "start": "node dist/src/main",
+        "start": "pm2 start dist/src/main.js --watch && pm2 logs",
         "start:prod": "node dist/src/main",
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
         "prisma:generate": "prisma generate",
