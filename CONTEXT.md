@@ -1,6 +1,6 @@
 # CONTEXT
 
-Last updated: 2026-05-28
+Last updated: 2026-09-04
 
 ## Persistent Rules
 - Check this file before responding when it exists.
@@ -11,6 +11,30 @@ Last updated: 2026-05-28
 - Main areas: apps/admin-web, apps/api, apps/mobile, packages/*
 
 ## Notes
+- Môi trường Android & Flutter sau khi cài lại Windows:
+  - Cài đặt Java 17 LTS (`Microsoft.OpenJDK.17` tại `C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot`) thay thế cho OpenJDK 25 (JBR) mặc định của Android Studio gây lỗi xung đột Gradle Daemon.
+  - Cấu hình biến môi trường vĩnh viễn `JAVA_HOME` và bổ sung vào `Path`.
+  - Cài đặt Android SDK Command-line Tools (`cmdline-tools;latest` v15859902), hoàn tất chấp thuận toàn bộ Android SDK licenses (`flutter doctor --android-licenses`).
+  - Cài đặt Android NDK 28 (`28.2.13676358`) và CMake 3.22.1.
+  - Nâng cấp Gradle Wrapper lên `8.14`, Android Gradle Plugin (AGP) lên `8.11.1`, Kotlin lên `2.2.20` tương thích hoàn toàn với Flutter SDK 3.47.2.
+  - Nâng cấp Google Play Billing Library lên phiên bản `8.0.0` (thông qua `in_app_purchase: ^3.3.0` và `in_app_purchase_android: ^0.5.3` chứa `com.android.billingclient:billing:8.0.0`), đáp ứng 100% yêu cầu của Google Play Console từ tháng 11/2026.
+  - Sửa lỗi xung đột `Redeclaration: class MainActivity` do tồn tại đồng thời hai file ở `com/example/korean_learning_app` và `com/hnp/korean_learning_app`. Đã hợp nhất logic method channel `openTtsSettings` và kế thừa `FlutterFragmentActivity` chuẩn vào `com.hnp.korean_learning_app.MainActivity`, dọn dẹp thư mục thừa.
+  - Biên dịch thành công APK debug tại `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`.
+  - Android Keystore SHA Fingerprints phục vụ Firebase & Google Play Console:
+    - Debug Key (`C:\Users\Admin\.android\debug.keystore`, alias `androiddebugkey`):
+      - SHA1: `06:99:7C:E3:CE:C9:24:95:56:9C:71:CC:2B:50:1A:59:8A:78:05:12`
+      - SHA256: `A8:80:BB:7A:B8:49:72:54:11:2A:0C:A4:D0:24:5F:0A:50:3C:31:A7:49:14:FE:E9:EA:AE:AB:25:CB:04:BF:A2`
+    - Release Key (`G:\NODEJS\hoctienghan.jks`, alias `my-key-alias`):
+      - SHA1: `C3:1A:B2:E0:9D:39:10:F6:47:95:83:D4:BC:44:89:88:09:7C:FA:A6`
+      - SHA256: `75:78:A0:B6:35:93:0F:93:AA:F0:57:0A:17:23:2E:6A:4A:F3:63:9B:A6:35:B2:8D:22:66:7B:B5:BB:A1:4B:2F`
+
+## Current Task
+- Khắc phục sự cố môi trường sau cài lại Windows & Nâng cấp Google Play Billing 8.0.0+:
+  - Hoàn tất rà soát và cấu hình đồng bộ chuỗi công cụ Java 17 LTS, Android SDK Platform 34/35/36, Build-Tools 35/36, NDK 28, CMake 3.22.1.
+  - Ghim tường minh `in_app_purchase_android: ^0.5.3` (`billing:8.0.0`), tương thích hoàn toàn các màn hình cửa hàng và thanh toán VIP.
+  - Tối ưu hóa cấu hình JVM và mạng Maven cho Gradle.
+  - Biên dịch thành công APK.
+- Sửa lỗi AdWidget:
 - Tối ưu hóa Local TTS bằng kiến trúc Hybrid Neural TTS: Tích hợp thư viện `edge-tts` nạp các giọng Neural chuẩn cao của Microsoft Edge (`ko-KR-SunHiNeural` cho giọng nữ thật và `ko-KR-InJoonNeural` cho giọng nam thật) miễn phí và tự nhiên 100% khi trực tuyến. Đồng thời tự động fallback về pipeline offline (Meta MMS-TTS nam / Sherpa KSS nữ) khi mất mạng, resample đồng loạt âm thanh về tần số 16000Hz để ghép nối mượt mà cho đề thi TOPIK, hỗ trợ trích xuất và đọc chính xác phần chỉ dẫn (instruction/intro text) đứng đầu câu hỏi thoại (mặc định bằng giọng nữ).
 - Tích hợp bộ script tự động hóa thiết lập môi trường Python (`requirements.txt`, `setup_python_env.ps1` cho Windows, `setup_python_env.sh` cho Linux/Mac, và `download_models.py` để tải trước model offline) tại thư mục root giúp dễ dàng cài đặt lại môi trường ảo `.venv` khi deploy sang máy khác.
 - Thêm ô nhập giới hạn số câu hỏi (limit) khi tạo file nghe toàn bộ (Consolidated Listening Audio) trên UI Admin Web và API backend giúp chỉ tạo nghe thử vài câu đầu để test nhanh.

@@ -84,6 +84,7 @@ Dưới đây là checklist phân chia theo 3 giai đoạn triển khai chi ti�
     *   [x] Tặng 1 ngày không quảng cáo cho người dùng mới và hiển thị thông báo trải nghiệm lần đầu tại Home.
     *   [x] Tích hợp Quảng cáo phần thưởng (AdMob Reward Ads) để xem quảng cáo nhận vé chấm AI miễn phí.
     *   [x] Thay thế gói hàng năm bằng tùy chọn mua đứt trọn đời (Lifetime) không quảng cáo với giá 500.000 VNĐ.
+    *   [x] Nâng cấp Google Play Billing Library lên phiên bản 8.0.0+ (qua `in_app_purchase_android: ^0.5.3` và `in_app_purchase: ^3.3.0`) đáp ứng quy định mới nhất của Google Play Console.
     *   [ ] Xây dựng màn hình "Gói Premium" với hiệu ứng chuyển động lấp lánh (Shiny Premium Card Effect).
 
 ### Giai đoạn 2: Trợ Lý Viết TOPIK & Hệ Thống Chẩn Đoán AI (Tháng 2-3 - Giai đoạn Bứt phá Công nghệ)
