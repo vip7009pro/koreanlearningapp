@@ -29,6 +29,7 @@ Last updated: 2026-09-04
       - SHA256: `75:78:A0:B6:35:93:0F:93:AA:F0:57:0A:17:23:2E:6A:4A:F3:63:9B:A6:35:B2:8D:22:66:7B:B5:BB:A1:4B:2F`
 
 ## Current Task
+- API port migration completed: backend API now runs on port `40000` instead of `3000` to avoid conflicts with another service. Verified health response at `http://localhost:40000/api/health` returns `{"status":"ok",...}` after restarting the PM2 process with `PORT=40000` in the environment and updating the runtime fallback in [apps/api/src/main.ts](apps/api/src/main.ts).
 - Khắc phục sự cố môi trường sau cài lại Windows & Nâng cấp Google Play Billing 8.0.0+:
   - Hoàn tất rà soát và cấu hình đồng bộ chuỗi công cụ Java 17 LTS, Android SDK Platform 34/35/36, Build-Tools 35/36, NDK 28, CMake 3.22.1.
   - Ghim tường minh `in_app_purchase_android: ^0.5.3` (`billing:8.0.0`), tương thích hoàn toàn các màn hình cửa hàng và thanh toán VIP.
@@ -260,6 +261,10 @@ Last updated: 2026-09-04
   - Added verification in all authentication gateways (email/password, Google, and Phone login) to reject deactivated accounts with a clear message: "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận hỗ trợ để khôi phục."
   - Updated mobile app [api_client.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/core/api_client.dart) and [auth_provider.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/providers/auth_provider.dart) to implement `deactivateMyAccount()` and `deactivateAccount()` methods.
   - Added a styled "Xóa tài khoản (Vô hiệu hóa)" warning button and a confirmation dialog explaining the soft-delete policy in [settings_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/settings_screen.dart). Upon confirmation, it hits the API and logs out the user.
+- API Startup Fix (2026-10-04):
+  - Root cause: Prisma generated client was missing/stale, so `UserRole` was undefined at runtime while `@IsEnum(UserRole)` executed in [apps/api/src/modules/users/dto/user.dto.ts](apps/api/src/modules/users/dto/user.dto.ts).
+  - Fix: regenerated Prisma client and updated [apps/api/package.json](apps/api/package.json) to run `npx prisma generate` before PM2 startup, with no `--watch` to avoid PM2 restart loops from file-watch churn.
+  - Verification: `npm run start` launched successfully and `http://localhost:3000/api/health` returned `200` with `{"status":"ok"}`.
 - Tải bài học offline (Offline Learning Cache):
   - Khởi tạo Hive Box `'offline_box'` trong [main.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/main.dart).
   - Tích hợp caching và cơ chế fallback tự động khi ngoại tuyến trong [courses_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/courses_screen.dart), [course_detail_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/course_detail_screen.dart) và [lesson_detail_screen.dart](file:///g:/NODEJS/koreanlearningapp/apps/mobile/lib/screens/lesson_detail_screen.dart).
